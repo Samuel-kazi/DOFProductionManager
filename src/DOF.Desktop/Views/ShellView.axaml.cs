@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Notifications;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using DOF.Desktop.ViewModels;
@@ -8,6 +9,8 @@ namespace DOF.Desktop.Views;
 public partial class ShellView : UserControl
 {
     private readonly List<KeyBinding> _bindings = [];
+    private WindowNotificationManager? _popups;
+    private ShellViewModel? _vm;
 
     public ShellView() => InitializeComponent();
 
@@ -35,6 +38,20 @@ public partial class ShellView : UserControl
         _bindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.OemComma, modifier), Command = vm.OpenSettingsCommand });
 
         top.KeyBindings.AddRange(_bindings);
+
+        // Desktop pop-ups for notifications that arrive while the app is open.
+        _vm = vm;
+        _popups = new WindowNotificationManager(top) { Position = NotificationPosition.TopRight, MaxItems = 3 };
+        vm.Notifications.Arrived += ShowPopups;
+    }
+
+    private void ShowPopups(object? sender, IReadOnlyList<DOF.Contracts.Responses.NotificationResponse> arrived)
+    {
+        foreach (var n in arrived.Take(3))
+        {
+            var type = n.NotificationType is "Overdue" or "Escalation" ? NotificationType.Warning : NotificationType.Information;
+            _popups?.Show(new Notification(n.Title, n.Message, type, TimeSpan.FromSeconds(8)));
+        }
     }
 
     protected override void OnUnloaded(RoutedEventArgs e)
@@ -48,6 +65,12 @@ public partial class ShellView : UserControl
         }
 
         _bindings.Clear();
+        if (_vm is { } vm)
+        {
+            vm.Notifications.Arrived -= ShowPopups;
+            vm.StopBackgroundWork();
+            _vm = null;
+        }
         base.OnUnloaded(e);
     }
 }

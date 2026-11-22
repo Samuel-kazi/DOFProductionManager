@@ -26,8 +26,15 @@ public interface IApplicationDbContext
     DbSet<EpisodeAssignment> EpisodeAssignments { get; }
     DbSet<DistributionChannel> DistributionChannels { get; }
     DbSet<Release> Releases { get; }
+    DbSet<Reminder> Reminders { get; }
+    DbSet<Notification> Notifications { get; }
+    DbSet<OutboxMessage> OutboxMessages { get; }
+    DbSet<NotificationPreference> NotificationPreferences { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
+
+    /// <summary>Stops tracking everything (used by background jobs to recover cleanly after a failed save).</summary>
+    void ClearTracked();
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

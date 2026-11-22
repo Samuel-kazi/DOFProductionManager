@@ -122,6 +122,9 @@ public sealed partial class ReleasesViewModel(ApiClient api, AuthSession session
     [RelayCommand]
     private void CloseSidePanel() => SidePanel = null;
 
+    [RelayCommand]
+    private Task AddReminderAsync(Reminders.RemindMeViewModel remind) => RemindMe.AddAsync(api, remind);
+
     // ---- create and edit ----
 
     [RelayCommand]

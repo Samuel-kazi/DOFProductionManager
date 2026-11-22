@@ -19,6 +19,55 @@ public sealed partial class SettingsViewModel(
 {
     public override string Title => "Settings";
 
+    // ---- profile (name and timezone) and calendar default ----
+
+    public IReadOnlyList<string> TimeZones { get; } = [.. TimeZoneInfo.GetSystemTimeZones()
+        .Select(z => z.HasIanaId ? z.Id : TimeZoneInfo.TryConvertWindowsIdToIanaId(z.Id, out var iana) ? iana : null)
+        .OfType<string>().Distinct().Order()];
+
+    [ObservableProperty] public partial string EditableName { get; set; } = session.CurrentUser?.FullName ?? string.Empty;
+    [ObservableProperty] public partial string? SelectedTimeZone { get; set; } = session.CurrentUser?.TimeZone;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasProfileMessage))]
+    public partial string? ProfileMessage { get; private set; }
+
+    public bool HasProfileMessage => ProfileMessage is not null;
+
+    [RelayCommand]
+    private async Task SaveProfileAsync()
+    {
+        ProfileMessage = null;
+        if (SelectedTimeZone is null)
+        {
+            return;
+        }
+        CurrentUserResponse? updated = null;
+        if (await RunAsync(async () => updated = await api.PatchAsync<CurrentUserResponse>("api/v1/auth/me",
+                new UpdateMyProfileRequest(EditableName, SelectedTimeZone))))
+        {
+            session.UpdateCurrentUser(updated!);
+            ProfileMessage = "Saved. Times are now shown in " + updated!.TimeZone + ".";
+            OnPropertyChanged(nameof(FullName));
+            OnPropertyChanged(nameof(TimeZone));
+        }
+    }
+
+    public IReadOnlyList<string> CalendarViews { get; } = ["Month", "Week", "Day", "Agenda"];
+
+    public string DefaultCalendarView
+    {
+        get => preferences.Current.DefaultCalendarView;
+        set
+        {
+            if (value != preferences.Current.DefaultCalendarView && CalendarViews.Contains(value))
+            {
+                preferences.Update(p => p with { DefaultCalendarView = value });
+                OnPropertyChanged();
+            }
+        }
+    }
+
     // ---- distribution channels (settings.manage) ----
 
     public bool CanManageChannels => session.CurrentUser?.Permissions.Contains("settings.manage") == true;

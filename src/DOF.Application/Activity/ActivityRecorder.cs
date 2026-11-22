@@ -33,6 +33,7 @@ public static class ActivityActions
     public const string Cancelled = "Cancelled";
     public const string Published = "Published";
     public const string Postponed = "Postponed";
+    public const string Escalated = "Escalated";
     public const string RolesChanged = "RolesChanged";
     public const string PermissionsChanged = "PermissionsChanged";
 }

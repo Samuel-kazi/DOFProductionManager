@@ -1,0 +1,52 @@
+# Single-server production deployment: PostgreSQL + the API behind your TLS reverse proxy.
+# Usage (from the repository root):
+#   cp deployment/docker/.env.example deployment/docker/.env   # then fill in real values (never commit .env)
+#   docker compose -f deployment/docker/docker-compose.production.yml --env-file deployment/docker/.env up -d --build
+# See docs/DEPLOYMENT.md for TLS, migrations, backups and upgrades.
+name: dof-production-manager
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - dof-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published to the host: only the API reaches the database.
+
+  api:
+    build:
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Database: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Database__ApplyMigrationsOnStartup: "false"
+      Organisation__DefaultTimeZone: ${ORGANISATION_TIMEZONE}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY}
+      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL}
+      Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD}
+      Email__Host: ${EMAIL_HOST}
+      Email__Port: ${EMAIL_PORT}
+      Email__Username: ${EMAIL_USERNAME}
+      Email__Password: ${EMAIL_PASSWORD}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS}
+      BackgroundJobs__Enabled: "true"
+      BackgroundJobs__RunServer: "true"
+    # Bind to localhost only; the TLS reverse proxy (Caddy, nginx) on the same host forwards to it.
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  dof-pgdata:

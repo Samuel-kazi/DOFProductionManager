@@ -28,6 +28,9 @@ dotnet ef database update --project src/DOF.Infrastructure --startup-project src
 - Calendar: never copy a date into `calendar_events`. A record type that owns dates adds an `ICalendarSource`
   (register it in `Application/DependencyInjection.cs`, add its type to `CalendarValues.SourceTypes`) and the
   shell's `OpenRecordAsync` learns to open it.
+- Reminders are server-side only. A new dated record type must be added to `ReminderSourceInterceptor` and
+  `ReminderSources` so its reminders are reconciled. Background jobs are plain services (`ReminderDispatcher`,
+  `OutboxProcessor`, …) run by Hangfire through `ReminderJobRunner`; tests call the services directly with a time.
 - Record important changes with `ActivityRecorder` in the same unit of work. `activity_logs` is append-only (DB trigger).
 - Permission checks for projects, milestones and tasks live in `WorkAccess`, and for shows, seasons and episodes in
   `ShowAccess`; never rely on the desktop hiding buttons.

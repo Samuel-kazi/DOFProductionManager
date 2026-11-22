@@ -11,9 +11,9 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | 3 | Dashboard and calendar | ✅ Complete (2026-11-22) |
 | 4 | Tasks and projects | ✅ Complete (2026-11-22) |
 | 5 | Shows and episodes | ✅ Complete (2026-11-22) |
-| 6 | Release management | ✅ Complete (2026-11-22), except reminder updates (see below) |
-| 7 | Reminder engine | Not started |
-| 8 | Reports and refinement | Not started |
+| 6 | Release management | ✅ Complete (2026-11-22); reminder criterion verified in Phase 7 |
+| 7 | Reminder engine | ✅ Complete (2026-11-22) |
+| 8 | Reports and refinement | ✅ Complete (2026-11-22); UAT and server go-live are for DOF to run |
 
 ## Phase 0 — Project foundation ✅
 
@@ -137,7 +137,7 @@ Deferred / open:
 | One episode can have independent release dates across channels | API test: YouTube, Spotify and Television with their own times and statuses; publishing one leaves the others unchanged; the episode moves to PartiallyPublished, then Published; duplicate channel → 409. UI test schedules from the episode page |
 | Published episodes preserve actual publication timestamps | API test: publishing needs `confirmed: true` and a time that is not in the future; both scheduled and actual times are kept; the assignee may confirm; published releases cannot be rescheduled or cancelled; corrections are in the history. A database check requires a time on Published |
 | Missed releases are flagged | API test: a past, unconfirmed release is `isOverdue`/`displayStatus: Overdue` in the release, `/releases/overdue`, the Overdue view, the dashboard and the calendar; it is **not** published; rescheduling clears the flag. UI test shows the Overdue view |
-| Rescheduled releases update their reminders | **Depends on the Phase 7 reminder engine.** Reschedules change the release itself (never a copy) and record the previous time, and reminders will be derived from `scheduled_at` by the reconciliation job. Verify this criterion in Phase 7 |
+| Rescheduled releases update their reminders | Verified in Phase 7: `ReminderTests.Rescheduled_and_postponed_releases_update_their_reminders` (rescheduling moves the pending reminder; postponing until further notice cancels it) |
 
 Also delivered: the seven seeded channels and channel management in Settings, workflow statuses,
 postponement and cancellation with reasons, `/releases/unpublished` (production finished, distribution
@@ -146,9 +146,56 @@ drag for releases. Fixed: switching views quickly on the Tasks page could show a
 183 automated tests pass.
 
 Deferred / open:
-- Reminder updates on reschedule: Phase 7 (see above).
-- Overdue *notifications*: Phase 7 job 2.
+- Reminder updates on reschedule: done in Phase 7.
+- Overdue *notifications*: done in Phase 7 (job 2).
 - Global search is still disabled.
+
+## Phase 7 — Reminder engine ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| Reminders work when desktop clients are closed | `ReminderTests.Reminders_are_delivered_by_the_server_in_app_and_by_email_with_no_client_open`: only the server's jobs run, and the person gets the in-app notification and the e-mail. Verified live: Hangfire registers and runs the jobs against PostgreSQL (`Hangfire_registers_the_recurring_jobs_in_postgresql`, plus a manual run on the dev database) |
+| A changed source date recalculates pending reminders | Tasks and releases: old pending reminders are cancelled with "The record's time changed", new ones are created at the new time, personal offset reminders move with the record, completing or postponing cancels, and running it again changes nothing |
+| Failed notifications are recorded | E-mail failure: retried with back-off, then `Failed` with retry count and error on the reminder and the outbox row, listed under Failed reminders and in the UI |
+| Duplicate notifications are prevented | Four concurrent dispatchers deliver a reminder once (row locks + unique idempotency keys); overdue detection and escalation run repeatedly produce one alert per item and due time, and a new due time alerts again |
+
+Also delivered: personal reminders (offset or fixed time), notification preferences (pop-ups,
+e-mail, overdue alerts, default offsets), escalation to production managers recorded in history, the
+notification bell with pop-ups, the reminder centre, "Remind me" on tasks and releases, and recent
+notifications on the dashboard. Fixed: toolbar icons (quick create, sidebar toggle) were invisible
+because their stroke binding did not resolve. 206 automated tests pass.
+
+Notes:
+- Pop-ups use Avalonia's in-window notifications while the app runs. When the app is closed,
+  notifications wait in the app and go out by e-mail if enabled. OS notification-centre integration
+  is not included.
+- E-mail needs SMTP settings on the server (`Email:*`, password in secrets). Until then it is shown
+  as unavailable.
+
+## Phase 8 — Reports and refinement ✅
+
+The specification lists Phase 8 deliverables but no acceptance criteria. Each deliverable is checked
+as follows:
+
+| Deliverable | Evidence |
+|---|---|
+| Management reports | Weekly, monthly, project status, overdue tasks (`ReportTests`; desktop Reports page with headline figures and a table whose rows open records) |
+| Workload reports | Team workload: tasks, milestones, episodes and releases per person |
+| Publication reports | Upcoming releases, recorded but unpublished, publication history with delay against the schedule |
+| CSV export | `format=csv` on every report. Test checks the BOM, header, quoting and formula-injection guard; the desktop exports to a chosen file |
+| Performance optimisation | Performance test on a seeded realistic volume meets every spec Part 9 target; batched reminder lookups |
+| User acceptance testing | [USER_ACCEPTANCE_TESTING.md](USER_ACCEPTANCE_TESTING.md): scripted scenarios for every Definition of Done item, by role, with sign-off. **To be run by DOF staff** |
+| Production deployment | [DEPLOYMENT.md](DEPLOYMENT.md), Dockerfile, compose file, migrations bundle and desktop packages (built locally); encrypted backup, restore and restore test **run locally against PostgreSQL**; the Release API checked in Production mode. The Docker image was not built here (no Docker on this machine) |
+
+Refinements: global search in the top bar (spec 6.1), self-service name and timezone, default
+calendar view, quick-create menu for shows and releases, and removal of the last placeholder page.
+Fixed: report link text did not use the theme-aware colour. 214 automated tests pass.
+
+Open for DOF:
+- Run the UAT script with staff and sign it off.
+- Provision the server, build the container there, configure SMTP, TLS and off-site backup copies.
+- Sign and notarise the desktop packages for distribution.
+- OS notification-centre integration (pop-ups are in-app) and full-text search are possible future work.
 
 ## Supporting documents
 

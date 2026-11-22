@@ -6,7 +6,7 @@ Desktop application for coordinating the production operations of Dawn of Faith 
 - **Backend:** ASP.NET Core Web API on .NET 10 LTS
 - **Database:** PostgreSQL via Entity Framework Core + Npgsql
 
-The governing document is [`docs/TECHNICAL_SPECIFICATION.md`](docs/TECHNICAL_SPECIFICATION.md). Current progress is tracked in [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md).
+The governing document is [`docs/TECHNICAL_SPECIFICATION.md`](docs/TECHNICAL_SPECIFICATION.md). Progress is tracked in [`docs/DEVELOPMENT_ROADMAP.md`](docs/DEVELOPMENT_ROADMAP.md). All eight phases are implemented. Production setup, backups and restores are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), and the staff acceptance script is in [`docs/USER_ACCEPTANCE_TESTING.md`](docs/USER_ACCEPTANCE_TESTING.md).
 
 ## Prerequisites
 

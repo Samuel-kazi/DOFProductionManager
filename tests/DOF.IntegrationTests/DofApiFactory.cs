@@ -1,4 +1,7 @@
+using DOF.Application.Common.Abstractions;
 using DOF.Infrastructure.Persistence;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Npgsql;
@@ -32,6 +35,23 @@ public sealed class DofApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         builder.UseSetting($"{BootstrapOptions.SectionName}:AdminEmail", AdminEmail);
         builder.UseSetting($"{BootstrapOptions.SectionName}:AdminPassword", AdminPassword);
         builder.UseSetting("RateLimiting:AuthPermitLimitPerMinute", "10000");
+        // Jobs run directly in tests (with chosen times); Hangfire itself is covered by one dedicated test.
+        builder.UseSetting("BackgroundJobs:Enabled", "false");
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton(Email);
+            services.AddSingleton<IEmailSender>(Email);
+        });
+    }
+
+    /// <summary>The e-mail sender every test host uses.</summary>
+    public TestEmailSender Email { get; } = new();
+
+    /// <summary>Runs work (typically a background job) in its own DI scope, as Hangfire would.</summary>
+    public async Task<T> InScopeAsync<T>(Func<IServiceProvider, Task<T>> work)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        return await work(scope.ServiceProvider);
     }
 
     public async ValueTask InitializeAsync()

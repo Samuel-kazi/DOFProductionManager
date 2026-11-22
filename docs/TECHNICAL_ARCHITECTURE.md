@@ -296,10 +296,8 @@ cancels. That permission or being the release's assignee allows confirming publi
 **Calendar.** `ReleaseCalendarSource` places each release at its scheduled time. Dragging calls
 `/schedule` on the release itself, so the previous time is in the history and nothing is copied.
 
-**Reminders.** Reminder offsets and delivery are Phase 7. Reminders will be computed from
-`releases.scheduled_at` by the reconciliation job (spec Part 8, job 3), so a rescheduled release
-updates its reminders through that job. The acceptance check for "rescheduled releases update their
-reminders" is part of Phase 7 testing.
+**Reminders.** Release reminders are computed from `releases.scheduled_at` by the Phase 7
+reconciliation job, so rescheduling or postponing a release updates them (tested in Phase 7).
 
 **Desktop.** *Releases* page with the views from spec 6.4 (All, Ready to publish, Scheduled, Published,
 Postponed, Overdue, Cancelled), a "Mine" filter, search, and a line summarising finished-but-
@@ -309,6 +307,73 @@ panel listing each channel's scheduled time, publication time and status, and a 
 button. Calendar release items can be dragged. The organisation dashboard shows upcoming and overdue
 releases. Lists discard results from a slower earlier load, so switching views quickly never shows a
 stale list (Releases and Tasks pages).
+
+## Reminder engine (Phase 7)
+
+**Server-side only.** Reminders, notifications and e-mails are created and delivered by background
+jobs in the API process, so they work with every desktop client closed (spec 5.9). The desktop only
+displays the result.
+
+**Change capture.** `ReminderSourceInterceptor` (an EF Core save interceptor) writes a `SourceChanged`
+row to `notification_outbox` in the same transaction whenever a task, milestone, event, episode or
+release changes, or its assignments do. No code path can move a date and leave stale reminders.
+Saving notification preferences queues the person's upcoming records the same way.
+
+**Jobs** (spec Part 7), scheduled by **Hangfire with PostgreSQL storage** (schema `hangfire`). Each
+Hangfire entry point in `ReminderJobRunner` calls a plain application service with the current time,
+and tests call those services directly with chosen times.
+
+| Job | Schedule (UTC) | Service | What it does |
+|---|---|---|---|
+| 1 Dispatcher | every minute | `ReminderDispatcher` (+ `OutboxProcessor` before and after) | Claims due reminders and delivers them: in-app → `notifications`; e-mail → outbox |
+| 2 Overdue detection | every 15 min | `OverdueDetector` | Alerts the people responsible for overdue tasks, milestones and releases, once per item and due time |
+| 3 Reconciliation | with the dispatcher, via the outbox | `ReminderReconciler` | Cancels obsolete pending reminders (with a reason), creates the new ones, never touches delivered ones |
+| 4 Escalation | hourly | `EscalationJob` | Tasks overdue for longer than `Reminders:EscalationAfterHours` (24) go to production managers (else administrators), recorded in the task history |
+| 5 Maintenance | daily 03:30 | `MaintenanceJob` | Purges old processed outbox rows and re-reconciles every upcoming record (60 days) |
+
+**Reliability.**
+- *Locks:* work is claimed with a single `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED) RETURNING id` (`PostgresJobStore`), so concurrent workers or API instances never take the same item. Hangfire's `DisableConcurrentExecution` stops overlapping runs, and items stuck in Processing for 10 minutes are picked up again.
+- *Duplicates:* every notification and outbox message has a unique `idempotency_key` (`reminder:{id}`, `email:reminder:{id}`, `overdue:task:{id}:{due ticks}:{user}`, `escalation:…`), enforced by unique indexes. A conflicting insert is handled explicitly, not ignored.
+- *Retries and failures:* e-mails are retried after 1, 5, 15 and 60 minutes, then every 4 hours, up to `Reminders:MaxDeliveryAttempts` (5). The final failure is recorded on the outbox row and on the reminder (`Failed`, `retry_count`, `last_error`), shown in the reminder centre, and logged as an error. Hangfire's own retries are off because the jobs handle this themselves.
+
+**E-mail.** `SmtpEmailSender` uses the `Email` settings. Keep the password in user-secrets or the
+environment (`Email__Password`), never in a committed file. Without `Email:Host` and
+`Email:FromAddress`, e-mail is reported as unavailable and cannot be turned on.
+
+**Desktop.** The top-bar bell shows the unread count and recent notifications (polled every 30
+seconds while the app is open); opening one marks it read and goes to its record. New notifications
+pop up in the window (Avalonia `WindowNotificationManager`) when the person allows it. These pop-ups
+appear only while the app is running; when it is closed, notifications wait in the app and arrive by
+e-mail if enabled. The *Reminders* page (spec 6.6) lists upcoming, delivered, failed and cancelled
+reminders (with the failure reason), lets people cancel pending ones, and holds notification
+preferences: pop-ups, e-mail, overdue alerts and default reminder offsets. Task and release details
+have "Remind me". The personal dashboard shows recent notifications.
+
+## Reports, search and refinement (Phase 8)
+
+**Reports** (`ReportService`, spec 5.10) are read-only server-side queries over the live records, all
+with the same table shape (headline figures, columns, rows, record links) and formatted in the
+caller's timezone. `CsvWriter` exports any report as RFC 4180 CSV (UTF-8 with BOM, with protection
+against formula injection). All reports need `reports.view`.
+
+**Global search** (`SearchService`, spec 6.1) matches names across projects, shows, episodes, tasks,
+events and releases (case-insensitive, open records first, 6 per kind). The top bar searches as you
+type, and every hit opens its record.
+
+**Self-service settings** (spec 6.7): people change their own name and timezone (`PATCH /auth/me`),
+choose the calendar's default view (stored locally), and manage notification channels and default
+reminders in the reminder centre. Administrators manage accounts, roles and channels.
+
+**Performance** (spec Part 9): `ReportTests.Main_screens_meet_the_performance_targets_with_a_realistic_volume`
+seeds 40 projects with 200 milestones, 400 tasks, 150 events, 10 shows with 120 episodes and 360
+releases on top of the other tests' data, and asserts the dashboard, calendar, task list, episode
+details, search and weekly report stay within the targets. Reads use `AsNoTracking`, projections,
+server-side filtering and paging. The reminder list's lookups were batched (one query per record type
+instead of one per reminder).
+
+**Deployment** is described in [DEPLOYMENT.md](DEPLOYMENT.md): container image and compose file, an
+explicit migrations bundle, encrypted backups with retention and a scripted restore test, and
+self-contained desktop packages.
 
 ## Desktop client (Phase 2)
 
@@ -365,7 +430,7 @@ UI-thread errors are also shown in a dismissible banner. Nothing is swallowed si
 in a headless Avalonia window (Skia rendering) against the real API: sign-in, navigation to every
 section, keyboard shortcuts, session restore, offline start, deactivation, password change, theme, every
 calendar view, opening records, the event editor, drag-to-reschedule with simulated mouse input,
-filters, dashboards, quick create, the projects and tasks pages (`WorkUiTests`), shows, seasons and episodes (`ShowUiTests`), and releases and channels (`ReleaseUiTests`). Each UI test has
+filters, dashboards, quick create, the projects and tasks pages (`WorkUiTests`), shows, seasons and episodes (`ShowUiTests`), releases and channels (`ReleaseUiTests`), notifications and the reminder centre (`ReminderUiTests`), and reports, search and settings (`ReportUiTests`). Each UI test has
 a 90-second limit. At the end of the run the fixture closes windows tests left open; if they are left
 open, the headless platform's shutdown never completes.
 They save screenshots to `tests/DOF.IntegrationTests/bin/Debug/net10.0/ui-snapshots/` for visual

@@ -15,6 +15,8 @@ public sealed record UserPreferences
     public ThemePreference Theme { get; init; } = ThemePreference.System;
     public bool SidebarCollapsed { get; init; }
     public string? LastEmail { get; init; }
+    /// <summary>The calendar view opened first (Month, Week, Day or Agenda).</summary>
+    public string DefaultCalendarView { get; init; } = "Month";
 }
 
 /// <summary>Stores <see cref="UserPreferences"/> as JSON in the user's application-data folder.</summary>

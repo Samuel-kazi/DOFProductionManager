@@ -15,6 +15,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddProjectsTasksAndActivity` | 4 | Adds `projects`, `project_members`, `project_milestones`, `tasks`, `task_assignments`, `activity_logs`, and the append-only trigger on `activity_logs`. Additive only. |
 | `AddShowsAndEpisodes` | 5 | Adds `shows`, `seasons`, `episodes`, `episode_assignments`, nullable `tasks.episode_id` with its index, foreign key and the `ck_tasks_project_or_episode` check. Additive only. |
 | `AddReleases` | 6 | Adds `distribution_channels` and `releases`. Additive only. Channels are seeded at startup (not in the migration). |
+| `AddRemindersAndNotifications` | 7 | Adds `reminders`, `notifications`, `notification_outbox`, `notification_preferences`. Additive only. Hangfire creates and manages its own `hangfire` schema at startup. |
 
 ## Tables
 
@@ -152,6 +153,30 @@ Checks: `ck_releases_published_has_time` (Published needs `actual_published_at`)
 `ck_releases_status_not_overdue` ("Overdue" is derived when reading and is never stored). `notes` and
 `published_by` go beyond the specification's column list, to hold the screen's notes and who
 confirmed publication.
+
+### reminders
+`user_id → users (restrict)`, `source_type varchar(40)` (Task, Milestone, CalendarEvent, Episode, Release),
+`source_id uuid`, `offset_minutes integer null` (null = fixed time), `is_automatic boolean`,
+`scheduled_at timestamptz`, `channel varchar(30)` (InApp, Email), `status varchar(30)` (Pending,
+Processing, Delivered, Failed, Cancelled), `delivered_at`, `retry_count`, `last_error text null`,
+`cancellation_reason varchar(200) null`, `processing_started_at`, `version`. Indexes `(status,
+scheduled_at)` (dispatcher), `(source_type, source_id)`, `(user_id, status)`. Reminders are never deleted:
+obsolete ones are cancelled with a reason.
+
+### notifications
+`user_id → users (restrict)`, `title varchar(200)`, `message text`, `notification_type varchar(30)`
+(Reminder, Overdue, Escalation), `source_type varchar(40) null`, `source_id uuid null`, `is_read`,
+`read_at`, `idempotency_key varchar(300)` **unique**. Index `(user_id, is_read, created_at)`.
+
+### notification_outbox
+`event_type varchar(60)` (SendEmail, SourceChanged), `payload jsonb`, `idempotency_key varchar(300)`
+**unique**, `status varchar(30)` (Pending, Processing, Processed, Failed), `retry_count`,
+`next_attempt_at` (indexed with status), `processed_at`, `last_error`. Processed rows are purged after
+30 days.
+
+### notification_preferences
+`user_id → users (cascade; unique)`, `email_enabled`, `desktop_enabled`, `overdue_alerts`,
+`reminder_offsets integer[]`.
 
 ### activity_logs
 `user_id → users null (restrict)`, `entity_type varchar(40)`, `entity_id uuid`, `action varchar(40)`,

@@ -26,6 +26,32 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
     public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default) =>
         SendAsync<T>(new HttpRequestMessage(HttpMethod.Patch, path) { Content = JsonContent.Create(body) }, ct);
 
+    /// <summary>Downloads a file (for example a CSV report) as bytes.</summary>
+    public async Task<byte[]> GetBytesAsync(string path, CancellationToken ct = default)
+    {
+        HttpResponseMessage response;
+        try
+        {
+            response = await http.GetAsync(path, ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new ApiUnavailableException(ex);
+        }
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ApiException(response.StatusCode, $"The download failed ({(int)response.StatusCode}).");
+            }
+            return await response.Content.ReadAsByteArrayAsync(ct);
+        }
+    }
+
+    /// <summary>A PATCH without a body to an endpoint that answers 204 No Content.</summary>
+    public async Task PatchNoContentAsync(string path, CancellationToken ct = default) =>
+        await SendAsync<object?>(new HttpRequestMessage(HttpMethod.Patch, path), ct, expectBody: false);
+
     /// <summary>For endpoints that answer 204 No Content.</summary>
     public async Task DeleteAsync(string path, CancellationToken ct = default) =>
         await SendAsync<object?>(new HttpRequestMessage(HttpMethod.Delete, path), ct, expectBody: false);

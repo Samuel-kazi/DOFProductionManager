@@ -24,13 +24,21 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
         Func<ShowsViewModel> shows,
         Func<TasksViewModel> tasks,
         Func<ReleasesViewModel> releases,
+        Func<RemindersViewModel> reminders,
+        Func<ReportsViewModel> reports,
         Func<TeamViewModel> team,
-        Func<SettingsViewModel> settings)
+        Func<SettingsViewModel> settings,
+        NotificationCenterViewModel notifications,
+        SearchViewModel search)
     {
         _session = session;
         _preferences = preferences;
         _clock = clock;
         Connection = connection;
+        Notifications = notifications;
+        notifications.Navigator = this;
+        Search = search;
+        search.Navigator = this;
         IsSidebarCollapsed = preferences.Current.SidebarCollapsed;
 
         var shortcutPrefix = OperatingSystem.IsMacOS() ? "⌘" : "Ctrl+";
@@ -42,10 +50,13 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
             new("Shows & Episodes", "Icon.Shows", shows, $"{shortcutPrefix}4"),
             new("Tasks", "Icon.Tasks", tasks, $"{shortcutPrefix}5"),
             new("Releases", "Icon.Releases", releases, $"{shortcutPrefix}6"),
-            new("Reminders", "Icon.Reminders", () => new PlaceholderPageViewModel("Reminders", 7,
-                "Upcoming, delivered and failed reminders, and notification preferences."), $"{shortcutPrefix}7"),
-            new("Reports", "Icon.Reports", () => new PlaceholderPageViewModel("Reports", 8,
-                "Weekly, monthly, workload and publication reports with CSV export."), $"{shortcutPrefix}8"),
+            new("Reminders", "Icon.Reminders", () =>
+            {
+                var page = reminders();
+                page.Notifications = notifications;
+                return page;
+            }, $"{shortcutPrefix}7"),
+            new("Reports", "Icon.Reports", reports, $"{shortcutPrefix}8"),
         ];
         FooterItems =
         [
@@ -55,6 +66,12 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
     }
 
     public ConnectionMonitor Connection { get; }
+
+    public NotificationCenterViewModel Notifications { get; }
+
+    public SearchViewModel Search { get; }
+
+    private CancellationTokenSource? _background;
 
     public IReadOnlyList<NavigationItem> PrimaryItems { get; }
 
@@ -88,7 +105,21 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
 
     public bool CanCreateEvents => _session.CurrentUser?.Permissions.Contains("calendar.manage") == true;
 
-    public Task StartAsync() => NavigateAsync(PrimaryItems[0]);
+    public async Task StartAsync()
+    {
+        StopBackgroundWork();
+        _background = new CancellationTokenSource();
+        _ = Notifications.RunAsync(_background.Token);
+        await NavigateAsync(PrimaryItems[0]);
+    }
+
+    /// <summary>Stops notification polling (sign-out, or the shell leaving the screen).</summary>
+    public void StopBackgroundWork()
+    {
+        _background?.Cancel();
+        _background?.Dispose();
+        _background = null;
+    }
 
     [RelayCommand]
     public Task NavigateAsync(NavigationItem item) => ShowAsync(item, load: true);
@@ -115,6 +146,24 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
     private NavigationItem TasksItem => PrimaryItems.Single(i => i.Title == "Tasks");
     private NavigationItem ReleasesItem => PrimaryItems.Single(i => i.Title == "Releases");
     private NavigationItem ShowsItem => PrimaryItems.Single(i => i.Title == "Shows & Episodes");
+
+    public bool CanCreateShows => _session.CurrentUser?.Permissions.Contains("episodes.manage") == true;
+
+    public bool CanScheduleReleases => _session.CurrentUser?.Permissions.Contains("releases.schedule") == true;
+
+    [RelayCommand(CanExecute = nameof(CanCreateShows))]
+    private async Task CreateShowAsync()
+    {
+        var shows = (ShowsViewModel)await ShowAsync(ShowsItem, load: true);
+        await shows.NewShowAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanScheduleReleases))]
+    private async Task CreateReleaseFromMenuAsync()
+    {
+        var releases = (ReleasesViewModel)await ShowAsync(ReleasesItem, load: true);
+        await releases.NewReleaseAsync(null);
+    }
 
     public bool CanCreateProjects => _session.CurrentUser?.Permissions.Contains("projects.create") == true;
 
@@ -211,5 +260,9 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
     private Task CheckConnectionAsync() => Connection.CheckAsync();
 
     [RelayCommand]
-    private Task SignOutAsync() => _session.LogoutAsync();
+    private Task SignOutAsync()
+    {
+        StopBackgroundWork();
+        return _session.LogoutAsync();
+    }
 }

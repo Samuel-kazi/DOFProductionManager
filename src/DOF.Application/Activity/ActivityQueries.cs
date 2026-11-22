@@ -91,6 +91,7 @@ public sealed class ActivityQueries(IApplicationDbContext db)
                                          + (@new.GetValueOrDefault("ScheduledAt") ?? "further notice") + $": {Val(@new, "Reason")}",
             ActivityActions.RolesChanged => $"Roles changed to {Val(@new, "Roles")}",
             ActivityActions.PermissionsChanged => $"Permissions set to {Val(@new, "Permissions")}",
+            ActivityActions.Escalated => $"Escalated as overdue to {Val(@new, "Notified")}",
             ActivityActions.Updated => $"Updated {string.Join(", ", @new.Keys.Select(Humanise))}",
             _ => action,
         };

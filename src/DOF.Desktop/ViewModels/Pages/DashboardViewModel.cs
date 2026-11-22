@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using DOF.Contracts.Common;
 using DOF.Contracts.Requests;
 using DOF.Contracts.Responses;
 using DOF.Desktop.Services;
@@ -24,7 +25,7 @@ public sealed class WorkloadRow(WorkloadSummaryResponse summary)
 }
 
 /// <summary>
-/// Personal dashboard (today, coming up, my tasks, reviews waiting for me, my episodes) and, for people with
+/// Personal dashboard (today, coming up, my tasks, reviews waiting for me, my episodes, recent notifications) and, for people with
 /// <c>reports.view</c>, the organisation view. Every entry opens its original record.
 /// </summary>
 public sealed partial class DashboardViewModel(ApiClient api, AuthSession session, UserClock clock) : PageViewModel
@@ -67,6 +68,8 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
     public ObservableCollection<EpisodeRowViewModel> OverdueEpisodes { get; } = [];
     public ObservableCollection<EpisodeRowViewModel> AwaitingPublication { get; } = [];
     public ObservableCollection<ReleaseRowViewModel> UpcomingReleases { get; } = [];
+    public ObservableCollection<NotificationItemViewModel> RecentNotifications { get; } = [];
+    public bool HasNoNotifications => RecentNotifications.Count == 0;
     public ObservableCollection<ReleaseRowViewModel> OverdueReleases { get; } = [];
 
     public bool TodayIsEmpty => TodaySchedule.Count == 0;
@@ -93,6 +96,8 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
             Fill(MyTasks, personal.MyTasks.Select(t => new TaskItemViewModel(t, clock)));
             Fill(PendingReviews, personal.PendingReviews.Select(t => new TaskItemViewModel(t, clock)));
             Fill(MyEpisodes, personal.MyEpisodes.Select(e => new EpisodeRowViewModel(e, clock)));
+            var notifications = await api.GetAsync<PagedResponse<NotificationResponse>>("api/v1/notifications?pageSize=5");
+            Fill(RecentNotifications, notifications.Items.Select(n => new NotificationItemViewModel(n, clock)));
 
             if (CanViewOrganisation)
             {
@@ -115,7 +120,7 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
         foreach (var name in new[] { nameof(TodayIsEmpty), nameof(UpcomingIsEmpty), nameof(MyTasksIsEmpty), nameof(HasPendingReviews),
                      nameof(UnassignedIsEmpty), nameof(OrganisationUpcomingIsEmpty), nameof(ActiveProjectsIsEmpty),
                      nameof(UpcomingMilestonesIsEmpty), nameof(NothingOverdue), nameof(MyEpisodesIsEmpty),
-                     nameof(AwaitingPublicationIsEmpty), nameof(UpcomingReleasesIsEmpty) })
+                     nameof(AwaitingPublicationIsEmpty), nameof(UpcomingReleasesIsEmpty), nameof(HasNoNotifications) })
         {
             OnPropertyChanged(name);
         }
@@ -134,6 +139,19 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
     [RelayCommand]
     private Task OpenMilestoneAsync(MilestoneItemViewModel milestone) =>
         Navigator?.OpenRecordAsync("Milestone", milestone.Id) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private async Task OpenNotificationAsync(NotificationItemViewModel item)
+    {
+        if (item.IsUnread)
+        {
+            await RunAsync(() => api.PatchNoContentAsync($"api/v1/notifications/{item.Notification.Id}/read"));
+        }
+        if (item.CanOpen && Navigator is { } navigator)
+        {
+            await navigator.OpenRecordAsync(item.Notification.SourceType!, item.Notification.SourceId!.Value);
+        }
+    }
 
     [RelayCommand]
     private Task OpenReleaseAsync(ReleaseRowViewModel release) =>

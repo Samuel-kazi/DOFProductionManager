@@ -229,6 +229,9 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
     private void CloseSidePanel() => SidePanel = null;
 
     [RelayCommand]
+    private Task AddReminderAsync(Reminders.RemindMeViewModel remind) => RemindMe.AddAsync(api, remind);
+
+    [RelayCommand]
     public async Task NewTaskAsync(Guid? projectId) => await NewTaskAsync(projectId, null);
 
     public async Task NewTaskAsync(Guid? projectId, Guid? episodeId)

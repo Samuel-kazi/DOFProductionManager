@@ -12,7 +12,8 @@ namespace DOF.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
-public sealed class AuthController(AuthService auth, UserProfileQueries profiles, ICurrentUser currentUser) : ControllerBase
+public sealed class AuthController(AuthService auth, UserProfileQueries profiles, ProfileService profileService, ICurrentUser currentUser)
+    : ControllerBase
 {
     /// <summary>Signs in with email and password and returns an access token and a refresh token.</summary>
     [HttpPost("login")]
@@ -43,6 +44,11 @@ public sealed class AuthController(AuthService auth, UserProfileQueries profiles
     [HttpGet("me")]
     public async Task<ApiResponse<CurrentUserResponse>> Me(CancellationToken ct) =>
         ApiResponse<CurrentUserResponse>.Ok(await profiles.GetCurrentUserAsync(currentUser.RequiredUserId, ct));
+
+    /// <summary>Changes my own name and timezone (calendar and reminder times follow the timezone).</summary>
+    [HttpPatch("me")]
+    public async Task<ApiResponse<CurrentUserResponse>> UpdateMe(UpdateMyProfileRequest request, CancellationToken ct) =>
+        ApiResponse<CurrentUserResponse>.Ok(await profileService.UpdateAsync(currentUser.RequiredUserId, request, ct));
 
     /// <summary>Changes the password. All existing sessions end; a new token pair is returned.</summary>
     [HttpPost("change-password")]

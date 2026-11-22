@@ -1,0 +1,21 @@
+# DOF Production Manager API — production image.
+# Build from the repository root:
+#   docker build -f deployment/docker/Dockerfile.api -t dof-production-manager-api .
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY global.json Directory.Build.props Directory.Packages.props ./
+COPY src/ src/
+RUN dotnet publish src/DOF.Api/DOF.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+# Run as the image's built-in non-root user.
+USER $APP_UID
+ENV ASPNETCORE_ENVIRONMENT=Production \
+    ASPNETCORE_HTTP_PORTS=8080 \
+    DOTNET_gcServer=1
+EXPOSE 8080
+# Health: probe GET /health/live (process up) and GET /health (database reachable) from the reverse proxy
+# or orchestrator. The aspnet runtime image has no curl, so no in-image HEALTHCHECK is defined.
+ENTRYPOINT ["dotnet", "DOF.Api.dll"]

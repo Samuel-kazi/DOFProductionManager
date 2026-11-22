@@ -26,6 +26,12 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<EpisodeAssignment> EpisodeAssignments => Set<EpisodeAssignment>();
     public DbSet<DistributionChannel> DistributionChannels => Set<DistributionChannel>();
     public DbSet<Release> Releases => Set<Release>();
+    public DbSet<Reminder> Reminders => Set<Reminder>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    public void ClearTracked() => ChangeTracker.Clear();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

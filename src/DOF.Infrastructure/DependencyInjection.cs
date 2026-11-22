@@ -1,7 +1,9 @@
 using DOF.Application.Common.Abstractions;
 using DOF.Infrastructure.Authentication;
 using DOF.Infrastructure.Persistence;
+using DOF.Application.Reminders;
 using DOF.Infrastructure.Persistence.Interceptors;
+using DOF.Infrastructure.Reminders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +18,7 @@ public static class DependencyInjection
     {
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<AuditingInterceptor>();
+        services.AddScoped<ReminderSourceInterceptor>();
 
         services.AddDbContext<DofDbContext>((sp, options) =>
         {
@@ -30,7 +33,8 @@ public static class DependencyInjection
                 .UseNpgsql(connectionString, npgsql =>
                     npgsql.MigrationsAssembly(typeof(DofDbContext).Assembly.GetName().Name))
                 .UseSnakeCaseNamingConvention()
-                .AddInterceptors(sp.GetRequiredService<AuditingInterceptor>());
+                // The reminder interceptor adds outbox rows, so it runs before auditing stamps timestamps.
+                .AddInterceptors(sp.GetRequiredService<ReminderSourceInterceptor>(), sp.GetRequiredService<AuditingInterceptor>());
         });
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<DofDbContext>());
 
@@ -44,6 +48,12 @@ public static class DependencyInjection
 
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+
+        services.AddOptions<ReminderOptions>().Bind(configuration.GetSection(ReminderOptions.SectionName));
+        services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName));
+        services.AddScoped<IJobStore, PostgresJobStore>();
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        services.AddBackgroundJobs(configuration, configuration.GetConnectionString(ConnectionStringName) ?? string.Empty);
 
         services.AddHealthChecks()
             .AddDbContextCheck<DofDbContext>("database", tags: ["ready"]);

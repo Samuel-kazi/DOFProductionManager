@@ -3,6 +3,7 @@ using DOF.Application.Auth;
 using DOF.Application.Calendar;
 using DOF.Application.Dashboard;
 using DOF.Application.Releases;
+using DOF.Application.Reminders;
 using DOF.Application.Shows;
 using DOF.Application.Users;
 using DOF.Application.Work;
@@ -17,6 +18,7 @@ public static class DependencyInjection
     {
         services.AddScoped<AuthService>();
         services.AddScoped<UserProfileQueries>();
+        services.AddScoped<ProfileService>();
         services.AddScoped<UserService>();
         services.AddScoped<RoleService>();
 
@@ -47,6 +49,20 @@ public static class DependencyInjection
         services.AddScoped<ReleaseReaders>();
         services.AddScoped<ReleaseService>();
         services.AddScoped<ChannelService>();
+
+        services.AddScoped<ReminderSources>();
+        services.AddScoped<ReminderReconciler>();
+        services.AddScoped<NotificationWriter>();
+        services.AddScoped<ReminderDispatcher>();
+        services.AddScoped<OutboxProcessor>();
+        services.AddScoped<OverdueDetector>();
+        services.AddScoped<EscalationJob>();
+        services.AddScoped<MaintenanceJob>();
+        services.AddScoped<ReminderService>();
+        services.AddScoped<NotificationService>();
+
+        services.AddScoped<Reports.ReportService>();
+        services.AddScoped<Reports.SearchService>();
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 

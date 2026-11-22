@@ -16,6 +16,8 @@ public sealed partial class TaskDetailsViewModel(TaskResponse task, IReadOnlyLis
     public bool HasProject => Task.Project is not null;
     public string? EpisodeName => WorkLabels.EpisodeName(Task.Episode);
     public bool HasEpisode => Task.Episode is not null;
+    public Reminders.RemindMeViewModel RemindMe => _remindMe ??= new("Task", Task.Id, Task.DueAt is not null && Task.Status is not ("Completed" or "Cancelled"));
+    private Reminders.RemindMeViewModel? _remindMe;
     public string DueText => WorkLabels.Due(Task.DueAt, clock);
     public bool IsOverdue => Task.IsOverdue;
     public string PriorityText => $"{Task.Priority} priority";

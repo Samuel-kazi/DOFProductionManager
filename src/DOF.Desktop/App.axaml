@@ -26,10 +26,11 @@
     <DataTemplate DataType="pages:ProjectsViewModel"><pageViews:ProjectsView /></DataTemplate>
     <DataTemplate DataType="pages:ShowsViewModel"><pageViews:ShowsView /></DataTemplate>
     <DataTemplate DataType="pages:ReleasesViewModel"><pageViews:ReleasesView /></DataTemplate>
+    <DataTemplate DataType="pages:RemindersViewModel"><pageViews:RemindersView /></DataTemplate>
+    <DataTemplate DataType="pages:ReportsViewModel"><pageViews:ReportsView /></DataTemplate>
     <DataTemplate DataType="pages:TasksViewModel"><pageViews:TasksView /></DataTemplate>
     <DataTemplate DataType="pages:TeamViewModel"><pageViews:TeamView /></DataTemplate>
     <DataTemplate DataType="pages:SettingsViewModel"><pageViews:SettingsView /></DataTemplate>
-    <DataTemplate DataType="pages:PlaceholderPageViewModel"><pageViews:PlaceholderPageView /></DataTemplate>
   </Application.DataTemplates>
 
   <Application.Styles>
