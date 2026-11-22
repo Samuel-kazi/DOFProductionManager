@@ -44,6 +44,15 @@
           <SelectableTextBlock Text="{Binding Description}" TextWrapping="Wrap" />
         </StackPanel>
         <TextBlock Classes="muted small" Text="{Binding AuditText}" TextWrapping="Wrap" />
+        <StackPanel Spacing="6" IsVisible="{Binding RemindMe.IsAvailable}">
+          <TextBlock Classes="muted small" Text="Remind me" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ComboBox ItemsSource="{Binding RemindMe.Options}" SelectedItem="{Binding RemindMe.Selected}" PlaceholderText="When?" Width="170" />
+            <Button Content="Add reminder" Command="{Binding $parent[pageViews:TasksView].((pages:TasksViewModel)DataContext).AddReminderCommand}"
+                    CommandParameter="{Binding RemindMe}" />
+          </StackPanel>
+          <TextBlock Classes="muted small" Text="{Binding RemindMe.Message}" IsVisible="{Binding RemindMe.HasMessage}" TextWrapping="Wrap" />
+        </StackPanel>
         <StackPanel Spacing="6">
           <TextBlock Classes="muted small" Text="History" />
           <ItemsControl ItemsSource="{Binding History}">

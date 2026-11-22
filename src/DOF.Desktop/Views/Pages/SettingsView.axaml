@@ -28,6 +28,37 @@
 
       <Border Classes="card">
         <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Your name and timezone" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="Calendar times, reminders and reports use your timezone. Your e-mail and roles are managed by an administrator." />
+          <Grid ColumnDefinitions="*,12,*">
+            <StackPanel Spacing="4"><TextBlock Text="Name" /><TextBox Text="{Binding EditableName}" /></StackPanel>
+            <StackPanel Grid.Column="2" Spacing="4">
+              <TextBlock Text="Timezone" />
+              <ComboBox ItemsSource="{Binding TimeZones}" SelectedItem="{Binding SelectedTimeZone}" HorizontalAlignment="Stretch" MaxDropDownHeight="320" />
+            </StackPanel>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Classes="accent" Content="Save" Command="{Binding SaveProfileCommand}" />
+            <TextBlock Classes="muted small" Text="{Binding ProfileMessage}" IsVisible="{Binding HasProfileMessage}" VerticalAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Calendar and notifications" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="Open the calendar in" VerticalAlignment="Center" />
+            <ComboBox ItemsSource="{Binding CalendarViews}" SelectedItem="{Binding DefaultCalendarView}" Width="140" />
+          </StackPanel>
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="Notification channels and default reminder times are on the Reminders page." />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
           <TextBlock Classes="h2" Text="Appearance" />
           <StackPanel Orientation="Horizontal" Spacing="12">
             <TextBlock Text="Theme" VerticalAlignment="Center" Width="128" />

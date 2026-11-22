@@ -69,6 +69,7 @@ try
     }
 
     await DatabaseSeeder.SeedAsync(app.Services);
+    DOF.Infrastructure.Reminders.BackgroundJobSetup.ScheduleRecurringJobs(app.Services, app.Configuration);
 
     // Request logging wraps the exception handler so it records the final status code sent to the client.
     app.UseSerilogRequestLogging();

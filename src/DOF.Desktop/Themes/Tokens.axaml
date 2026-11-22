@@ -31,6 +31,7 @@
       <SolidColorBrush x:Key="Brush.Cat.ReviewDeadline" Color="#9A6A00" />
       <SolidColorBrush x:Key="Brush.Cat.ApprovalDeadline" Color="#5F7A1A" />
       <SolidColorBrush x:Key="Brush.Cat.Release" Color="#0F7B6C" />
+      <SolidColorBrush x:Key="Brush.OnStatus" Color="#FFFFFF" />
       <SolidColorBrush x:Key="Brush.TodayRing" Color="#B45F0E" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
@@ -62,6 +63,7 @@
       <SolidColorBrush x:Key="Brush.Cat.ReviewDeadline" Color="#E0A73C" />
       <SolidColorBrush x:Key="Brush.Cat.ApprovalDeadline" Color="#B5C45A" />
       <SolidColorBrush x:Key="Brush.Cat.Release" Color="#3FC7B2" />
+      <SolidColorBrush x:Key="Brush.OnStatus" Color="#1A1A1A" />
       <SolidColorBrush x:Key="Brush.TodayRing" Color="#F0A24A" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>

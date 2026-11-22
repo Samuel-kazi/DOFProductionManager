@@ -47,6 +47,10 @@ public static class DesktopServices
         AddWithFactory<ProjectsViewModel>(services);
         AddWithFactory<ShowsViewModel>(services);
         AddWithFactory<ReleasesViewModel>(services);
+        AddWithFactory<RemindersViewModel>(services);
+        services.AddTransient<NotificationCenterViewModel>();
+        services.AddTransient<SearchViewModel>();
+        AddWithFactory<ReportsViewModel>(services);
         AddWithFactory<TasksViewModel>(services);
         AddWithFactory<TeamViewModel>(services);
         AddWithFactory<SettingsViewModel>(services);

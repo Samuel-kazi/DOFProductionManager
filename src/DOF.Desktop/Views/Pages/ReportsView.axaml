@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:responses="using:DOF.Contracts.Responses"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             x:Class="DOF.Desktop.Views.Pages.ReportsView"
+             x:DataType="pages:ReportsViewModel">
+  <Grid ColumnDefinitions="230,20,*" Margin="24,16,24,12">
+    <!-- Report list -->
+    <ListBox ItemsSource="{Binding Reports}" SelectedItem="{Binding SelectedReport}" Background="Transparent" IsVisible="{Binding CanView}">
+      <ListBox.ItemTemplate>
+        <DataTemplate DataType="pages:ReportOption"><TextBlock Text="{Binding Title}" /></DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+
+    <DockPanel Grid.Column="2">
+      <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+        <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding HasReport}">
+          <StackPanel Spacing="2">
+            <TextBlock Classes="h2" Text="{Binding Report.Title, FallbackValue=''}" />
+            <TextBlock Classes="muted small" TextWrapping="Wrap">
+              <Run Text="{Binding Report.Period, FallbackValue=''}" />
+              <Run Text=" · " />
+              <Run Text="{Binding Report.Description, FallbackValue=''}" />
+            </TextBlock>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <TextBlock Classes="muted small" Text="{Binding ExportMessage}" IsVisible="{Binding HasExportMessage}" VerticalAlignment="Center" />
+            <Button x:Name="ExportButton" Content="Export CSV" Click="OnExportClick" />
+          </StackPanel>
+        </Grid>
+        <!-- Parameters -->
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding UsesWeek}">
+            <TextBlock Text="Week containing" VerticalAlignment="Center" />
+            <CalendarDatePicker SelectedDate="{Binding WeekOf}" Width="150" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding UsesMonth}">
+            <TextBlock Text="Month containing" VerticalAlignment="Center" />
+            <CalendarDatePicker SelectedDate="{Binding MonthOf}" Width="150" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding UsesDays}">
+            <TextBlock Text="Next" VerticalAlignment="Center" />
+            <NumericUpDown Value="{Binding Days}" Minimum="1" Maximum="180" FormatString="0" Width="120" />
+            <TextBlock Text="days" VerticalAlignment="Center" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding UsesRange}">
+            <TextBlock Text="From" VerticalAlignment="Center" />
+            <CalendarDatePicker SelectedDate="{Binding From}" Width="150" />
+            <TextBlock Text="to" VerticalAlignment="Center" />
+            <CalendarDatePicker SelectedDate="{Binding To}" Width="150" />
+          </StackPanel>
+          <Button Content="Refresh" Command="{Binding RunCommand}" IsVisible="{Binding CanView}" />
+        </StackPanel>
+        <pageViews:PageStatus />
+        <!-- Headline figures -->
+        <ItemsControl ItemsSource="{Binding Report.Summary, FallbackValue={x:Null}}">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="responses:ReportFigure">
+              <Border Classes="card" Padding="14,10" Margin="0,0,10,10" MinWidth="130">
+                <StackPanel Spacing="2">
+                  <TextBlock Classes="h2" Text="{Binding Value}" />
+                  <TextBlock Classes="muted small" Text="{Binding Label}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="muted" Text="Nothing to report for this period." IsVisible="{Binding IsEmptyReport}" />
+      </StackPanel>
+      <!-- Table (built in code-behind: the columns differ per report) -->
+      <Border Classes="card" Padding="0" IsVisible="{Binding HasReport}">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+          <Grid x:Name="Table" Margin="12,8" />
+        </ScrollViewer>
+      </Border>
+    </DockPanel>
+  </Grid>
+</UserControl>

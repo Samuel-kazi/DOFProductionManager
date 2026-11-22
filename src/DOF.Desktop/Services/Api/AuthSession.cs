@@ -193,6 +193,16 @@ public sealed class AuthSession(HttpClient http, ISecureStore store, TimeProvide
         SessionChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Applies profile changes the server confirmed (name, timezone) without a new sign-in.</summary>
+    public void UpdateCurrentUser(CurrentUserResponse user)
+    {
+        if (CurrentUser is not null)
+        {
+            CurrentUser = user;
+            SessionChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     private void ClearSession()
     {
         var wasSignedIn = IsSignedIn;

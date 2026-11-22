@@ -8,6 +8,7 @@
              xmlns:workViews="using:DOF.Desktop.Views.Work"
              xmlns:shows="using:DOF.Desktop.ViewModels.Shows"
              xmlns:rel="using:DOF.Desktop.ViewModels.Releases"
+             xmlns:vm="using:DOF.Desktop.ViewModels"
              x:Class="DOF.Desktop.Views.Pages.DashboardView"
              x:DataType="pages:DashboardViewModel"
              x:Name="Root">
@@ -144,6 +145,29 @@
             <ItemsControl ItemsSource="{Binding MyEpisodes}" />
           </StackPanel>
         </Border>
+        <Border Grid.Row="4" Grid.Column="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Recent notifications" />
+            <TextBlock Classes="muted" Text="No notifications yet." IsVisible="{Binding HasNoNotifications}" />
+            <ItemsControl ItemsSource="{Binding RecentNotifications}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:NotificationItemViewModel">
+                  <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="6,4"
+                          Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenNotificationCommand}" CommandParameter="{Binding}">
+                    <Grid ColumnDefinitions="12,*">
+                      <Ellipse Width="7" Height="7" VerticalAlignment="Top" Margin="0,6,0,0" IsVisible="{Binding IsUnread}"
+                               Fill="{Binding TypeBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Classes="muted small" Text="{Binding WhenText}" />
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
         <Border Grid.Row="2" Grid.Column="2" Classes="card" VerticalAlignment="Top" IsVisible="{Binding HasPendingReviews}">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Waiting for my review" />
@@ -263,8 +287,7 @@
         </Border>
       </Grid>
 
-      <TextBlock Classes="muted small" TextWrapping="Wrap"
-                 Text="Notifications join the dashboard with the reminder engine (Phase 7)." />
+
     </StackPanel>
   </ScrollViewer>
 </UserControl>

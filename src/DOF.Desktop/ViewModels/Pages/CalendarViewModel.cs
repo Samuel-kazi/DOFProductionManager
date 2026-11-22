@@ -24,11 +24,12 @@ public sealed partial class CalendarViewModel : PageViewModel
     private IReadOnlyList<CalendarItemViewModel> _loaded = [];
     private List<AssigneeOption>? _people;
 
-    public CalendarViewModel(ApiClient api, AuthSession session, UserClock clock)
+    public CalendarViewModel(ApiClient api, AuthSession session, UserClock clock, PreferencesStore preferences)
     {
         _api = api;
         _session = session;
         _clock = clock;
+        Mode = Enum.TryParse<CalendarMode>(preferences.Current.DefaultCalendarView, out var preferred) ? preferred : CalendarMode.Month;
         AnchorDate = clock.Today;
         EventTypeFilters = [.. CalendarValues.EventTypes.Append(CalendarValues.MilestoneItem).Append(CalendarValues.TaskDeadlineItem)
             .Concat(CalendarValues.EpisodeItems).Append(CalendarValues.ReleaseItem)

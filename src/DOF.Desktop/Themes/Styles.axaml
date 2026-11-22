@@ -98,6 +98,10 @@
   <Style Selector="Button.toolbar:disabled /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="Transparent" />
   </Style>
+  <!-- Toolbar icons draw in the text colour (the generic binding does not resolve inside toolbar buttons). -->
+  <Style Selector="Button.toolbar Path.icon">
+    <Setter Property="Stroke" Value="{DynamicResource Brush.Text}" />
+  </Style>
   <Style Selector="Button.toolbar:disabled Path.icon">
     <Setter Property="Stroke" Value="{DynamicResource Brush.TextMuted}" />
     <Setter Property="Opacity" Value="0.55" />
@@ -172,6 +176,22 @@
   </Style>
   <Style Selector="Border.stage.cancelled">
     <Setter Property="Opacity" Value="0.55" />
+  </Style>
+
+  <!-- Unread notification count on the bell -->
+  <Style Selector="Border.badge">
+    <Setter Property="Background" Value="{DynamicResource Brush.Offline}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="MinWidth" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="Padding" Value="4,0" />
+  </Style>
+  <Style Selector="Border.badge > TextBlock">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource Brush.OnStatus}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
   <!-- Avatars -->

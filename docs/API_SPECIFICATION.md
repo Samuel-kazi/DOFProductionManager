@@ -17,6 +17,7 @@ access token as `Authorization: Bearer <token>`.
 | POST | `/api/v1/auth/refresh` | Anonymous, rate-limited | `{refreshToken}` → new token pair (old one is revoked) |
 | POST | `/api/v1/auth/logout` | Anonymous, rate-limited | `{refreshToken}` → 204; idempotent |
 | GET | `/api/v1/auth/me` | Signed in | Profile with roles and effective permissions |
+| PATCH | `/api/v1/auth/me` | Signed in | `{fullName, timeZone}`: change my own name and timezone (IANA); returns the profile |
 | POST | `/api/v1/auth/change-password` | Signed in, rate-limited | `{currentPassword, newPassword}` → new token pair; other sessions end |
 | GET | `/api/v1/users` | Signed in | Paged list; `page`, `pageSize` (≤ 100), `search`, `isActive` |
 | GET | `/api/v1/users/{id}` | Signed in | User details |
@@ -149,6 +150,46 @@ passed that stage. Episode items have priority `Normal`, match `showId`, and nev
 (the release's project) and `assignedUserId`, and a `statuses=Overdue` filter matches the derived
 status. Postponed releases without a time are not on the calendar.
 
+### Reminders and notifications (Phase 7)
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/reminders` | Signed in (own) | Paged, upcoming first; `statuses` (Pending, Processing, Delivered, Failed, Cancelled), `sourceType`, `sourceId` |
+| POST | `/api/v1/reminders` | Signed in | `{sourceType, sourceId, offsetMinutes? \| at?, channel}` → 201. Exactly one of offset (minutes before the record's time; follows the record) or fixed time; must be in the future |
+| GET / PUT | `/api/v1/reminders/{id}` | Owner | Reminder; change a pending personal reminder (`version` required). Automatic ones follow the defaults |
+| DELETE | `/api/v1/reminders/{id}` | Owner | Cancel a pending reminder → 204 (kept as Cancelled) |
+| GET / PUT | `/api/v1/notification-preferences` | Signed in | `{emailEnabled, desktopEnabled, overdueAlerts, reminderOffsets[]}` (≤ 6 offsets); `emailAvailable` reports whether the server can send e-mail. Saving recalculates upcoming reminders |
+| GET | `/api/v1/notifications` | Signed in (own) | Paged, newest first; `unreadOnly` |
+| GET | `/api/v1/notifications/unread-count` | Signed in | `{count}` |
+| PATCH | `/api/v1/notifications/{id}/read` | Owner | → 204 |
+| PATCH | `/api/v1/notifications/read-all` | Signed in | → `{count: 0}` |
+
+Reminders are created, recalculated and delivered **only on the server**. Responsible people get
+automatic reminders from their default offsets (1 hour and 1 day before, unless changed) for tasks
+(assignees), milestones (assignee, at 09:00 organisation time on the due day), events (attendees),
+recordings (producer and crew) and releases (assignee, or the episode's producer). Standard offsets:
+at the time, 15 min, 1 hour, 1, 3 and 7 days before. Notification types are Reminder, Overdue and
+Escalation, each linked to its record (`sourceType`/`sourceId`).
+
+### Reports and search (Phase 8)
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/reports/weekly` | `reports.view` | Monday–Sunday week containing `date`: completed and missed tasks, completed milestones, recorded episodes, published and missed releases |
+| GET | `/api/v1/reports/monthly` | `reports.view` | Same for `year`/`month` |
+| GET | `/api/v1/reports/upcoming-releases` | `reports.view` | Releases in the next `days` (1–180, default 30) |
+| GET | `/api/v1/reports/unpublished-episodes` | `reports.view` | Recorded but not yet published everywhere, with days since recording and published/total channels |
+| GET | `/api/v1/reports/overdue-tasks` | `reports.view` | Open tasks past due, oldest first, with days overdue |
+| GET | `/api/v1/reports/project-status` | `reports.view` | Projects (not archived) with open/overdue work and milestone progress |
+| GET | `/api/v1/reports/team-workload` | `reports.view` | Per person: open/overdue/this-week tasks, milestones, open episodes and releases |
+| GET | `/api/v1/reports/publication-history` | `reports.view` | Published releases `from`–`to` (default 90 days, ≤ 400) with delay against the schedule |
+| GET | `/api/v1/search` | Signed in | `q` (≥ 2 characters): up to 6 each of projects, shows, episodes, tasks, events and releases |
+
+Every report accepts `timeZone` (default: the caller's) and `format=csv`. JSON reports are
+`{key, title, description, period, timeZone, generatedAt, summary[{label, value}], columns[], rows[][],
+links[{sourceType, sourceId}|null]}`, with cells already formatted (`yyyy-MM-dd HH:mm`). CSV is
+RFC 4180, UTF-8 with BOM. Cells that a spreadsheet would run as a formula are prefixed with `'`.
+
 **Calendar filters** (all optional, repeatable where plural): `eventTypes`, `sourceTypes`, `statuses`,
 `priorities`, `assignedUserId`, `projectId`, `showId`, `includeCancelled`, and `timeZone` (IANA, for the
 day/week/month/agenda boundaries).
@@ -161,4 +202,4 @@ Status codes: 400 validation, 401 not signed in / bad credentials, 403 missing p
 404 not found, 409 duplicate or stale `version`, 422 business rule (e.g. last Administrator),
 429 rate limit.
 
-All endpoints listed in the specification for Phases 1–6 are implemented.
+All endpoints listed in the specification (Phases 1–8) are implemented.

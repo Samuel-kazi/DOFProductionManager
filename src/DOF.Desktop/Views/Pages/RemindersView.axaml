@@ -1,0 +1,88 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:rem="using:DOF.Desktop.ViewModels.Reminders"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Pages.RemindersView"
+             x:DataType="pages:RemindersViewModel"
+             x:Name="Root">
+  <Grid ColumnDefinitions="*,24,320" Margin="24,16,24,12">
+    <!-- Reminders -->
+    <DockPanel>
+      <ListBox DockPanel.Dock="Top" ItemsSource="{Binding Views}" SelectedItem="{Binding SelectedView}" Background="Transparent"
+               Margin="0,0,0,12">
+        <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="pages:ReminderViewOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <pageViews:PageStatus DockPanel.Dock="Top" Margin="0,0,0,8" />
+      <Panel>
+        <TextBlock Classes="muted" Text="No reminders here." IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" Margin="0,40" />
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Items}" Margin="0,0,14,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="rem:ReminderRowViewModel">
+                <Border Classes="row">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
+                    <Button Classes="toolbar" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                            Command="{Binding #Root.((pages:RemindersViewModel)DataContext).OpenCommand}" CommandParameter="{Binding}">
+                      <StackPanel Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Classes="muted small" Text="{Binding KindText}" VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <TextBlock Classes="small" Text="{Binding WhenText}" />
+                        <TextBlock Classes="muted small" Text="{Binding RuleText}" />
+                        <TextBlock Classes="small" Text="{Binding Detail}" IsVisible="{Binding HasDetail}" TextWrapping="Wrap"
+                                   Classes.overdue="{Binding IsFailed}" Classes.muted="{Binding !IsFailed}" />
+                      </StackPanel>
+                    </Button>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" Margin="12,2">
+                      <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                      <TextBlock Classes="small" Text="{Binding StatusText}" />
+                    </StackPanel>
+                    <Button Grid.Column="2" Classes="toolbar" Content="Cancel" IsVisible="{Binding CanCancel}" VerticalAlignment="Top"
+                            Command="{Binding #Root.((pages:RemindersViewModel)DataContext).CancelReminderCommand}" CommandParameter="{Binding}" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Panel>
+    </DockPanel>
+
+    <!-- Preferences -->
+    <ScrollViewer Grid.Column="2">
+      <Border Classes="card" VerticalAlignment="Top">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Notification preferences" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="Reminders are sent by the server, so they arrive even when this app is closed. You always get them here in the app." />
+          <CheckBox Content="Pop-ups while the app is open" IsChecked="{Binding DesktopEnabled}" />
+          <StackPanel Spacing="2">
+            <CheckBox Content="E-mail" IsChecked="{Binding EmailEnabled}" IsEnabled="{Binding EmailAvailable}" />
+            <TextBlock Classes="muted small" Text="{Binding EmailHint}" TextWrapping="Wrap" Margin="28,0,0,0" />
+          </StackPanel>
+          <CheckBox Content="Tell me about overdue work" IsChecked="{Binding OverdueAlerts}" />
+          <TextBlock Classes="h3" Text="Default reminders" Margin="0,6,0,0" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="For tasks, milestones, events, recordings and releases you are responsible for. They move when the record moves." />
+          <ItemsControl ItemsSource="{Binding Offsets}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="rem:OffsetOption">
+                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Button Classes="accent" Content="Save preferences" Command="{Binding SavePreferencesCommand}" HorizontalAlignment="Left" />
+          <Border Classes="banner success" IsVisible="{Binding HasPreferencesMessage}">
+            <TextBlock Text="{Binding PreferencesMessage}" TextWrapping="Wrap" />
+          </Border>
+        </StackPanel>
+      </Border>
+    </ScrollViewer>
+  </Grid>
+</UserControl>
