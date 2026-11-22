@@ -4,6 +4,8 @@
              xmlns:cal="using:DOF.Desktop.ViewModels.Calendar"
              xmlns:pageViews="using:DOF.Desktop.Views.Pages"
              xmlns:conv="using:DOF.Desktop.Converters"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:workViews="using:DOF.Desktop.Views.Work"
              x:Class="DOF.Desktop.Views.Pages.DashboardView"
              x:DataType="pages:DashboardViewModel"
              x:Name="Root">
@@ -23,6 +25,24 @@
             </StackPanel>
             <TextBlock Grid.Column="2" Classes="muted small" Text="{Binding AssigneeNames}" Margin="12,0"
                        VerticalAlignment="Center" MaxWidth="220" TextTrimming="CharacterEllipsis" />
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+    <DataTemplate DataType="work:MilestoneItemViewModel">
+      <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0" Margin="0,0,0,4"
+              Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenMilestoneCommand}" CommandParameter="{Binding}">
+        <Border CornerRadius="7" Background="{DynamicResource Brush.App}" ClipToBounds="True">
+          <Grid ColumnDefinitions="4,*,Auto">
+            <Border Background="{DynamicResource Brush.Cat.Milestone}" />
+            <StackPanel Grid.Column="1" Margin="12,8" Spacing="2">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="muted small" Text="{Binding ProjectName}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="12,0" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Classes="small" Text="{Binding DueText}" Classes.overdue="{Binding IsOverdue}" HorizontalAlignment="Right" />
+              <TextBlock Classes="muted small" Text="{Binding AssigneeText}" HorizontalAlignment="Right" />
+            </StackPanel>
           </Grid>
         </Border>
       </Button>
@@ -48,7 +68,7 @@
       <pageViews:PageStatus />
 
       <!-- Personal -->
-      <Grid ColumnDefinitions="*,20,*" IsVisible="{Binding ShowingPersonal}">
+      <Grid ColumnDefinitions="*,20,*" RowDefinitions="Auto,20,Auto" IsVisible="{Binding ShowingPersonal}">
         <Border Classes="card" VerticalAlignment="Top">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Today's schedule" />
@@ -58,27 +78,121 @@
         </Border>
         <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
           <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="My tasks" />
+            <TextBlock Classes="muted" Text="No open tasks. Well done." IsVisible="{Binding MyTasksIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding MyTasks}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="work:TaskItemViewModel">
+                  <workViews:TaskRow ToggleCommand="{Binding #Root.((pages:DashboardViewModel)DataContext).CompleteTaskCommand}"
+                                     OpenCommand="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenTaskCommand}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Coming up for me · next 7 days" />
             <TextBlock Classes="muted" Text="Nothing assigned to you this week." IsVisible="{Binding UpcomingIsEmpty}" />
             <ItemsControl ItemsSource="{Binding Upcoming}" />
           </StackPanel>
         </Border>
+        <Border Grid.Row="2" Grid.Column="2" Classes="card" VerticalAlignment="Top" IsVisible="{Binding HasPendingReviews}">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Waiting for my review" />
+            <ItemsControl ItemsSource="{Binding PendingReviews}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="work:TaskItemViewModel">
+                  <workViews:TaskRow ToggleCommand="{Binding #Root.((pages:DashboardViewModel)DataContext).CompleteTaskCommand}"
+                                     OpenCommand="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenTaskCommand}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
       </Grid>
 
       <!-- Organisation -->
-      <Grid ColumnDefinitions="*,20,*" IsVisible="{Binding ShowingOrganisation}">
+      <Grid ColumnDefinitions="*,20,*" RowDefinitions="Auto,20,Auto,20,Auto" IsVisible="{Binding ShowingOrganisation}">
         <Border Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Overdue" />
+            <TextBlock Classes="muted" Text="Nothing is overdue." IsVisible="{Binding NothingOverdue}" />
+            <ItemsControl ItemsSource="{Binding OverdueMilestones}" />
+            <ItemsControl ItemsSource="{Binding OverdueTasks}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="work:TaskItemViewModel">
+                  <workViews:TaskRow ToggleCommand="{Binding #Root.((pages:DashboardViewModel)DataContext).CompleteTaskCommand}"
+                                     OpenCommand="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenTaskCommand}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Team workload" />
+            <TextBlock Classes="muted small" Text="Open work per person, most pressing first. Open someone to see their tasks." TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding TeamWorkload}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="pages:WorkloadRow">
+                  <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6"
+                          Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenPersonCommand}" CommandParameter="{Binding}">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                      <TextBlock Text="{Binding FullName}" FontWeight="SemiBold" />
+                      <TextBlock Grid.Column="1" Classes="small" Text="{Binding OpenText}" Margin="12,0" />
+                      <TextBlock Grid.Column="2" Classes="small overdue" Text="{Binding OverdueText}" IsVisible="{Binding HasOverdue}" Margin="0,0,12,0" />
+                      <TextBlock Grid.Column="3" Classes="muted small" Text="{Binding DueSoonText}" />
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Active projects" />
+            <TextBlock Classes="muted" Text="No active projects." IsVisible="{Binding ActiveProjectsIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding ActiveProjects}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="pages:ProjectCardViewModel">
+                  <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="8,6"
+                          Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenProjectCommand}" CommandParameter="{Binding}">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="muted small" Text="{Binding NextMilestoneText}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                        <TextBlock Classes="small" Text="{Binding OpenTasksText}" HorizontalAlignment="Right" />
+                        <TextBlock Classes="small overdue" Text="{Binding OverdueText}" IsVisible="{Binding HasOverdue}" HorizontalAlignment="Right" />
+                      </StackPanel>
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="2" Grid.Column="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Upcoming milestones · 14 days" />
+            <TextBlock Classes="muted" Text="No milestones due soon." IsVisible="{Binding UpcomingMilestonesIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding UpcomingMilestones}" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="4" Classes="card" VerticalAlignment="Top">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Upcoming activities · next 7 days" />
             <TextBlock Classes="muted" Text="No activities scheduled." IsVisible="{Binding OrganisationUpcomingIsEmpty}" />
             <ItemsControl ItemsSource="{Binding OrganisationUpcoming}" />
           </StackPanel>
         </Border>
-        <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+        <Border Grid.Row="4" Grid.Column="2" Classes="card" VerticalAlignment="Top">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Needs someone responsible" />
-            <TextBlock Classes="muted small" TextWrapping="Wrap"
-                       Text="Every activity should have a responsible person. Open one to assign people." />
+            <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Every activity should have a responsible person. Open one to assign people." />
             <TextBlock Classes="muted" Text="Every upcoming activity has someone assigned." IsVisible="{Binding UnassignedIsEmpty}" />
             <ItemsControl ItemsSource="{Binding Unassigned}" />
           </StackPanel>
@@ -86,7 +200,7 @@
       </Grid>
 
       <TextBlock Classes="muted small" TextWrapping="Wrap"
-                 Text="Tasks, assigned episodes, pending reviews, releases and notifications join the dashboard as those features arrive (Phases 4–7)." />
+                 Text="Assigned episodes, releases and notifications join the dashboard as those features arrive (Phases 5–7)." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

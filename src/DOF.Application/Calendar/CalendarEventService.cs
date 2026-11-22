@@ -1,3 +1,4 @@
+using DOF.Application.Activity;
 using DOF.Application.Common;
 using DOF.Application.Common.Abstractions;
 using DOF.Application.Common.Exceptions;
@@ -19,6 +20,7 @@ public sealed class CalendarEventService(
     IApplicationDbContext db,
     ICurrentUser currentUser,
     IOptions<OrganisationOptions> organisation,
+    ActivityRecorder activity,
     ILogger<CalendarEventService> logger)
 {
     public async Task<PagedResponse<CalendarEventResponse>> ListAsync(
@@ -65,6 +67,8 @@ public sealed class CalendarEventService(
 
         await ApplyAssignmentsAsync(calendarEvent, request.Assignments, ct);
         db.CalendarEvents.Add(calendarEvent);
+        activity.Record(ActivityEntities.CalendarEvent, calendarEvent.Id, ActivityActions.Created, null,
+            new { calendarEvent.Title, calendarEvent.StartAt, calendarEvent.EndAt });
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Calendar event {EventId} created by {UserId}", calendarEvent.Id, currentUser.UserId);
@@ -75,6 +79,7 @@ public sealed class CalendarEventService(
     {
         var calendarEvent = await LoadForUpdateAsync(id, request.Version, ct);
         var (start, end) = Times(request.StartAt, request.EndAt, request.IsAllDay);
+        var previous = new { calendarEvent.StartAt, calendarEvent.EndAt, Status = calendarEvent.Status.ToString() };
 
         calendarEvent.Update(
             request.Title, request.Description, CalendarEventMapping.Parse<CalendarEventType>(request.EventType, "event type"),
@@ -82,6 +87,16 @@ public sealed class CalendarEventService(
             CalendarEventMapping.Parse<Priority>(request.Priority, "priority"),
             CalendarEventMapping.Parse<CalendarEventStatus>(request.Status, "status"));
         await ApplyAssignmentsAsync(calendarEvent, request.Assignments, ct);
+        if (previous.StartAt != calendarEvent.StartAt || previous.EndAt != calendarEvent.EndAt)
+        {
+            activity.Record(ActivityEntities.CalendarEvent, id, ActivityActions.Rescheduled,
+                new { previous.StartAt, previous.EndAt }, new { calendarEvent.StartAt, calendarEvent.EndAt });
+        }
+        if (previous.Status != calendarEvent.Status.ToString())
+        {
+            activity.Record(ActivityEntities.CalendarEvent, id, ActivityActions.StatusChanged,
+                new { previous.Status }, new { Status = calendarEvent.Status.ToString() });
+        }
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Calendar event {EventId} updated by {UserId}", id, currentUser.UserId);
@@ -99,6 +114,7 @@ public sealed class CalendarEventService(
         }
 
         calendarEvent.Cancel();
+        activity.Record(ActivityEntities.CalendarEvent, id, ActivityActions.Cancelled);
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Calendar event {EventId} cancelled by {UserId}", id, currentUser.UserId);
     }

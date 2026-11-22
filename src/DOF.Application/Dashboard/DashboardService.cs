@@ -1,21 +1,31 @@
 using DOF.Application.Calendar;
 using DOF.Application.Common;
 using DOF.Application.Common.Abstractions;
+using DOF.Application.Work;
 using DOF.Contracts.Responses;
+using DOF.Domain.Enums;
 using DOF.Domain.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace DOF.Application.Dashboard;
 
 /// <summary>
-/// Dashboards built from the aggregated calendar. Every entry is a calendar item that links to its
-/// original record; there are no decorative statistics.
+/// Dashboards built from the aggregated calendar and live work records. Every entry links to its
+/// original record; counts are only shown where they lead to a list (workload, overdue).
 /// </summary>
-public sealed class DashboardService(CalendarService calendar, ICurrentUser currentUser)
+public sealed class DashboardService(
+    CalendarService calendar,
+    ICurrentUser currentUser,
+    IApplicationDbContext db,
+    WorkReaders readers,
+    ProjectService projects,
+    WorkloadService workload)
 {
     public const int DefaultDays = 7;
     public const int MaxDays = 60;
+    public const int MilestoneWindowDays = 14;
+    public const int ListLimit = 25;
 
-    /// <summary>Today's schedule and the next week's items assigned to the signed-in user.</summary>
     public async Task<PersonalDashboardResponse> GetPersonalAsync(string? timeZone, CancellationToken ct)
     {
         var zone = await calendar.ResolveZoneAsync(timeZone, ct);
@@ -28,23 +38,58 @@ public sealed class DashboardService(CalendarService calendar, ICurrentUser curr
         var upcoming = await calendar.GetItemsAsync(new CalendarQuery(
             tomorrowStart, ZonedTime.StartOfDay(today.AddDays(1 + DefaultDays), zone), AssignedUserId: me), ct);
 
-        return new PersonalDashboardResponse(today, zone.Id, todaySchedule, upcoming);
+        var myTasks = await readers.TasksAsync(WorkReaders.Ordered(db.Tasks.Where(t =>
+                t.Status != WorkStatus.Completed && t.Status != WorkStatus.Cancelled && t.Assignments.Any(a => a.UserId == me)))
+            .Take(ListLimit), ct);
+        var pendingReviews = await readers.TasksAsync(WorkReaders.Ordered(db.Tasks.Where(t =>
+                t.Status == WorkStatus.AwaitingReview && t.CreatedBy == me))
+            .Take(ListLimit), ct);
+
+        return new PersonalDashboardResponse(today, zone.Id, todaySchedule, upcoming, myTasks, pendingReviews);
     }
 
-    /// <summary>
-    /// Organisation-wide upcoming activities, plus the ones nobody is responsible for yet (every activity
-    /// should have a responsible person).
-    /// </summary>
     public async Task<ManagementDashboardResponse> GetManagementAsync(
         DateOnly? start, DateOnly? end, string? timeZone, CancellationToken ct)
     {
         var zone = await calendar.ResolveZoneAsync(timeZone, ct);
         var (from, to) = Range(start, end, zone);
         var items = await calendar.GetItemsAsync(new CalendarQuery(from, to), ct);
-        return new ManagementDashboardResponse(from, to, zone.Id, items, [.. items.Where(i => i.AssignedUsers.Count == 0)]);
+
+        var activeProjects = await projects.Summaries(db.Projects.AsNoTracking()
+            .Where(p => p.Status == ProjectStatus.Active).OrderBy(p => p.Name)).Take(ListLimit).ToListAsync(ct);
+        var today = readers.Today;
+        var upcomingMilestones = await readers.MilestonesAsync(db.ProjectMilestones.Where(m =>
+                m.Status != WorkStatus.Completed && m.Status != WorkStatus.Cancelled
+                && m.DueDate >= today && m.DueDate <= today.AddDays(MilestoneWindowDays)
+                && m.Project.Status != ProjectStatus.Archived)
+            .OrderBy(m => m.DueDate).Take(ListLimit), ct);
+
+        return new ManagementDashboardResponse(from, to, zone.Id, items, [.. items.Where(i => i.AssignedUsers.Count == 0)],
+            activeProjects, upcomingMilestones, await GetOverdueAsync(mine: false, ct), await workload.TeamAsync(ct));
     }
 
-    /// <summary>Upcoming items for the organisation, or only the signed-in user's when <paramref name="mine"/> is set.</summary>
+    /// <summary>Open tasks past their due time and open milestones past their due date.</summary>
+    public async Task<OverdueResponse> GetOverdueAsync(bool mine, CancellationToken ct)
+    {
+        var now = readers.Now;
+        var today = readers.Today;
+        var me = currentUser.RequiredUserId;
+
+        var tasks = db.Tasks.Where(t => t.Status != WorkStatus.Completed && t.Status != WorkStatus.Cancelled
+                                        && t.DueAt != null && t.DueAt < now);
+        var milestones = db.ProjectMilestones.Where(m => m.Status != WorkStatus.Completed && m.Status != WorkStatus.Cancelled
+                                                         && m.DueDate < today && m.Project.Status != ProjectStatus.Archived);
+        if (mine)
+        {
+            tasks = tasks.Where(t => t.Assignments.Any(a => a.UserId == me));
+            milestones = milestones.Where(m => m.AssignedTo == me);
+        }
+
+        return new OverdueResponse(
+            await readers.TasksAsync(tasks.OrderBy(t => t.DueAt).Take(100), ct),
+            await readers.MilestonesAsync(milestones.OrderBy(m => m.DueDate).Take(100), ct));
+    }
+
     public async Task<CalendarRangeResponse> GetUpcomingAsync(int? days, bool mine, string? timeZone, CancellationToken ct)
     {
         var count = days ?? DefaultDays;

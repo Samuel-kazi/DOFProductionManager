@@ -1,3 +1,4 @@
+using DOF.Application.Activity;
 using DOF.Application.Common.Exceptions;
 using DOF.Application.Common.Abstractions;
 using DOF.Contracts.Requests;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DOF.Application.Users;
 
-public sealed class RoleService(IApplicationDbContext db, ILogger<RoleService> logger)
+public sealed class RoleService(IApplicationDbContext db, ActivityRecorder activity, ILogger<RoleService> logger)
 {
     public async Task<IReadOnlyList<RoleResponse>> ListAsync(CancellationToken ct) =>
         await db.Roles.AsNoTracking()
@@ -47,7 +48,11 @@ public sealed class RoleService(IApplicationDbContext db, ILogger<RoleService> l
                 $"The {SystemRoles.Administrator} role must keep '{Permissions.UsersManage}' so accounts can always be managed.");
         }
 
+        var before = await db.RolePermissions.Where(rp => rp.RoleId == roleId)
+            .Select(rp => rp.Permission.Name).OrderBy(n => n).ToListAsync(ct);
         role.SetPermissions(permissions.Select(p => p.Id));
+        activity.Record(ActivityEntities.Role, roleId, ActivityActions.PermissionsChanged,
+            new { Permissions = before }, new { Permissions = names.Order().ToList() });
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Permissions of role {Role} set to [{Permissions}] by {ActingUserId}",

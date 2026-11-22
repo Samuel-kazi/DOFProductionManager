@@ -14,6 +14,12 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
     public DbSet<CalendarEventAssignment> CalendarEventAssignments => Set<CalendarEventAssignment>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+    public DbSet<ProjectMilestone> ProjectMilestones => Set<ProjectMilestone>();
+    public DbSet<WorkTask> Tasks => Set<WorkTask>();
+    public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
+    public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

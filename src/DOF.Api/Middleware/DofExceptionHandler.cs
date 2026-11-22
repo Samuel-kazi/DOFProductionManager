@@ -16,6 +16,7 @@ public sealed class DofExceptionHandler(IProblemDetailsService problemDetails, I
         {
             NotFoundException e => (StatusCodes.Status404NotFound, "Not found", e.Message),
             ConflictException e => (StatusCodes.Status409Conflict, "Conflict", e.Message),
+            ForbiddenException e => (StatusCodes.Status403Forbidden, "Forbidden", e.Message),
             DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "Conflict",
                 "This record was modified by someone else. Reload the latest version and try again."),
             AuthenticationFailedException e => (StatusCodes.Status401Unauthorized, "Authentication failed", e.Message),

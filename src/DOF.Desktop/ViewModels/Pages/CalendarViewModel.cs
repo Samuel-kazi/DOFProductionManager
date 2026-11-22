@@ -29,7 +29,8 @@ public sealed partial class CalendarViewModel : PageViewModel
         _session = session;
         _clock = clock;
         AnchorDate = clock.Today;
-        EventTypeFilters = [.. CalendarValues.EventTypes.Select(t => new FilterOption(t, CalendarLabels.Humanize(t)))];
+        EventTypeFilters = [.. CalendarValues.EventTypes.Append(CalendarValues.MilestoneItem).Append(CalendarValues.TaskDeadlineItem)
+            .Select(t => new FilterOption(t, CalendarLabels.Humanize(t)))];
         PriorityFilters = [.. CalendarValues.Priorities.Select(p => new FilterOption(p, p))];
         foreach (var option in EventTypeFilters.Concat(PriorityFilters))
         {
@@ -396,6 +397,33 @@ public sealed partial class CalendarViewModel : PageViewModel
         if (!item.CanReschedule)
         {
             return false;
+        }
+
+        if (item.Item.SourceType == "Milestone")
+        {
+            var movedMilestone = await RunAsync(async () =>
+            {
+                var m = await _api.GetAsync<MilestoneResponse>($"api/v1/milestones/{item.Item.SourceId}");
+                await _api.PutAsync<MilestoneResponse>($"api/v1/milestones/{m.Id}", new UpdateMilestoneRequest(
+                    m.Title, m.Description, DateOnly.FromDateTime(newLocalStart), m.Priority, m.Status, m.AssignedTo?.Id, m.Version));
+                AppLog.Info($"Rescheduled milestone {m.Id}");
+            });
+            await LoadAsync();
+            return movedMilestone;
+        }
+
+        if (item.Item.SourceType == "Task")
+        {
+            var movedTask = await RunAsync(async () =>
+            {
+                var t = await _api.GetAsync<TaskResponse>($"api/v1/tasks/{item.Item.SourceId}");
+                await _api.PutAsync<TaskResponse>($"api/v1/tasks/{t.Id}", new UpdateTaskRequest(
+                    t.Title, t.Description, t.Project?.Id, _clock.FromLocal(newLocalStart), t.Priority,
+                    [.. t.Assignees.Select(a => a.UserId)], t.Assignees.FirstOrDefault(a => a.IsPrimary)?.UserId, t.Version));
+                AppLog.Info($"Rescheduled task {t.Id}");
+            });
+            await LoadAsync();
+            return movedTask;
         }
 
         var moved = await RunAsync(async () =>

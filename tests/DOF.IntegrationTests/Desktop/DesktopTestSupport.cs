@@ -80,5 +80,27 @@ public sealed class HeadlessSession : IDisposable
             .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
             .WithInterFont();
 
-    public void Dispose() => Session.Dispose();
+    /// <summary>
+    /// Closes any windows tests left open, then shuts the headless platform down. Shutdown is bounded: the
+    /// headless dispatcher can wait indefinitely on teardown after the last test (observed idle, not busy),
+    /// and a test-only teardown must never hang the run. The process exit ends the thread either way.
+    /// </summary>
+    public void Dispose()
+    {
+        var closed = Session.Dispatch(() =>
+        {
+            foreach (var window in Ui.OpenWindows.ToList())
+            {
+                window.Close();
+            }
+            Ui.OpenWindows.Clear();
+        }, CancellationToken.None);
+        closed.Wait(TimeSpan.FromSeconds(5));
+
+        var disposed = Task.Run(Session.Dispose);
+        if (!disposed.Wait(TimeSpan.FromSeconds(10)))
+        {
+            Console.Error.WriteLine("Headless session did not shut down within 10 seconds; continuing.");
+        }
+    }
 }

@@ -43,6 +43,14 @@ public static class TestApi
 
     public sealed record CreatedUser(Guid Id, string Email, string Password);
 
+    /// <summary>A new user with the given role, plus an HTTP client signed in as them.</summary>
+    public static async Task<(CreatedUser User, HttpClient Client)> UserClientAsync(this DofApiFactory factory, string roleName)
+    {
+        var user = await factory.CreateUserAsync(roleName);
+        var client = factory.CreateClient().WithToken((await factory.LoginAsync(user.Email, user.Password)).AccessToken);
+        return (user, client);
+    }
+
     /// <summary>Creates a user with a unique email via the admin API.</summary>
     public static async Task<CreatedUser> CreateUserAsync(this DofApiFactory factory, string roleName)
     {

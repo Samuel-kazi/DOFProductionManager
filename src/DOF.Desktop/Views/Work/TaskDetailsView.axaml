@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Work.TaskDetailsView"
+             x:DataType="work:TaskDetailsViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="20,16,12,0">
+      <Border Classes="pill" HorizontalAlignment="Left"><TextBlock Text="Task" FontSize="12" Foreground="{DynamicResource Brush.Accent}" /></Border>
+      <Button Grid.Column="1" Classes="toolbar" Content="✕" ToolTip.Tip="Close"
+              Command="{Binding $parent[pageViews:TasksView].((pages:TasksViewModel)DataContext).CloseSidePanelCommand}" />
+    </Grid>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="20,12,20,20">
+      <Button Classes="accent" Content="Edit" IsVisible="{Binding CanEdit}"
+              Command="{Binding $parent[pageViews:TasksView].((pages:TasksViewModel)DataContext).EditTaskCommand}" CommandParameter="{Binding}" />
+    </StackPanel>
+    <ScrollViewer>
+      <StackPanel Margin="20,10,20,0" Spacing="14">
+        <TextBlock Classes="h2" FontSize="20" Text="{Binding Title}" TextWrapping="Wrap" />
+        <StackPanel Spacing="3">
+          <TextBlock Text="{Binding DueText, StringFormat='Due {0}'}" Classes.overdue="{Binding IsOverdue}" />
+          <TextBlock Classes="muted small" Text="{Binding PriorityText}" />
+          <TextBlock Classes="muted small" Text="{Binding ProjectName, StringFormat='Project: {0}'}" IsVisible="{Binding HasProject}" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Classes="muted small" Text="Status" />
+          <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" IsEnabled="{Binding CanEdit}" Width="200">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Classes="muted small" Text="People" />
+          <ItemsControl ItemsSource="{Binding People}">
+            <ItemsControl.ItemTemplate><DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" Margin="0,1" /></DataTemplate></ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+        <StackPanel Spacing="3" IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock Classes="muted small" Text="Notes" />
+          <SelectableTextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+        </StackPanel>
+        <TextBlock Classes="muted small" Text="{Binding AuditText}" TextWrapping="Wrap" />
+        <StackPanel Spacing="6">
+          <TextBlock Classes="muted small" Text="History" />
+          <ItemsControl ItemsSource="{Binding History}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="work:HistoryLine">
+                <StackPanel Margin="0,0,0,8" Spacing="1">
+                  <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                  <TextBlock Classes="muted small" Text="{Binding Meta}" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

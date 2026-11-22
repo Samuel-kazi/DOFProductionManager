@@ -148,7 +148,8 @@ sessions). Everything else reaches the calendar through an `ICalendarSource`:
 ```text
 CalendarService ──► ICalendarSource (one per record type)
                       ├─ StandaloneEventCalendarSource   (Phase 3)
-                      ├─ milestones / task deadlines     (Phase 4)
+                      ├─ MilestoneCalendarSource         (Phase 4, all-day on the due date)
+                      ├─ TaskDeadlineCalendarSource      (Phase 4, a point at due_at)
                       ├─ episode recording, edit, review (Phase 5)
                       └─ releases                        (Phase 6)
 ```
@@ -188,6 +189,44 @@ via `IRecordNavigator` (implemented by the shell). Dragging (`CalendarView.axaml
 events by whole days in the month view, and by days plus 15-minute steps in week/day view, through
 `PUT /calendar/events/{id}` with the current version, keeping the event's length. Filters (type,
 priority, mine, cancelled) query the server; the title filter narrows what's loaded.
+
+## Projects, tasks and history (Phase 4)
+
+**Records.** Projects (versioned, auditable, archivable) own members and milestones. Tasks stand alone
+or belong to a project and have one or more assignees, exactly one of them primary (the responsible
+person); with no assignees given, the creator is primary. Milestones and tasks share the
+`WorkStatus` values. Completing stamps `completed_at` (and `completed_by` for tasks); reopening clears
+them, and the history keeps every step. Archived projects take no new milestones or tasks.
+
+**Permissions** (`WorkAccess`, checked in the services for every change; responses carry `canEdit`):
+- Projects: create with `projects.create`. Edit, change status, manage members and milestones with
+  `projects.edit` or as the project's manager. Archiving or restoring needs `projects.archive`.
+- Milestones: whoever can edit the project, plus the milestone's assignee.
+- Tasks: anyone may create one for themselves. Giving work to someone new needs `tasks.assign`. The
+  creator, the assignees and `tasks.assign` holders may change a task.
+- Reading is open to every signed-in user.
+
+**Activity log.** `ActivityRecorder` adds an `activity_logs` row in the same unit of work as the change
+it describes (old and new values of only the fields that changed, as JSONB). Recorded:
+create/update/status/reschedule/assignment changes for projects, milestones and tasks; member
+changes; calendar event create/reschedule/status/cancel; user create/update/roles/status; role
+permission changes. `ActivityQueries` phrases entries ("Status changed from X to Y"). The table is
+**append-only at the database level**: a trigger rejects any `UPDATE` or `DELETE`.
+
+**Overdue and workload.** Tasks are overdue when open and past `due_at`; milestones when open and
+their due date is before today in the organisation timezone. `/dashboard/overdue` lists both;
+`WorkloadService` counts open, overdue and due-this-week tasks and open milestones per active user.
+Overdue detection here is a query. Notifying people about it is the Phase 7 background job.
+
+**Desktop.** *Projects* page: card list (open tasks, overdue count, next milestone), detail with
+milestones (tick to complete), tasks, members and history, plus project and milestone editors in the
+side panel. *Tasks* page: My tasks / Assigned by me / All / Overdue / Completed, list or board, tick to
+complete, a details panel with a status picker and history, and an editor where people without
+`tasks.assign` can only assign themselves. Calendar milestones and task deadlines open their records
+and can be dragged; the drag updates the milestone or task. Dashboards show my tasks, reviews waiting
+for me, overdue work, active projects, upcoming milestones and team workload, and a workload row
+opens that person's tasks. Status pickers ignore empty or repeated values, because a picker being torn
+down can write back an empty value and would otherwise trigger a reload loop.
 
 ## Desktop client (Phase 2)
 
@@ -244,7 +283,9 @@ UI-thread errors are also shown in a dismissible banner. Nothing is swallowed si
 in a headless Avalonia window (Skia rendering) against the real API: sign-in, navigation to every
 section, keyboard shortcuts, session restore, offline start, deactivation, password change, theme, every
 calendar view, opening records, the event editor, drag-to-reschedule with simulated mouse input,
-filters, dashboards and quick create.
+filters, dashboards, quick create, and the projects and tasks pages (`WorkUiTests`). Each UI test has
+a 90-second limit. At the end of the run the fixture closes windows tests left open; if they are left
+open, the headless platform's shutdown never completes.
 They save screenshots to `tests/DOF.IntegrationTests/bin/Debug/net10.0/ui-snapshots/` for visual
 review. Avalonia's xUnit integration targets xUnit v3.2, so the tests drive `Avalonia.Headless`
 directly. Note: they must call `HeadlessUnitTestSession.Dispatch` with a `Func<Task<T>>`; a plain

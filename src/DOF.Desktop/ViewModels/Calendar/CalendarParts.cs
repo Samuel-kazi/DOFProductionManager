@@ -57,6 +57,13 @@ public static class CalendarLabels
         "ExternalAppointment" => "External appointment",
         "RecordingSession" => "Recording session",
         "CalendarEvent" => "Event",
+        "TaskDeadline" => "Task deadline",
+        "NotStarted" => "Not started",
+        "InProgress" => "In progress",
+        "AwaitingReview" => "Awaiting review",
+        "OnHold" => "On hold",
+        "ShowProduction" => "Show production",
+        "MusicProduction" => "Music production",
         _ => value,
     };
 }

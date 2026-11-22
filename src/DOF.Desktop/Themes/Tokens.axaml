@@ -24,6 +24,8 @@
       <SolidColorBrush x:Key="Brush.Cat.ExternalAppointment" Color="#0E8C9A" />
       <SolidColorBrush x:Key="Brush.Cat.RecordingSession" Color="#C2610C" />
       <SolidColorBrush x:Key="Brush.Cat.Other" Color="#6B7280" />
+      <SolidColorBrush x:Key="Brush.Cat.Milestone" Color="#C0367A" />
+      <SolidColorBrush x:Key="Brush.Cat.TaskDeadline" Color="#4F6B8A" />
       <SolidColorBrush x:Key="Brush.TodayRing" Color="#B45F0E" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
@@ -48,6 +50,8 @@
       <SolidColorBrush x:Key="Brush.Cat.ExternalAppointment" Color="#4CC9D6" />
       <SolidColorBrush x:Key="Brush.Cat.RecordingSession" Color="#F0A24A" />
       <SolidColorBrush x:Key="Brush.Cat.Other" Color="#A0A7B4" />
+      <SolidColorBrush x:Key="Brush.Cat.Milestone" Color="#F27AB3" />
+      <SolidColorBrush x:Key="Brush.Cat.TaskDeadline" Color="#9DB6D3" />
       <SolidColorBrush x:Key="Brush.TodayRing" Color="#F0A24A" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>

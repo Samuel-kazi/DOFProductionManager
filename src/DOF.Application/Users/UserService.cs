@@ -1,3 +1,4 @@
+using DOF.Application.Activity;
 using DOF.Application.Auth;
 using DOF.Application.Common;
 using DOF.Application.Common.Abstractions;
@@ -19,6 +20,7 @@ public sealed class UserService(
     IPasswordHasher hasher,
     IOptions<OrganisationOptions> organisation,
     TimeProvider clock,
+    ActivityRecorder activity,
     ILogger<UserService> logger)
 {
     public async Task<PagedResponse<UserResponse>> ListAsync(
@@ -64,6 +66,8 @@ public sealed class UserService(
         user.SetRoles(request.RoleIds);
 
         db.Users.Add(user);
+        activity.Record(ActivityEntities.User, user.Id, ActivityActions.Created, null,
+            new { user.FullName, user.Email, Roles = await RoleNamesAsync(request.RoleIds, ct) });
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("User {UserId} created", user.Id);
@@ -94,8 +98,17 @@ public sealed class UserService(
             await EnsureAnotherActiveAdministratorAsync(id, adminRoleId, ct);
         }
 
+        var before = new Dictionary<string, object?> { ["FullName"] = user.FullName, ["Email"] = user.Email, ["TimeZone"] = user.TimeZone };
+        var rolesBefore = await RoleNamesAsync(user.Roles.Select(r => r.RoleId).ToList(), ct);
         user.UpdateProfile(request.FullName, request.Email, request.TimeZone);
         user.SetRoles(request.RoleIds);
+        activity.RecordChanges(ActivityEntities.User, id, ActivityActions.Updated, before,
+            new Dictionary<string, object?> { ["FullName"] = user.FullName, ["Email"] = user.Email, ["TimeZone"] = user.TimeZone });
+        var rolesAfter = await RoleNamesAsync(request.RoleIds, ct);
+        if (!rolesBefore.SequenceEqual(rolesAfter))
+        {
+            activity.Record(ActivityEntities.User, id, ActivityActions.RolesChanged, new { Roles = rolesBefore }, new { Roles = rolesAfter });
+        }
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("User {UserId} updated", id);
@@ -133,10 +146,15 @@ public sealed class UserService(
             await AuthService.RevokeAllForUserAsync(db, id, RefreshToken.Reasons.UserDeactivated, clock.GetUtcNow(), ct);
         }
 
+        activity.Record(ActivityEntities.User, id, ActivityActions.StatusChanged,
+            new { Status = isActive ? "Deactivated" : "Active" }, new { Status = isActive ? "Active" : "Deactivated" });
         await db.SaveChangesAsync(ct);
         logger.LogInformation("User {UserId} {Action} by {ActingUserId}", id, isActive ? "activated" : "deactivated", actingUserId);
         return await GetAsync(id, ct);
     }
+
+    private async Task<List<string>> RoleNamesAsync(IReadOnlyCollection<Guid> roleIds, CancellationToken ct) =>
+        await db.Roles.Where(r => roleIds.Contains(r.Id)).OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
 
     private static IQueryable<UserResponse> Project(IQueryable<User> query) =>
         query.Select(u => new UserResponse(

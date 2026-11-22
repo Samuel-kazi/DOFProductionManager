@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             x:Class="DOF.Desktop.Views.Work.TaskEditorView"
+             x:DataType="work:TaskEditorViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="20,16,12,8">
+      <TextBlock Classes="h2" Text="{Binding Heading}" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Classes="toolbar" Content="✕" ToolTip.Tip="Close without saving"
+              Command="{Binding $parent[pageViews:TasksView].((pages:TasksViewModel)DataContext).CloseSidePanelCommand}" />
+    </Grid>
+    <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,20" Spacing="10">
+      <Border Classes="banner error" IsVisible="{Binding HasError}"><TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" /></Border>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Content="Save" IsDefault="True" IsEnabled="{Binding !IsSaving}"
+                Command="{Binding $parent[pageViews:TasksView].((pages:TasksViewModel)DataContext).SaveTaskCommand}" CommandParameter="{Binding}" />
+        <Button Content="Discard" Command="{Binding $parent[pageViews:TasksView].((pages:TasksViewModel)DataContext).CloseSidePanelCommand}" />
+      </StackPanel>
+    </StackPanel>
+    <ScrollViewer>
+      <StackPanel Margin="20,0,20,8" Spacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Title" />
+          <TextBox x:Name="TitleBox" Text="{Binding Title}" PlaceholderText="e.g. Book the studio for Tuesday" />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,12,*">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Project" />
+            <ComboBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="4">
+            <TextBlock Text="Priority" />
+            <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+        </Grid>
+        <CheckBox Content="Has a due date" IsChecked="{Binding HasDueDate}" />
+        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasDueDate}">
+          <CalendarDatePicker SelectedDate="{Binding DueDate}" Width="150" />
+          <TimePicker SelectedTime="{Binding DueTime}" ClockIdentifier="24HourClock" MinuteIncrement="15" MinWidth="0" Width="180" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Responsible" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding CanAssignOthers}"
+                     Text="Tick everyone working on it and mark the one person responsible." />
+          <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding !CanAssignOthers}"
+                     Text="You'll be responsible for this task. Assigning other people needs the tasks.assign permission." />
+          <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="6" MaxHeight="200">
+            <ScrollViewer>
+              <ItemsControl ItemsSource="{Binding People}" Margin="8,4">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="work:PersonOption">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <CheckBox Content="{Binding FullName}" IsChecked="{Binding IsSelected}" />
+                      <RadioButton Grid.Column="1" GroupName="primary" Content="Responsible" IsChecked="{Binding IsPrimary}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Notes" />
+          <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>
