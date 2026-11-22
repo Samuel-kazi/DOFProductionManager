@@ -6,7 +6,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Project foundation | ✅ Complete (2026-11-22) |
-| 1 | Authentication and users | Not started |
+| 1 | Authentication and users | ✅ Complete (2026-11-22) |
 | 2 | Desktop foundation | Not started |
 | 3 | Dashboard and calendar | Not started |
 | 4 | Tasks and projects | Not started |
@@ -34,6 +34,27 @@ Deferred by design:
 - The desktop project is the stock Avalonia MVVM app, retitled; the real shell is Phase 2.
 - Hangfire, SignalR and FluentValidation are added in the phases that first use them.
 - Docker is not installed locally; container definitions come with deployment work.
+
+## Phase 1 — Authentication and users ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| Users can log in | `AuthTests.Valid_credentials_return_tokens_and_the_profile`; manual check against the dev API |
+| Invalid credentials are rejected | Wrong password, unknown email, deactivated user and empty request all tested (401 / 400) |
+| Permissions are enforced by the API | Anonymous → 401, missing permission → 403, granted → allowed; permission changes take effect without re-login |
+| Users can securely log out | Logout revokes the refresh token server-side; desktop `AuthSession` clears the OS secure store |
+
+Also delivered: refresh-token rotation with reuse detection, password change, user CRUD with
+optimistic concurrency, role-permission management, Administrator lockout guards, per-IP rate
+limiting, FluentValidation, ProblemDetails error mapping, Swagger bearer auth, macOS Keychain and
+Windows Credential Manager stores. 59 automated tests pass.
+
+Deferred / open:
+- `GET /users/{id}/workload` waits for tasks (Phase 4).
+- `WindowsCredentialStore` is untested on Windows; verify when a Windows machine is available.
+- `activity_logs` (audit trail) arrives with the first operational records (Phase 4). Phase 1
+  security events (logins, permission changes, deactivations) are written to the structured log.
+- The desktop login screen itself is Phase 2; Phase 1 delivers the session service it will use.
 
 ## Supporting documents
 

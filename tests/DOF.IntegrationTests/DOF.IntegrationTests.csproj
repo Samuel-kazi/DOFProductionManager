@@ -12,6 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DOF.Api\DOF.Api.csproj" />
     <ProjectReference Include="..\..\src\DOF.Infrastructure\DOF.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DOF.Desktop\DOF.Desktop.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

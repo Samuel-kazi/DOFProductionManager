@@ -7,11 +7,12 @@ using DOF.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using static DOF.IntegrationTests.TestApi;
+
 namespace DOF.IntegrationTests;
 
 public class FoundationTests(DofApiFactory factory)
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
     public async Task Health_endpoint_reports_healthy_database()
@@ -61,8 +62,12 @@ public class FoundationTests(DofApiFactory factory)
     [Fact]
     public async Task Unknown_routes_return_problem_details()
     {
-        var response = await factory.CreateClient().GetAsync("/api/v1/does-not-exist", Ct);
+        // Anonymous callers learn nothing about which routes exist.
+        var anonymous = await factory.CreateClient().GetAsync("/api/v1/does-not-exist", Ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Equal("application/problem+json", anonymous.Content.Headers.ContentType?.MediaType);
 
+        var response = await (await factory.AdminClientAsync()).GetAsync("/api/v1/does-not-exist", Ct);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
@@ -70,7 +75,7 @@ public class FoundationTests(DofApiFactory factory)
     [Fact]
     public async Task OpenApi_document_is_not_exposed_outside_development()
     {
-        var response = await factory.CreateClient().GetAsync("/swagger/v1/swagger.json", Ct);
+        var response = await (await factory.AdminClientAsync()).GetAsync("/swagger/v1/swagger.json", Ct);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

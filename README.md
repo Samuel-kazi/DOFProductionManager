@@ -19,6 +19,12 @@ The governing document is [`docs/TECHNICAL_SPECIFICATION.md`](docs/TECHNICAL_SPE
 ```bash
 dotnet tool restore                      # restores the pinned dotnet-ef CLI
 ./deployment/scripts/setup-local-db.sh   # creates role dof_pm + dev/test databases
+
+# One-time development secrets (stored outside the repo by .NET user-secrets)
+dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 48)" --project src/DOF.Api
+dotnet user-secrets set "Bootstrap:AdminEmail" "admin@dof.local" --project src/DOF.Api
+dotnet user-secrets set "Bootstrap:AdminPassword" "<choose-a-password-of-10+-chars>" --project src/DOF.Api
+
 dotnet build
 dotnet test                              # unit, integration (real PostgreSQL) and architecture tests
 dotnet run --project src/DOF.Api         # http://localhost:5028/swagger
@@ -29,6 +35,10 @@ In Development the API applies pending migrations at startup. Elsewhere, apply t
 ```bash
 dotnet ef database update --project src/DOF.Infrastructure --startup-project src/DOF.Api
 ```
+
+On first start against an empty database the API creates the bootstrap Administrator from those
+secrets. Sign in through Swagger with `POST /api/v1/auth/login`, then use **Authorize** with the
+returned access token.
 
 Useful endpoints: `GET /health` (readiness incl. database), `GET /health/live` (liveness), `GET /api/v1/system/info`.
 

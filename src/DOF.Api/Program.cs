@@ -1,4 +1,7 @@
+using DOF.Api.Authentication;
 using DOF.Api.Health;
+using DOF.Api.Middleware;
+using DOF.Application;
 using DOF.Application.Common;
 using DOF.Infrastructure;
 using DOF.Infrastructure.Persistence;
@@ -23,10 +26,14 @@ try
         .Validate(o => o.HasValidTimeZone(), "Organisation:DefaultTimeZone must be a valid IANA timezone.")
         .ValidateOnStart();
 
-    builder.Services.AddInfrastructure();
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddDofAuthentication();
+    builder.Services.AddDofRateLimiting(builder.Configuration);
 
     builder.Services.AddProblemDetails();
-    builder.Services.AddControllers();
+    builder.Services.AddExceptionHandler<DofExceptionHandler>();
+    builder.Services.AddControllers(options => options.Filters.Add<ValidationFilter>());
 
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
@@ -35,6 +42,17 @@ try
         {
             Title = "DOF Production Manager API",
             Version = "v1",
+        });
+        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Paste the access token returned by POST /api/v1/auth/login.",
+        });
+        options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("Bearer", document)] = [],
         });
         var xmlDocs = Path.Combine(AppContext.BaseDirectory, "DOF.Api.xml");
         if (File.Exists(xmlDocs))
@@ -50,9 +68,12 @@ try
         await DatabaseInitializer.ApplyMigrationsAsync(app.Services);
     }
 
+    await DatabaseSeeder.SeedAsync(app.Services);
+
+    // Request logging wraps the exception handler so it records the final status code sent to the client.
+    app.UseSerilogRequestLogging();
     app.UseExceptionHandler();
     app.UseStatusCodePages();
-    app.UseSerilogRequestLogging();
 
     if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
     {
@@ -66,16 +87,20 @@ try
         app.UseSwaggerUI(options => options.SwaggerEndpoint("/swagger/v1/swagger.json", "DOF Production Manager API v1"));
     }
 
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.UseRateLimiter();
+
     // Liveness: the process is up. Readiness (/health): the process can reach its dependencies.
     app.MapHealthChecks("/health/live", new HealthCheckOptions
     {
         Predicate = _ => false,
         ResponseWriter = HealthResponseWriter.WriteAsync,
-    });
+    }).AllowAnonymous();
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         ResponseWriter = HealthResponseWriter.WriteAsync,
-    });
+    }).AllowAnonymous();
 
     app.MapControllers();
 
