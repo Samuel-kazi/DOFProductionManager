@@ -124,7 +124,11 @@ public sealed partial class ShowsViewModel(ApiClient api, AuthSession session, U
             var episode = await api.GetAsync<EpisodeResponse>($"api/v1/episodes/{id}");
             var history = await api.GetAsync<List<ActivityEntryResponse>>($"api/v1/episodes/{id}/history");
             var people = episode.CanEdit ? (await lookups.PeopleAsync()).Select(u => new ChoiceOption(u.Id, u.FullName)) : [];
-            var detail = new EpisodeDetailViewModel(episode, history, clock, people);
+            var detail = new EpisodeDetailViewModel(episode, history, clock, people)
+            {
+                CanScheduleReleases = session.CurrentUser?.Permissions.Contains("releases.schedule") == true
+                                      && episode.Status != ShowValues.Cancelled,
+            };
             detail.StatusChanged = status => ChangeEpisodeStatusAsync(detail, status);
             if (ShowDetail?.Show.Id != episode.Show.Id)
             {
@@ -300,6 +304,14 @@ public sealed partial class ShowsViewModel(ApiClient api, AuthSession session, U
             await OpenEpisodeAsync(detail.Episode.Id);
         }
     }
+
+    [RelayCommand]
+    private Task OpenReleaseAsync(Releases.ReleaseRowViewModel release) =>
+        Navigator?.OpenRecordAsync("Release", release.Id) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private Task NewReleaseAsync() =>
+        EpisodeDetail is { } detail && Navigator is { } navigator ? navigator.CreateReleaseAsync(detail.Episode.Id) : Task.CompletedTask;
 
     [RelayCommand]
     private Task OpenTaskAsync(TaskItemViewModel task) => Navigator?.OpenRecordAsync("Task", task.Id) ?? Task.CompletedTask;

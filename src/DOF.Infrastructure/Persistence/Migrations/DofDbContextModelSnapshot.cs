@@ -213,6 +213,64 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("calendar_event_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.DistributionChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ChannelType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("channel_type");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_distribution_channels");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_distribution_channels_created_by");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_distribution_channels_name");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_distribution_channels_updated_by");
+
+                    b.ToTable("distribution_channels", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Episode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -723,6 +781,127 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.Release", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ActualPublishedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actual_published_at");
+
+                    b.Property<Guid?>("AssignedTo")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_to");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("DistributionChannelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("distribution_channel_id");
+
+                    b.Property<Guid>("EpisodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("episode_id");
+
+                    b.Property<string>("ExternalUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("external_url");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PostponementReason")
+                        .HasColumnType("text")
+                        .HasColumnName("postponement_reason");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<Guid?>("PublishedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("published_by");
+
+                    b.Property<DateTimeOffset?>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scheduled_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_releases");
+
+                    b.HasIndex("AssignedTo")
+                        .HasDatabaseName("ix_releases_assigned_to");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_releases_created_by");
+
+                    b.HasIndex("DistributionChannelId")
+                        .HasDatabaseName("ix_releases_distribution_channel_id");
+
+                    b.HasIndex("EpisodeId")
+                        .HasDatabaseName("ix_releases_episode_id");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_releases_project_id");
+
+                    b.HasIndex("PublishedBy")
+                        .HasDatabaseName("ix_releases_published_by");
+
+                    b.HasIndex("ScheduledAt")
+                        .HasDatabaseName("ix_releases_scheduled_at");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_releases_status");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_releases_updated_by");
+
+                    b.HasIndex("EpisodeId", "DistributionChannelId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_releases_episode_id_distribution_channel_id")
+                        .HasFilter("status <> 'Cancelled'");
+
+                    b.ToTable("releases", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_releases_published_has_time", "status <> 'Published' OR actual_published_at IS NOT NULL");
+
+                            t.HasCheckConstraint("ck_releases_status_not_overdue", "status <> 'Overdue'");
+                        });
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1218,6 +1397,21 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.DistributionChannel", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_distribution_channels_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_distribution_channels_users_updated_by");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Episode", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.User", null)
@@ -1353,6 +1547,57 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_refresh_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.Release", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedTo")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_releases_users_assigned_to");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_releases_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.DistributionChannel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("DistributionChannelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_releases_distribution_channels_distribution_channel_id");
+
+                    b.HasOne("DOF.Domain.Entities.Episode", "Episode")
+                        .WithMany()
+                        .HasForeignKey("EpisodeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_releases_episodes_episode_id");
+
+                    b.HasOne("DOF.Domain.Entities.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_releases_projects_project_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("PublishedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_releases_users_published_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_releases_users_updated_by");
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("Episode");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.RolePermission", b =>

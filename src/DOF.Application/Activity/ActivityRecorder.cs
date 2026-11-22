@@ -16,6 +16,7 @@ public static class ActivityEntities
     public const string Show = "Show";
     public const string Season = "Season";
     public const string Episode = "Episode";
+    public const string Release = "Release";
 }
 
 /// <summary>Actions recorded in the activity log.</summary>
@@ -30,6 +31,8 @@ public static class ActivityActions
     public const string MemberRoleChanged = "MemberRoleChanged";
     public const string MemberRemoved = "MemberRemoved";
     public const string Cancelled = "Cancelled";
+    public const string Published = "Published";
+    public const string Postponed = "Postponed";
     public const string RolesChanged = "RolesChanged";
     public const string PermissionsChanged = "PermissionsChanged";
 }

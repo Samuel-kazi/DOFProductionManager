@@ -11,7 +11,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | 3 | Dashboard and calendar | ✅ Complete (2026-11-22) |
 | 4 | Tasks and projects | ✅ Complete (2026-11-22) |
 | 5 | Shows and episodes | ✅ Complete (2026-11-22) |
-| 6 | Release management | Not started |
+| 6 | Release management | ✅ Complete (2026-11-22), except reminder updates (see below) |
 | 7 | Reminder engine | Not started |
 | 8 | Reports and refinement | Not started |
 
@@ -126,9 +126,29 @@ notes in the history, the production timeline, tasks linked to episodes (includi
 filter and drag keeping the link), *My episodes*, and *Awaiting publication*. 162 automated tests pass.
 
 Deferred / open:
-- `GET /episodes/{id}/releases` and the episode screen's distribution panel: Phase 6 (releases).
-- Publication statuses are reserved for Phase 6 release confirmations.
+- `GET /episodes/{id}/releases` and the episode screen's distribution panel: done in Phase 6.
+- Publication statuses now follow release confirmations (Phase 6).
 - Global search is still disabled (spec 6.1); no phase assigns it yet.
+
+## Phase 6 — Release management ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| One episode can have independent release dates across channels | API test: YouTube, Spotify and Television with their own times and statuses; publishing one leaves the others unchanged; the episode moves to PartiallyPublished, then Published; duplicate channel → 409. UI test schedules from the episode page |
+| Published episodes preserve actual publication timestamps | API test: publishing needs `confirmed: true` and a time that is not in the future; both scheduled and actual times are kept; the assignee may confirm; published releases cannot be rescheduled or cancelled; corrections are in the history. A database check requires a time on Published |
+| Missed releases are flagged | API test: a past, unconfirmed release is `isOverdue`/`displayStatus: Overdue` in the release, `/releases/overdue`, the Overdue view, the dashboard and the calendar; it is **not** published; rescheduling clears the flag. UI test shows the Overdue view |
+| Rescheduled releases update their reminders | **Depends on the Phase 7 reminder engine.** Reschedules change the release itself (never a copy) and record the previous time, and reminders will be derived from `scheduled_at` by the reconciliation job. Verify this criterion in Phase 7 |
+
+Also delivered: the seven seeded channels and channel management in Settings, workflow statuses,
+postponement and cancellation with reasons, `/releases/unpublished` (production finished, distribution
+not), the episode distribution panel, upcoming and overdue releases on the dashboard, and calendar
+drag for releases. Fixed: switching views quickly on the Tasks page could show a stale list.
+183 automated tests pass.
+
+Deferred / open:
+- Reminder updates on reschedule: Phase 7 (see above).
+- Overdue *notifications*: Phase 7 job 2.
+- Global search is still disabled.
 
 ## Supporting documents
 

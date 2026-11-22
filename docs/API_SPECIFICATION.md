@@ -62,7 +62,7 @@ access token as `Authorization: Bearer <token>`.
 | POST | `/api/v1/tasks/{id}/assignments` | task editors³ ² | `{userId, isPrimary}` |
 | DELETE | `/api/v1/tasks/{id}/assignments/{userId}` | task editors³ ² | Remove an assignee (not the last) |
 | GET | `/api/v1/tasks/{id}/history` | Signed in | History, newest first |
-| GET | `/api/v1/dashboard/overdue` | Signed in | Overdue tasks, milestones and episodes; `mine=true` |
+| GET | `/api/v1/dashboard/overdue` | Signed in | Overdue tasks, milestones, episodes and releases; `mine=true` |
 | GET | `/api/v1/users/{id}/workload` | Signed in | Counts, open tasks and open milestones |
 
 ¹ `projects.edit` or the project's manager. ² Assigning anyone other than yourself needs `tasks.assign`.
@@ -107,18 +107,47 @@ Planned or Scheduled clears it. `Scheduled` needs a recording time. `PartiallyPu
 `Published` cannot be set by hand: they will follow release confirmations (Phase 6). Every change is
 in the history, with the optional `note` on status changes.
 
-`GET /episodes/{id}/releases` (distribution schedules) is listed in the specification under episodes
-and is delivered with releases in Phase 6.
+### Releases and channels (Phase 6)
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/releases` | Signed in | Paged; `view` (All, Ready, Scheduled, Published, Postponed, Overdue, Cancelled), `episodeId`, `showId`, `channelId`, `assignedTo`, `mine`, `from`/`to`, `search` |
+| POST | `/api/v1/releases` | `releases.schedule` | `{episodeId, distributionChannelId, scheduledAt?, status, assignedTo?, projectId?, externalUrl?, notes?}` → 201; one live release per episode and channel (409) |
+| GET | `/api/v1/releases/{id}` | Signed in | Release with `status`, `displayStatus`, `isOverdue`, `canEdit`, `canConfirm` |
+| PUT | `/api/v1/releases/{id}` | `releases.schedule` | Details and workflow status (Draft, AwaitingApproval, Ready, Scheduled, Failed); requires `version` |
+| PATCH | `/api/v1/releases/{id}/schedule` | `releases.schedule` | `{scheduledAt, version?}`; a postponed or failed release becomes Scheduled |
+| PATCH | `/api/v1/releases/{id}/publish` | `releases.schedule` or the assignee | `{actualPublishedAt, confirmed: true, externalUrl?, version?}`; not in the future; repeat to correct |
+| PATCH | `/api/v1/releases/{id}/postpone` | `releases.schedule` | `{reason, newScheduledAt?, version?}`; without a new time it waits "until further notice" |
+| PATCH | `/api/v1/releases/{id}/cancel` | `releases.schedule` | `{reason, version?}`; not for published releases |
+| GET | `/api/v1/releases/{id}/history` | Signed in | History, newest first |
+| GET | `/api/v1/releases/overdue` | Signed in | Open releases past their time without confirmation; `mine=true` |
+| GET | `/api/v1/releases/unpublished` | Signed in | Finished episodes (approved, ready, partially published): their open releases, and those with no release |
+| GET | `/api/v1/episodes/{id}/releases` | Signed in | The episode's distribution schedule, one entry per channel |
+| GET | `/api/v1/distribution-channels` | Signed in | Active channels (`includeInactive=true` for all) |
+| POST / PUT | `/api/v1/distribution-channels[/{id}]` | `settings.manage` | Add / rename, retype or (de)activate; never deleted |
+
+Release rules: a release is **never** published by its time passing. Publishing needs `confirmed: true`
+and the actual time, and keeps the scheduled time. `Overdue` is derived, not stored: an open release
+(Draft, AwaitingApproval, Ready, Scheduled, Postponed) whose time has passed has `isOverdue: true` and
+`displayStatus: "Overdue"`, and the flag clears when it is rescheduled or published. Published and
+cancelled releases are closed. Each change is in the history, including the previous time on
+reschedule or postpone and the reason for postponing or cancelling. After every release change the
+episode's status follows its live releases: some published → `PartiallyPublished`, all → `Published`.
 
 The personal dashboard now also returns `myTasks`, `pendingReviews` (tasks you created that await
 review) and `myEpisodes` (open episodes you produce or crew). The management dashboard adds
 `activeProjects`, `upcomingMilestones` (14 days), `overdue` (tasks, milestones, episodes),
-`teamWorkload` and `awaitingPublication` (approved, ready or partially published episodes). Calendar items from milestones have `sourceType: "Milestone"`, `eventType: "Milestone"`
+`teamWorkload`, `awaitingPublication` (approved, ready or partially published episodes) and
+`upcomingReleases` (next 14 days). `overdue` now also lists releases. Calendar items from milestones have `sourceType: "Milestone"`, `eventType: "Milestone"`
 and are all-day. Task deadlines have `sourceType: "Task"`, `eventType: "TaskDeadline"`, no `endAt`, and
 the project (or "Show: Episode") name in `location`. Episodes contribute `sourceType: "Episode"` items
 with ids `Episode:{id}:{eventType}`: a timed `Recording` (location = recording location) and all-day
 `EditingDeadline`, `ReviewDeadline` and `ApprovalDeadline` items, only while the episode has not yet
-passed that stage. Episode items have priority `Normal`, match `showId`, and never match `projectId`.
+passed that stage. Episode items have priority `Normal`, match `showId`, and never match `projectId`. Releases contribute
+`sourceType: "Release"`, `eventType: "Release"` items at `scheduledAt` (no `endAt`; the channel name is in
+`location`) with `status` set to the stored status or `Overdue`. They match `showId`, `projectId`
+(the release's project) and `assignedUserId`, and a `statuses=Overdue` filter matches the derived
+status. Postponed releases without a time are not on the calendar.
 
 **Calendar filters** (all optional, repeatable where plural): `eventTypes`, `sourceTypes`, `statuses`,
 `priorities`, `assignedUserId`, `projectId`, `showId`, `includeCancelled`, and `timeZone` (IANA, for the
@@ -132,4 +161,4 @@ Status codes: 400 validation, 401 not signed in / bad credentials, 403 missing p
 404 not found, 409 duplicate or stale `version`, 422 business rule (e.g. last Administrator),
 429 rate limit.
 
-All endpoints listed in the specification for Phases 1–5 are implemented, except `GET /episodes/{id}/releases` (Phase 6).
+All endpoints listed in the specification for Phases 1–6 are implemented.

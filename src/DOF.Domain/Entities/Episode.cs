@@ -56,7 +56,7 @@ public sealed class Episode : AuditableEntity, IVersioned, IArchivable
     public static Episode Create(Show show, Season? season, int? episodeNumber, string title, string? description, Guid? producerId)
     {
         show.EnsureNotArchived();
-        var episode = new Episode { ShowId = show.Id, Status = EpisodeStatus.Planned };
+        var episode = new Episode { ShowId = show.Id, Show = show, Status = EpisodeStatus.Planned };
         episode.Place(show, season, episodeNumber);
         episode.Describe(title, description, producerId);
         return episode;
@@ -171,6 +171,31 @@ public sealed class Episode : AuditableEntity, IVersioned, IArchivable
 
         ArchivedAt = status == EpisodeStatus.Cancelled ? ArchivedAt ?? now : null;
         Status = status;
+    }
+
+    /// <summary>
+    /// Sets the publication status from the episode's releases (cancelled ones excluded): all published →
+    /// Published; some → PartiallyPublished; none, after having been published → back to ReadyForRelease.
+    /// Returns the previous status when it changed. Cancelled episodes are left alone.
+    /// </summary>
+    public EpisodeStatus? ApplyReleaseOutcome(int activeReleases, int publishedReleases, DateTimeOffset now)
+    {
+        if (IsCancelled)
+        {
+            return null;
+        }
+
+        EpisodeStatus? target = publishedReleases == 0
+            ? IsPublicationStatus(Status) ? EpisodeStatus.ReadyForRelease : null
+            : publishedReleases >= activeReleases ? EpisodeStatus.Published : EpisodeStatus.PartiallyPublished;
+        if (target is not { } status || status == Status)
+        {
+            return null;
+        }
+
+        var previous = Status;
+        ChangeStatus(status, now);
+        return previous;
     }
 
     /// <summary>Adds a responsibility. Returns false if the person already holds it.</summary>

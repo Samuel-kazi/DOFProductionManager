@@ -25,6 +25,8 @@ public static class CalendarValues
     public const string ReviewDeadlineItem = "ReviewDeadline";
     public const string ApprovalDeadlineItem = "ApprovalDeadline";
 
+    public const string ReleaseItem = "Release";
+
     /// <summary>The episode items: a timed recording session plus all-day production deadlines.</summary>
     public static readonly IReadOnlyList<string> EpisodeItems =
         [RecordingItem, EditingDeadlineItem, ReviewDeadlineItem, ApprovalDeadlineItem];

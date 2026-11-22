@@ -94,8 +94,12 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
         return LoadCoreAsync();
     }
 
+    private int _loadGeneration;
+
+    /// <summary>Only the latest load's results are shown, so switching views quickly cannot show a stale list.</summary>
     private async Task LoadCoreAsync()
     {
+        var generation = ++_loadGeneration;
         var me = session.CurrentUser!.Id;
         var path = SelectedView.View switch
         {
@@ -118,6 +122,10 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
         await RunAsync(async () =>
         {
             var page = await api.GetAsync<PagedResponse<TaskResponse>>(path);
+            if (generation != _loadGeneration)
+            {
+                return;
+            }
             Items.Clear();
             foreach (var task in page.Items)
             {

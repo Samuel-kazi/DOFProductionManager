@@ -1,6 +1,7 @@
 using DOF.Application.Calendar;
 using DOF.Application.Common;
 using DOF.Application.Common.Abstractions;
+using DOF.Application.Releases;
 using DOF.Application.Shows;
 using DOF.Application.Work;
 using DOF.Contracts.Responses;
@@ -22,11 +23,13 @@ public sealed class DashboardService(
     ProjectService projects,
     WorkloadService workload,
     EpisodeService episodes,
-    ShowReaders showReaders)
+    ShowReaders showReaders,
+    ReleaseService releases)
 {
     public const int DefaultDays = 7;
     public const int MaxDays = 60;
     public const int MilestoneWindowDays = 14;
+    public const int ReleaseWindowDays = 14;
     public const int ListLimit = 25;
 
     public async Task<PersonalDashboardResponse> GetPersonalAsync(string? timeZone, CancellationToken ct)
@@ -70,7 +73,8 @@ public sealed class DashboardService(
 
         return new ManagementDashboardResponse(from, to, zone.Id, items, [.. items.Where(i => i.AssignedUsers.Count == 0)],
             activeProjects, upcomingMilestones, await GetOverdueAsync(mine: false, ct), await workload.TeamAsync(ct),
-            await AwaitingPublicationAsync(ct));
+            await AwaitingPublicationAsync(ct),
+            await releases.UpcomingAsync(ZonedTime.StartOfDay(calendar.Today(zone).AddDays(ReleaseWindowDays + 1), zone), ListLimit, ct));
     }
 
     /// <summary>Approved or ready episodes not yet fully published, oldest recording first.</summary>
@@ -111,7 +115,8 @@ public sealed class DashboardService(
         return new OverdueResponse(
             await readers.TasksAsync(tasks.OrderBy(t => t.DueAt).Take(100), ct),
             await readers.MilestonesAsync(milestones.OrderBy(m => m.DueDate).Take(100), ct),
-            overdueEpisodes);
+            overdueEpisodes,
+            await releases.OverdueAsync(mine ? me : null, 100, ct));
     }
 
     public async Task<CalendarRangeResponse> GetUpcomingAsync(int? days, bool mine, string? timeZone, CancellationToken ct)

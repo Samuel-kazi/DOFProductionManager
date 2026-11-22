@@ -59,6 +59,7 @@ public static class CalendarLabels
         "CalendarEvent" => "Event",
         "TaskDeadline" => "Task deadline",
         "Recording" => "Episode recording",
+        "Release" => "Release",
         "EditingDeadline" => "Editing deadline",
         "ReviewDeadline" => "Review deadline",
         "ApprovalDeadline" => "Approval deadline",

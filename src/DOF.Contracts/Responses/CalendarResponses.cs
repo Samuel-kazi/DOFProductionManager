@@ -71,4 +71,5 @@ public sealed record ManagementDashboardResponse(
     IReadOnlyList<MilestoneResponse> UpcomingMilestones,
     OverdueResponse Overdue,
     IReadOnlyList<WorkloadSummaryResponse> TeamWorkload,
-    IReadOnlyList<EpisodeSummaryResponse> AwaitingPublication);
+    IReadOnlyList<EpisodeSummaryResponse> AwaitingPublication,
+    IReadOnlyList<ReleaseResponse> UpcomingReleases);
