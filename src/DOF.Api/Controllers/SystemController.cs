@@ -2,6 +2,7 @@ using System.Reflection;
 using DOF.Application.Common;
 using DOF.Contracts.Common;
 using DOF.Contracts.Responses;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -9,6 +10,7 @@ namespace DOF.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/system")]
+[AllowAnonymous]
 public sealed class SystemController(
     IOptions<OrganisationOptions> organisation,
     IWebHostEnvironment environment,

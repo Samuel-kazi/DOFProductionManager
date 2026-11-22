@@ -16,13 +16,18 @@ DOF.Desktop ──► DOF.Contracts ◄── DOF.Api ──► DOF.Application 
 |---|---|---|
 | Domain | nothing | any other layer, EF Core, ASP.NET Core |
 | Contracts | nothing | Domain, Application, Infrastructure, EF Core |
-| Application | Domain, Contracts | Infrastructure, Api, Desktop |
+| Application | Domain, Contracts, EF Core abstractions (no provider) | Infrastructure, Api, Desktop, Npgsql |
 | Infrastructure | Application, Domain | Api, Desktop |
 | Api | Application, Infrastructure, Contracts | Desktop |
 | Desktop | Contracts | Domain, Application, Infrastructure, Api, EF Core, Npgsql |
 
 These rules are enforced by `tests/DOF.ArchitectureTests`. The desktop client never connects to
 PostgreSQL; it only calls the API.
+
+**Data access decision (Phase 1):** Application services query through `IApplicationDbContext`
+(EF Core `DbSet`s) rather than per-entity repositories. This keeps queries as efficient DTO
+projections without an extra abstraction layer. Application references EF Core's provider-neutral
+package only; Npgsql stays in Infrastructure.
 
 ## Build configuration
 
@@ -41,11 +46,13 @@ Implemented in `DOF.Infrastructure/Persistence`:
 
 - **Naming:** `EFCore.NamingConventions` maps everything to `snake_case` tables and columns.
 - **Identifiers:** `Entity.Id` is a UUIDv7 (`Guid.CreateVersion7()`), time-ordered for index locality.
+  Ids are configured `ValueGeneratedNever`, so child entities added through a navigation (e.g. a
+  role gaining a permission) are inserted rather than mistaken for existing rows.
 - **Timestamps:** `DateTimeOffset` in the domain → `timestamptz` in PostgreSQL, always UTC.
   Date-only values use `DateOnly` → `date`.
 - **Audit timestamps:** `AuditingInterceptor` sets `created_at` / `updated_at` on every save, so
-  services never set them by hand. (`created_by` / `updated_by` will be added in Phase 1 once a
-  current-user abstraction exists.)
+  services never set them by hand. `ICurrentUser` now exists; `created_by` / `updated_by` columns
+  will be added with the first tables the specification requires them on (projects, Phase 4).
 - **Optimistic concurrency:** entities implementing `IVersioned` get an integer `version` column
   configured as a concurrency token. The interceptor increments it on every update; a save made
   against a stale version raises `DbUpdateConcurrencyException`.
@@ -61,13 +68,18 @@ Implemented in `DOF.Infrastructure/Persistence`:
 | `ConnectionStrings:Database` | PostgreSQL connection | Development: `appsettings.Development.json` (local trust auth, no secret). Production: environment variable `ConnectionStrings__Database` or a secret store, never committed. |
 | `Database:ApplyMigrationsOnStartup` | Auto-apply migrations | Development only |
 | `Organisation:DefaultTimeZone` | Display timezone default (`Africa/Nairobi`) | `appsettings.json`; validated at startup |
+| `Jwt:SigningKey` | HMAC-SHA256 key for access tokens (≥ 32 bytes) | **Secret.** Development: user-secrets. Production: `Jwt__SigningKey` env var / secret store. Validated at startup. |
+| `Jwt:Issuer`, `Jwt:Audience`, `Jwt:AccessTokenMinutes` (15), `Jwt:RefreshTokenDays` (14) | Token settings | `appsettings.json` |
+| `Bootstrap:AdminEmail`, `Bootstrap:AdminPassword` | First Administrator, created only when no users exist | **Secret.** user-secrets / env vars |
+| `RateLimiting:AuthPermitLimitPerMinute` (10) | Per-IP limit on login/refresh/logout/change-password | `appsettings.json` |
 | `Serilog` | Log levels | `appsettings.json` |
 
 A missing connection string or invalid timezone fails fast with a clear error.
 
 ## API conventions (established in Phase 0)
 
-- Routes are prefixed `/api/v1`.
+- Routes are prefixed `/api/v1`. Every endpoint requires authentication unless marked `[AllowAnonymous]`
+  (health, system info, login, refresh, logout). Unknown routes therefore return 401 to anonymous callers.
 - Successful responses use the `ApiResponse<T>` envelope (`success`, `data`, `message`) from Contracts.
 - Errors (including 404s and unhandled exceptions) are returned as RFC 9457 ProblemDetails
   (`application/problem+json`).
@@ -76,12 +88,61 @@ A missing connection string or invalid timezone fails fast with a clear error.
   (liveness). The JSON response never includes exception details.
 - Logging: Serilog to the console with per-request logging.
 
+## Authentication and authorisation (Phase 1)
+
+**Accounts.** The `users` table follows the specification (not ASP.NET Identity's full schema).
+Passwords are hashed with ASP.NET Core Identity's `PasswordHasher` (PBKDF2, versioned, auto-rehash on
+login). Emails are stored trimmed and lower-cased and are unique.
+
+**Tokens.**
+- *Access token:* JWT (HMAC-SHA256), 15 minutes, claims `sub`, `email`, `name`, `jti`. It carries no
+  permissions.
+- *Refresh token:* 512 random bits, 14 days. Only its SHA-256 hash is stored (`refresh_tokens`).
+  Every refresh **rotates** it. All tokens from one sign-in share a `family_id`; presenting an
+  already-rotated token revokes the whole family (theft detection).
+- *Logout* revokes the refresh token. An access token already issued stays valid until it expires
+  (≤ 15 minutes) unless the user is deactivated (below).
+- *Password change* revokes all of the user's refresh tokens and returns a new pair.
+
+**Per-request checks.** On every authenticated request, `JwtBearerEvents.OnTokenValidated` loads the
+user's active flag and effective permissions from the database (one indexed query). Deactivated
+users are rejected immediately, and permission changes apply on the next request. Permissions are
+added as `permission` claims.
+
+**Policies.** A fallback policy requires an authenticated user everywhere. Each permission in
+`DOF.Domain.Rules.Permissions` is registered as a policy of the same name, used as
+`[Authorize(Policy = Permissions.UsersManage)]`.
+
+**Roles and permissions.** Permissions are a code-defined catalogue synchronised into the database at
+startup (`DatabaseSeeder`). The four system roles get default grants only when the role or permission
+is first created, so administrators' later changes via `PUT /roles/{id}/permissions` persist.
+Guard rails: a user needs ≥ 1 role; you cannot deactivate yourself; the last active Administrator
+cannot be deactivated or demoted; the Administrator role cannot lose `users.manage`.
+
+**Errors.** `DofExceptionHandler` maps exceptions to ProblemDetails: not found → 404, duplicate or
+stale version → 409, bad credentials → 401, business rule → 422, anything else → logged 500.
+FluentValidation validators (in Application) run for every action argument through
+`ValidationFilter` and return 400 `ValidationProblemDetails` with per-field errors.
+
+**Rate limiting.** Fixed window per client IP on the authentication endpoints; 429 when exceeded.
+
+**Desktop session.** `DOF.Desktop/Services/Api/AuthSession` signs in, keeps the access token in memory
+only, refreshes it a minute before expiry, restores sessions on startup from the stored refresh token
+and logs out (revoking server-side, best effort when offline). The refresh token is the only secret
+persisted, through `ISecureStore`:
+- macOS: `MacKeychainStore` (login keychain, generic password) — verified by an automated test.
+- Windows: `WindowsCredentialStore` (Credential Manager, generic credential) — **not yet verified on
+  Windows**; it compiles but has not run on a Windows machine.
+
+Known limitations, accepted for now: no account lockout beyond rate limiting; no per-user permission
+grants outside roles; access tokens are not revocable before expiry except through deactivation.
+
 ## Testing
 
 | Project | Scope |
 |---|---|
 | DOF.UnitTests | Pure logic, no I/O |
-| DOF.IntegrationTests | The real API via `WebApplicationFactory`, against a real PostgreSQL database (`dof_production_manager_test`, override with `DOF_TEST_DATABASE`). Migrations are applied once per run via an xUnit assembly fixture. EF Core's in-memory provider is not used. |
+| DOF.IntegrationTests | The real API via `WebApplicationFactory`, against a real PostgreSQL database (`dof_production_manager_test`, override with `DOF_TEST_DATABASE`). The schema is dropped and rebuilt from migrations once per run; the host then seeds roles and a test Administrator. Tests run sequentially because some change shared role permissions. Also covers the desktop `AuthSession` against the real API, and the real macOS Keychain. EF Core's in-memory provider is not used. |
 | DOF.ArchitectureTests | Layer dependency rules (above) |
 
 Integration tests run in the `Testing` environment, so `appsettings.Development.json` is not loaded.

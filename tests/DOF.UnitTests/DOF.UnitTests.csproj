@@ -7,10 +7,12 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\DOF.Application\DOF.Application.csproj" />
     <ProjectReference Include="..\..\src\DOF.Domain\DOF.Domain.csproj" />
+    <ProjectReference Include="..\..\src\DOF.Infrastructure\DOF.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
