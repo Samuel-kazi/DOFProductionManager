@@ -22,6 +22,7 @@
     <DataTemplate DataType="vm:LoginViewModel"><views:LoginView /></DataTemplate>
     <DataTemplate DataType="vm:ShellViewModel"><views:ShellView /></DataTemplate>
     <DataTemplate DataType="pages:DashboardViewModel"><pageViews:DashboardView /></DataTemplate>
+    <DataTemplate DataType="pages:CalendarViewModel"><pageViews:CalendarView /></DataTemplate>
     <DataTemplate DataType="pages:TeamViewModel"><pageViews:TeamView /></DataTemplate>
     <DataTemplate DataType="pages:SettingsViewModel"><pageViews:SettingsView /></DataTemplate>
     <DataTemplate DataType="pages:PlaceholderPageViewModel"><pageViews:PlaceholderPageView /></DataTemplate>

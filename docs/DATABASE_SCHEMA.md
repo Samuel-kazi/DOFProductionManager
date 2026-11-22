@@ -11,6 +11,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 |---|---|---|
 | `InitialBaseline` | 0 | Establishes the migration history. No tables. |
 | `AddIdentityAndPermissions` | 1 | Adds `users`, `roles`, `user_roles`, `permissions`, `role_permissions`, `refresh_tokens`. Additive only. |
+| `AddCalendarEvents` | 3 | Adds `calendar_events`, `calendar_event_assignments`. Additive only. |
 
 ## Tables
 
@@ -51,3 +52,23 @@ Team Member = none.
 | revocation_reason | varchar(40) null | Rotated, LoggedOut, ReuseDetected, PasswordChanged, UserDeactivated |
 | replaced_by_token_id | uuid null | successor after rotation |
 | device_name | varchar(100) null | supplied by the client at sign-in |
+
+### calendar_events
+Standalone events only. Dates owned by episodes, milestones, tasks and releases are never copied here.
+
+| Column | Type | Notes |
+|---|---|---|
+| title | varchar(200) | |
+| description | text null | |
+| event_type | varchar(40) | Meeting, MinistryEvent, Training, ExternalAppointment, RecordingSession, Other |
+| start_at / end_at | timestamptz | UTC; end after start. All-day events span whole days in the organisation timezone (end exclusive). Index `(start_at, end_at)` |
+| is_all_day | boolean | |
+| location / meeting_url | text null | |
+| priority | varchar(20) | Low, Normal, High, Urgent |
+| status | varchar(40) | Scheduled, Completed, Cancelled (cancel instead of delete). Indexed |
+| created_by / updated_by | uuid null | → users (restrict); set automatically |
+| version | integer | optimistic concurrency |
+
+### calendar_event_assignments
+`calendar_event_id → calendar_events (cascade)`, `user_id → users (restrict)`, `assignment_type varchar(30)`
+(Organizer, Attendee); unique `(calendar_event_id, user_id)`; indexed on `user_id`.

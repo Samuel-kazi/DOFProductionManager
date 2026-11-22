@@ -27,6 +27,7 @@ public static class DesktopServices
         services.AddSingleton(preferences);
         services.AddSingleton(theme ?? new ThemeService());
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<UserClock>();
 
         services.AddSingleton(sp => new AuthSession(Client(network, TimeSpan.FromSeconds(20)), secureStore,
             sp.GetRequiredService<TimeProvider>()));
@@ -41,6 +42,7 @@ public static class DesktopServices
         AddWithFactory<LoginViewModel>(services);
         AddWithFactory<ShellViewModel>(services);
         AddWithFactory<DashboardViewModel>(services);
+        AddWithFactory<CalendarViewModel>(services);
         AddWithFactory<TeamViewModel>(services);
         AddWithFactory<SettingsViewModel>(services);
 

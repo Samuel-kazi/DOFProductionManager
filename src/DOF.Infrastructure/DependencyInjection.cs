@@ -15,7 +15,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton<AuditingInterceptor>();
+        services.AddScoped<AuditingInterceptor>();
 
         services.AddDbContext<DofDbContext>((sp, options) =>
         {

@@ -12,6 +12,8 @@ public interface IApplicationDbContext
     DbSet<Permission> Permissions { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<CalendarEvent> CalendarEvents { get; }
+    DbSet<CalendarEventAssignment> CalendarEventAssignments { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 

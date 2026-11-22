@@ -12,6 +12,8 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<CalendarEvent> CalendarEvents => Set<CalendarEvent>();
+    public DbSet<CalendarEventAssignment> CalendarEventAssignments => Set<CalendarEventAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +26,14 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
             if (typeof(Entity).IsAssignableFrom(entityType.ClrType))
             {
                 modelBuilder.Entity(entityType.ClrType).Property(nameof(Entity.Id)).ValueGeneratedNever();
+            }
+
+            // created_by / updated_by reference users; deleting a user never cascades into operational records.
+            if (typeof(AuditableEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var entity = modelBuilder.Entity(entityType.ClrType);
+                entity.HasOne(typeof(User)).WithMany().HasForeignKey(nameof(AuditableEntity.CreatedBy)).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(typeof(User)).WithMany().HasForeignKey(nameof(AuditableEntity.UpdatedBy)).OnDelete(DeleteBehavior.Restrict);
             }
 
             if (typeof(IVersioned).IsAssignableFrom(entityType.ClrType))

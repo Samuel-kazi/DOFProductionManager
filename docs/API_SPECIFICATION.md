@@ -26,9 +26,30 @@ access token as `Authorization: Bearer <token>`.
 | GET | `/api/v1/roles` | Signed in | Roles with their permissions |
 | PUT | `/api/v1/roles/{id}/permissions` | `users.manage` | Replace a role's permission set |
 | GET | `/api/v1/permissions` | Signed in | Permission catalogue |
+| GET | `/api/v1/calendar` | Signed in | Aggregated items overlapping `start`–`end` (≤ 190 days). Filters below |
+| GET | `/api/v1/calendar/day` | Signed in | `date` (default today) in the user's timezone |
+| GET | `/api/v1/calendar/week` | Signed in | Monday–Sunday week containing `date` |
+| GET | `/api/v1/calendar/month` | Signed in | `year`, `month` (default current) |
+| GET | `/api/v1/calendar/agenda` | Signed in | `start` (default today), `days` (1–90, default 14) |
+| GET | `/api/v1/calendar/events` | Signed in | Standalone events, paged; `search`, `from`, `to`, `includeCancelled` |
+| POST | `/api/v1/calendar/events` | `calendar.manage` | Create → 201 |
+| GET | `/api/v1/calendar/events/{id}` | Signed in | Event with assignments, creator, `version`, `canEdit` |
+| PUT | `/api/v1/calendar/events/{id}` | `calendar.manage` | Update or reschedule; requires current `version` |
+| DELETE | `/api/v1/calendar/events/{id}` | `calendar.manage` | Cancel (kept, leaves the calendar) → 204 |
+| GET | `/api/v1/dashboard/personal` | Signed in | Today's schedule and next 7 days assigned to me |
+| GET | `/api/v1/dashboard/management` | `reports.view` | Upcoming activities and unassigned ones; optional `start`/`end` dates (≤ 60 days) |
+| GET | `/api/v1/dashboard/upcoming` | Signed in | Next `days` (1–60, default 7); `mine=true` for mine only |
+
+**Calendar filters** (all optional, repeatable where plural): `eventTypes`, `sourceTypes`, `statuses`,
+`priorities`, `assignedUserId`, `projectId`, `showId`, `includeCancelled`, and `timeZone` (IANA, for the
+day/week/month/agenda boundaries).
+
+**Calendar item:** `{ id, title, sourceType, sourceId, eventType, startAt, endAt, isAllDay, status,
+priority, location, assignedUsers[{userId, fullName, assignmentType}], canEdit }`. `sourceType` +
+`sourceId` identify the original record, which is where the item must be opened or rescheduled.
 
 Status codes: 400 validation, 401 not signed in / bad credentials, 403 missing permission,
 404 not found, 409 duplicate or stale `version`, 422 business rule (e.g. last Administrator),
 429 rate limit.
 
-Not yet implemented: `GET /users/{id}/workload` (needs tasks, Phase 4).
+Not yet implemented: `GET /users/{id}/workload` and `GET /dashboard/overdue` (need tasks and milestones, Phase 4).

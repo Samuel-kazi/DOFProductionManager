@@ -26,7 +26,11 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
     public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default) =>
         SendAsync<T>(new HttpRequestMessage(HttpMethod.Patch, path) { Content = JsonContent.Create(body) }, ct);
 
-    private async Task<T> SendAsync<T>(HttpRequestMessage request, CancellationToken ct)
+    /// <summary>For endpoints that answer 204 No Content.</summary>
+    public async Task DeleteAsync(string path, CancellationToken ct = default) =>
+        await SendAsync<object?>(new HttpRequestMessage(HttpMethod.Delete, path), ct, expectBody: false);
+
+    private async Task<T> SendAsync<T>(HttpRequestMessage request, CancellationToken ct, bool expectBody = true)
     {
         HttpResponseMessage response;
         try
@@ -55,6 +59,11 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
             if (!response.IsSuccessStatusCode)
             {
                 throw await ApiException.FromResponseAsync(response, ct);
+            }
+
+            if (!expectBody)
+            {
+                return default!;
             }
 
             var body = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(ct);

@@ -19,6 +19,9 @@ public abstract partial class PageViewModel : ViewModelBase
 
     public bool HasError => ErrorMessage is not null;
 
+    /// <summary>Set by the shell so pages can open the original record behind an item.</summary>
+    public IRecordNavigator? Navigator { get; set; }
+
     /// <summary>Called each time the page is shown.</summary>
     public virtual Task LoadAsync() => Task.CompletedTask;
 

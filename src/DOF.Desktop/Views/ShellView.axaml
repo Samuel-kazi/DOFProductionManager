@@ -70,8 +70,8 @@
                      VerticalAlignment="Center" />
 
           <TextBox Grid.Column="1" Classes="search" MaxWidth="420" Margin="24,0" IsEnabled="False"
-                   PlaceholderText="Search — available once records exist (Phase 3)"
-                   ToolTip.Tip="Global search arrives with calendar and production records.">
+                   PlaceholderText="Search — coming once projects and episodes exist"
+                   ToolTip.Tip="Global search arrives once there are projects, episodes and tasks to search. Use the calendar's filter for events.">
             <TextBox.InnerLeftContent>
               <Path Classes="icon" Data="{StaticResource Icon.Search}" Margin="8,0,0,0"
                     Stroke="{DynamicResource Brush.TextMuted}" />
@@ -79,8 +79,14 @@
           </TextBox>
 
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
-            <Button Classes="toolbar" IsEnabled="False" ToolTip.Tip="Quick create — arrives in Phase 3">
+            <Button Classes="toolbar" ToolTip.Tip="Quick create" IsEnabled="{Binding CanCreateEvents}">
               <Path Classes="icon" Data="{StaticResource Icon.Plus}" />
+              <Button.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <MenuItem Header="New event" Command="{Binding CreateEventCommand}" CommandParameter="{x:Null}" />
+                  <MenuItem Header="New project, task, episode… (coming in Phases 4–6)" IsEnabled="False" />
+                </MenuFlyout>
+              </Button.Flyout>
             </Button>
             <Button Classes="toolbar" IsEnabled="False" ToolTip.Tip="Notifications — arrive in Phase 7">
               <Path Classes="icon" Data="{StaticResource Icon.Reminders}" />

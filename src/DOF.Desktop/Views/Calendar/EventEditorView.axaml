@@ -1,0 +1,112 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cal="using:DOF.Desktop.ViewModels.Calendar"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Calendar.EventEditorView"
+             x:DataType="cal:EventEditorViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="20,16,12,8">
+      <TextBlock Classes="h2" Text="{Binding Heading}" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Classes="toolbar" Content="✕" ToolTip.Tip="Close without saving"
+              Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).CloseSidePanelCommand}" />
+    </Grid>
+
+    <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,20" Spacing="10">
+      <Border Classes="banner error" IsVisible="{Binding HasError}">
+        <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Content="Save" IsDefault="True" IsEnabled="{Binding !IsSaving}"
+                Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).SaveEventCommand}"
+                CommandParameter="{Binding}" />
+        <Button Content="Discard"
+                Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).CloseSidePanelCommand}" />
+      </StackPanel>
+    </StackPanel>
+
+    <ScrollViewer>
+      <StackPanel Margin="20,0,20,8" Spacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Title" />
+          <TextBox x:Name="TitleBox" Text="{Binding Title}" PlaceholderText="e.g. Staff meeting" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="*,12,*">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Type" />
+            <ComboBox ItemsSource="{Binding EventTypes}" SelectedItem="{Binding EventType}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="4">
+            <TextBlock Text="Priority" />
+            <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+        </Grid>
+
+        <CheckBox Content="All day" IsChecked="{Binding IsAllDay}" />
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Starts" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CalendarDatePicker SelectedDate="{Binding StartDate}" Width="150" />
+            <TimePicker SelectedTime="{Binding StartTime}" ClockIdentifier="24HourClock" MinuteIncrement="5"
+                        MinWidth="0" Width="180" IsVisible="{Binding !IsAllDay}" />
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Ends" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CalendarDatePicker SelectedDate="{Binding EndDate}" Width="150" />
+            <TimePicker SelectedTime="{Binding EndTime}" ClockIdentifier="24HourClock" MinuteIncrement="5"
+                        MinWidth="0" Width="180" IsVisible="{Binding !IsAllDay}" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="4" IsVisible="{Binding !IsNew}">
+          <TextBlock Text="Status" />
+          <ComboBox ItemsSource="{Binding Statuses}" SelectedItem="{Binding Status}" Width="170" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Location" />
+          <TextBox Text="{Binding Location}" PlaceholderText="Studio, venue or address" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Meeting link" />
+          <TextBox Text="{Binding MeetingUrl}" PlaceholderText="https://…" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="People" />
+          <TextBlock Classes="muted small" Text="Tick who is involved; mark the organiser (the responsible person)." TextWrapping="Wrap" />
+          <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="6" MaxHeight="200">
+            <ScrollViewer>
+              <ItemsControl ItemsSource="{Binding People}" Margin="8,4">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="cal:AssigneeOption">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <CheckBox Content="{Binding FullName}" IsChecked="{Binding IsSelected}" />
+                      <CheckBox Grid.Column="1" Content="Organiser" IsChecked="{Binding IsOrganizer}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Notes" />
+          <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>
