@@ -8,7 +8,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | 0 | Project foundation | ✅ Complete (2026-11-22) |
 | 1 | Authentication and users | ✅ Complete (2026-11-22) |
 | 2 | Desktop foundation | ✅ Complete (2026-11-22) |
-| 3 | Dashboard and calendar | Not started |
+| 3 | Dashboard and calendar | ✅ Complete (2026-11-22) |
 | 4 | Tasks and projects | Not started |
 | 5 | Shows and episodes | Not started |
 | 6 | Release management | Not started |
@@ -75,6 +75,25 @@ Deferred / open:
 - Native desktop notifications and auto-update are separate packaging tasks (spec 2.1); not started.
 - App icon is still the Avalonia placeholder; needs a DOF icon asset.
 - Windows: not yet run (no Windows machine available).
+
+## Phase 3 — Dashboard and calendar ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| Events appear in the correct calendar views | API tests for range overlap and day/week/month/agenda boundaries in Nairobi time; UI test checks month cells, week/day minutes and lanes, and agenda grouping |
+| Source records are represented without duplication | Calendar assembled from `ICalendarSource`s at query time; rescheduling (API and drag) updates the one record and the calendar shows a single item at the new time |
+| Calendar items open their original records | UI tests: clicking an item, and dashboard entries, open the event's details via `IRecordNavigator` |
+
+Also delivered: standalone events with assignments, versioning, cancellation and audit fields
+(`created_by`/`updated_by`); personal and management dashboards; filters and title search; event
+editor; drag-to-reschedule in month and week/day views; quick create; colour-coded categories with
+assignee initials. 115 automated tests pass.
+
+Deferred / open:
+- `GET /dashboard/overdue`: Phase 4 (nothing can be overdue until tasks and milestones exist).
+- Global search: still disabled; scheduled for when projects, episodes and tasks exist.
+- Category colours resolve when a page is built, so a theme change applies on the next visit to the page.
+- Milestones, tasks, episodes and releases plug into the calendar as `ICalendarSource`s in Phases 4–6.
 
 ## Supporting documents
 

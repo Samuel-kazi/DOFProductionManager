@@ -22,10 +22,143 @@ namespace DOF.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("event_type");
+
+                    b.Property<bool>("IsAllDay")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_all_day");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("text")
+                        .HasColumnName("location");
+
+                    b.Property<string>("MeetingUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("meeting_url");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_calendar_events");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_calendar_events_created_by");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_calendar_events_status");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_calendar_events_updated_by");
+
+                    b.HasIndex("StartAt", "EndAt")
+                        .HasDatabaseName("ix_calendar_events_start_at_end_at");
+
+                    b.ToTable("calendar_events", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.CalendarEventAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AssignmentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("assignment_type");
+
+                    b.Property<Guid>("CalendarEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("calendar_event_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_calendar_event_assignments");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_calendar_event_assignments_user_id");
+
+                    b.HasIndex("CalendarEventId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_calendar_event_assignments_calendar_event_id_user_id");
+
+                    b.ToTable("calendar_event_assignments", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Permission", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -61,7 +194,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -128,7 +260,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -164,7 +295,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.RolePermission", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -200,7 +330,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -257,7 +386,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.UserRole", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -288,6 +416,40 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_user_roles_user_id_role_id");
 
                     b.ToTable("user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_calendar_events_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_calendar_events_users_updated_by");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.CalendarEventAssignment", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.CalendarEvent", null)
+                        .WithMany("Assignments")
+                        .HasForeignKey("CalendarEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_event_assignments_calendar_events_calendar_event_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_calendar_event_assignments_users_user_id");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.RefreshToken", b =>
@@ -336,6 +498,11 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_user_roles_users_user_id");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.Navigation("Assignments");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.Role", b =>

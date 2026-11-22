@@ -1,0 +1,453 @@
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using DOF.Contracts.Common;
+using DOF.Contracts.Requests;
+using DOF.Contracts.Responses;
+using DOF.Desktop.Services;
+using DOF.Desktop.Services.Api;
+using DOF.Desktop.ViewModels.Calendar;
+
+namespace DOF.Desktop.ViewModels.Pages;
+
+/// <summary>
+/// The organisational calendar: month, week, day and agenda views of every item from
+/// <c>GET /api/v1/calendar</c>. Items open their original record; rescheduling updates that record.
+/// </summary>
+public sealed partial class CalendarViewModel : PageViewModel
+{
+    public const int AgendaDays = 14;
+    private readonly ApiClient _api;
+    private readonly AuthSession _session;
+    private readonly UserClock _clock;
+    private IReadOnlyList<CalendarItemViewModel> _loaded = [];
+    private List<AssigneeOption>? _people;
+
+    public CalendarViewModel(ApiClient api, AuthSession session, UserClock clock)
+    {
+        _api = api;
+        _session = session;
+        _clock = clock;
+        AnchorDate = clock.Today;
+        EventTypeFilters = [.. CalendarValues.EventTypes.Select(t => new FilterOption(t, CalendarLabels.Humanize(t)))];
+        PriorityFilters = [.. CalendarValues.Priorities.Select(p => new FilterOption(p, p))];
+        foreach (var option in EventTypeFilters.Concat(PriorityFilters))
+        {
+            option.PropertyChanged += (_, _) => _ = LoadAsync();
+        }
+    }
+
+    public override string Title => "Calendar";
+
+    public bool CanCreate => _session.CurrentUser?.Permissions.Contains("calendar.manage") == true;
+
+    // ---- view state ----
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsMonth), nameof(IsWeek), nameof(IsDay), nameof(IsWeekOrDay), nameof(IsAgenda), nameof(RangeTitle))]
+    public partial CalendarMode Mode { get; set; } = CalendarMode.Month;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RangeTitle))]
+    public partial DateOnly AnchorDate { get; set; }
+
+    public bool IsMonth => Mode == CalendarMode.Month;
+    public bool IsWeek => Mode == CalendarMode.Week;
+    public bool IsDay => Mode == CalendarMode.Day;
+    public bool IsWeekOrDay => Mode is CalendarMode.Week or CalendarMode.Day;
+    public bool IsAgenda => Mode == CalendarMode.Agenda;
+
+    public string RangeTitle => Mode switch
+    {
+        CalendarMode.Month => AnchorDate.ToString("MMMM yyyy"),
+        CalendarMode.Day => AnchorDate.ToString("dddd d MMMM yyyy"),
+        CalendarMode.Week => WeekTitle(),
+        _ => $"{AnchorDate:d MMM} – {AnchorDate.AddDays(AgendaDays - 1):d MMM yyyy}",
+    };
+
+    public string TimeZoneText => $"Times in {_clock.Zone.Id}";
+
+    public ObservableCollection<MonthDayCell> MonthCells { get; } = [];
+    public ObservableCollection<DayColumn> DayColumns { get; } = [];
+    public ObservableCollection<AgendaGroup> AgendaGroups { get; } = [];
+    public IReadOnlyList<string> WeekdayNames { get; } = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    public IReadOnlyList<string> Hours { get; } = [.. Enumerable.Range(0, 24).Select(h => $"{h:00}:00")];
+
+    [ObservableProperty]
+    public partial bool IsEmptyAgenda { get; private set; }
+
+    // ---- filters ----
+
+    public IReadOnlyList<FilterOption> EventTypeFilters { get; }
+    public IReadOnlyList<FilterOption> PriorityFilters { get; }
+
+    [ObservableProperty] public partial bool ShowFilters { get; set; }
+    [ObservableProperty] public partial bool OnlyMine { get; set; }
+    [ObservableProperty] public partial bool IncludeCancelled { get; set; }
+    [ObservableProperty] public partial string SearchText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial int ActiveFilterCount { get; private set; }
+
+    partial void OnOnlyMineChanged(bool value) => _ = LoadAsync();
+    partial void OnIncludeCancelledChanged(bool value) => _ = LoadAsync();
+    partial void OnSearchTextChanged(string value) => Rebuild();
+
+    // ---- side panel: details or editor ----
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSidePanel), nameof(ShowNewEventButton))]
+    public partial object? SidePanel { get; private set; }
+
+    public bool HasSidePanel => SidePanel is not null;
+
+    /// <summary>Hidden while a panel is open, to keep the toolbar within the narrower calendar area.</summary>
+    public bool ShowNewEventButton => CanCreate && !HasSidePanel;
+
+    // ---- loading ----
+
+    public (DateTimeOffset Start, DateTimeOffset End) VisibleRange()
+    {
+        var (first, days) = Mode switch
+        {
+            CalendarMode.Month => (MonthGridStart(), 42),
+            CalendarMode.Week => (Monday(AnchorDate), 7),
+            CalendarMode.Day => (AnchorDate, 1),
+            _ => (AnchorDate, AgendaDays),
+        };
+        return (_clock.StartOfDay(first), _clock.StartOfDay(first.AddDays(days)));
+    }
+
+    public override async Task LoadAsync()
+    {
+        var (start, end) = VisibleRange();
+        var query = $"api/v1/calendar?start={Uri.EscapeDataString(start.ToString("O"))}&end={Uri.EscapeDataString(end.ToString("O"))}";
+        foreach (var type in EventTypeFilters.Where(f => f.IsSelected))
+        {
+            query += $"&eventTypes={type.Value}";
+        }
+        foreach (var priority in PriorityFilters.Where(f => f.IsSelected))
+        {
+            query += $"&priorities={priority.Value}";
+        }
+        if (OnlyMine && _session.CurrentUser is { } me)
+        {
+            query += $"&assignedUserId={me.Id}";
+        }
+        if (IncludeCancelled)
+        {
+            query += "&includeCancelled=true";
+        }
+
+        ActiveFilterCount = EventTypeFilters.Count(f => f.IsSelected) + PriorityFilters.Count(f => f.IsSelected)
+                            + (OnlyMine ? 1 : 0) + (IncludeCancelled ? 1 : 0);
+
+        await RunAsync(async () =>
+        {
+            var items = await _api.GetAsync<List<CalendarItemResponse>>(query);
+            _loaded = [.. items.Select(i => new CalendarItemViewModel(i, _clock))];
+            Rebuild();
+        });
+    }
+
+    /// <summary>Rebuilds the visible view from the loaded items (and the local text search).</summary>
+    private void Rebuild()
+    {
+        var term = SearchText.Trim();
+        var items = term.Length == 0
+            ? _loaded
+            : [.. _loaded.Where(i => i.Title.Contains(term, StringComparison.CurrentCultureIgnoreCase)
+                                    || (i.Location?.Contains(term, StringComparison.CurrentCultureIgnoreCase) ?? false))];
+        var today = _clock.Today;
+
+        MonthCells.Clear();
+        DayColumns.Clear();
+        AgendaGroups.Clear();
+
+        switch (Mode)
+        {
+            case CalendarMode.Month:
+                var first = MonthGridStart();
+                for (var i = 0; i < 42; i++)
+                {
+                    var day = first.AddDays(i);
+                    MonthCells.Add(new MonthDayCell(day, day.Month == AnchorDate.Month, day == today,
+                        [.. items.Where(x => x.OccursOn(day)).OrderByDescending(x => x.IsDayLong).ThenBy(x => x.Start)]));
+                }
+                break;
+
+            case CalendarMode.Week or CalendarMode.Day:
+                var columnStart = Mode == CalendarMode.Week ? Monday(AnchorDate) : AnchorDate;
+                var columns = Mode == CalendarMode.Week ? 7 : 1;
+                for (var i = 0; i < columns; i++)
+                {
+                    var day = columnStart.AddDays(i);
+                    var onDay = items.Where(x => x.OccursOn(day)).ToList();
+                    var timed = onDay.Where(x => !x.IsDayLong).Select(x => Segment(x, day)).ToList();
+                    TimeSlotLayout.AssignLanes(timed);
+                    DayColumns.Add(new DayColumn(day, day == today, [.. onDay.Where(x => x.IsDayLong)], timed));
+                }
+                break;
+
+            default:
+                for (var i = 0; i < AgendaDays; i++)
+                {
+                    var day = AnchorDate.AddDays(i);
+                    var onDay = items.Where(x => x.OccursOn(day)).OrderByDescending(x => x.IsDayLong).ThenBy(x => x.Start).ToList();
+                    if (onDay.Count > 0)
+                    {
+                        AgendaGroups.Add(new AgendaGroup(day, day == today, onDay));
+                    }
+                }
+                IsEmptyAgenda = AgendaGroups.Count == 0;
+                break;
+        }
+    }
+
+    private static TimedItemViewModel Segment(CalendarItemViewModel item, DateOnly day)
+    {
+        var dayStart = day.ToDateTime(TimeOnly.MinValue);
+        var start = item.Start < dayStart ? dayStart : item.Start;
+        var end = item.End > dayStart.AddDays(1) ? dayStart.AddDays(1) : item.End;
+        return new TimedItemViewModel(item, (start - dayStart).TotalMinutes, Math.Max((end - dayStart).TotalMinutes, (start - dayStart).TotalMinutes + 15))
+        {
+            Day = day,
+        };
+    }
+
+    // ---- navigation commands ----
+
+    [RelayCommand]
+    private Task SetModeAsync(CalendarMode mode)
+    {
+        Mode = mode;
+        return LoadAsync();
+    }
+
+    [RelayCommand]
+    private Task TodayAsync()
+    {
+        AnchorDate = _clock.Today;
+        return LoadAsync();
+    }
+
+    [RelayCommand]
+    private Task PreviousAsync() => MoveAsync(-1);
+
+    [RelayCommand]
+    private Task NextAsync() => MoveAsync(1);
+
+    private Task MoveAsync(int direction)
+    {
+        AnchorDate = Mode switch
+        {
+            CalendarMode.Month => AnchorDate.AddMonths(direction),
+            CalendarMode.Week => AnchorDate.AddDays(7 * direction),
+            CalendarMode.Day => AnchorDate.AddDays(direction),
+            _ => AnchorDate.AddDays(AgendaDays * direction),
+        };
+        return LoadAsync();
+    }
+
+    [RelayCommand]
+    private Task OpenDayAsync(DateOnly day)
+    {
+        AnchorDate = day;
+        Mode = CalendarMode.Day;
+        return LoadAsync();
+    }
+
+    [RelayCommand]
+    private void ToggleFilters() => ShowFilters = !ShowFilters;
+
+    [RelayCommand]
+    private void ClearFilters()
+    {
+        foreach (var option in EventTypeFilters.Concat(PriorityFilters))
+        {
+            option.IsSelected = false;
+        }
+        OnlyMine = false;
+        IncludeCancelled = false;
+        SearchText = string.Empty;
+    }
+
+    // ---- records ----
+
+    /// <summary>Opens the record behind an item. Standalone events open here; other sources open their own pages.</summary>
+    [RelayCommand]
+    private Task OpenItemAsync(CalendarItemViewModel item) =>
+        item.Item.SourceType == "CalendarEvent"
+            ? ShowEventAsync(item.Item.SourceId)
+            : Navigator?.OpenRecordAsync(item.Item.SourceType, item.Item.SourceId) ?? Task.CompletedTask;
+
+    /// <summary>Shows an event's details, moving the calendar to its date if it is not in view.</summary>
+    public async Task OpenEventAsync(Guid eventId)
+    {
+        await RunAsync(async () =>
+        {
+            var calendarEvent = await _api.GetAsync<CalendarEventResponse>($"api/v1/calendar/events/{eventId}");
+            var date = DateOnly.FromDateTime(_clock.ToLocal(calendarEvent.StartAt));
+            var (start, end) = VisibleRange();
+            if (calendarEvent.StartAt >= end || calendarEvent.EndAt <= start)
+            {
+                AnchorDate = date;
+            }
+            SidePanel = new EventDetailsViewModel(calendarEvent, _clock);
+        });
+        await LoadAsync();
+    }
+
+    private async Task ShowEventAsync(Guid eventId) => await RunAsync(async () =>
+        SidePanel = new EventDetailsViewModel(
+            await _api.GetAsync<CalendarEventResponse>($"api/v1/calendar/events/{eventId}"), _clock));
+
+    [RelayCommand]
+    private void CloseSidePanel() => SidePanel = null;
+
+    [RelayCommand(CanExecute = nameof(CanCreate))]
+    public async Task NewEventAsync(DateOnly? date)
+    {
+        var people = await LoadPeopleAsync();
+        if (people is not null)
+        {
+            SidePanel = EventEditorViewModel.ForNew(_clock, people, date ?? AnchorDate, _session.CurrentUser?.Id);
+        }
+    }
+
+    [RelayCommand]
+    private async Task EditEventAsync(EventDetailsViewModel details)
+    {
+        var people = await LoadPeopleAsync();
+        if (people is not null)
+        {
+            SidePanel = EventEditorViewModel.ForExisting(_clock, people, details.Event);
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveEventAsync(EventEditorViewModel editor)
+    {
+        editor.ErrorMessage = null;
+        if (editor.ResolveTimes() is not { } times)
+        {
+            return;
+        }
+
+        editor.IsSaving = true;
+        try
+        {
+            CalendarEventResponse saved;
+            if (editor.Existing is { } existing)
+            {
+                saved = await _api.PutAsync<CalendarEventResponse>($"api/v1/calendar/events/{existing.Id}",
+                    new UpdateCalendarEventRequest(editor.Title, editor.Description, editor.EventType, times.Start, times.End,
+                        editor.IsAllDay, editor.Location, editor.MeetingUrl, editor.Priority, editor.Status,
+                        editor.Assignments(), existing.Version));
+            }
+            else
+            {
+                saved = await _api.PostAsync<CalendarEventResponse>("api/v1/calendar/events",
+                    new CreateCalendarEventRequest(editor.Title, editor.Description, editor.EventType, times.Start, times.End,
+                        editor.IsAllDay, editor.Location, editor.MeetingUrl, editor.Priority, editor.Assignments()));
+            }
+
+            SidePanel = new EventDetailsViewModel(saved, _clock);
+            AppLog.Info($"Saved calendar event {saved.Id}");
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            editor.ErrorMessage = ex.Message;
+        }
+        catch (ApiUnavailableException ex)
+        {
+            editor.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            editor.IsSaving = false;
+        }
+    }
+
+    [RelayCommand]
+    private static void AskCancelEvent(EventDetailsViewModel details) => details.IsConfirmingCancel = true;
+
+    [RelayCommand]
+    private static void KeepEvent(EventDetailsViewModel details) => details.IsConfirmingCancel = false;
+
+    [RelayCommand]
+    private async Task ConfirmCancelEventAsync(EventDetailsViewModel details)
+    {
+        if (await RunAsync(() => _api.DeleteAsync($"api/v1/calendar/events/{details.Event.Id}")))
+        {
+            AppLog.Info($"Cancelled calendar event {details.Event.Id}");
+            SidePanel = null;
+            await LoadAsync();
+        }
+    }
+
+    /// <summary>
+    /// Moves an event to a new local start, keeping its length. This updates the event record itself
+    /// (with its current version), never a copy.
+    /// </summary>
+    public async Task<bool> RescheduleAsync(CalendarItemViewModel item, DateTime newLocalStart)
+    {
+        if (!item.CanReschedule)
+        {
+            return false;
+        }
+
+        var moved = await RunAsync(async () =>
+        {
+            var current = await _api.GetAsync<CalendarEventResponse>($"api/v1/calendar/events/{item.Item.SourceId}");
+            var duration = current.EndAt - current.StartAt;
+            var start = _clock.FromLocal(newLocalStart);
+            var saved = await _api.PutAsync<CalendarEventResponse>($"api/v1/calendar/events/{current.Id}",
+                new UpdateCalendarEventRequest(current.Title, current.Description, current.EventType, start, start + duration,
+                    current.IsAllDay, current.Location, current.MeetingUrl, current.Priority, current.Status,
+                    [.. current.Assignments.Select(a => new CalendarAssignmentRequest(a.UserId, a.AssignmentType ?? "Attendee"))],
+                    current.Version));
+            if (SidePanel is EventDetailsViewModel open && open.Event.Id == saved.Id)
+            {
+                SidePanel = new EventDetailsViewModel(saved, _clock);
+            }
+            AppLog.Info($"Rescheduled calendar event {saved.Id}");
+        });
+        await LoadAsync();
+        return moved;
+    }
+
+    private async Task<List<AssigneeOption>?> LoadPeopleAsync()
+    {
+        if (_people is null)
+        {
+            var ok = await RunAsync(async () =>
+            {
+                var page = await _api.GetAsync<PagedResponse<UserResponse>>("api/v1/users?pageSize=100&isActive=true");
+                _people = [.. page.Items.Select(u => (u.Id, u.FullName))
+                    .Select(p => new AssigneeOption(p.Id, p.FullName))];
+            });
+            if (!ok)
+            {
+                return null;
+            }
+        }
+
+        // Fresh option objects each time so editors don't share selection state.
+        return [.. _people!.Select(p => new AssigneeOption(p.UserId, p.FullName))];
+    }
+
+    private DateOnly MonthGridStart() => Monday(new DateOnly(AnchorDate.Year, AnchorDate.Month, 1));
+
+    private static DateOnly Monday(DateOnly date) => date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
+
+    private string WeekTitle()
+    {
+        var monday = Monday(AnchorDate);
+        var sunday = monday.AddDays(6);
+        return monday.Month == sunday.Month
+            ? $"{monday.Day} – {sunday:d MMMM yyyy}"
+            : $"{monday:d MMM} – {sunday:d MMM yyyy}";
+    }
+}

@@ -18,6 +18,13 @@
       <SolidColorBrush x:Key="Brush.Checking" Color="#B7791F" />
       <SolidColorBrush x:Key="Brush.ErrorSoft" Color="#FBE3E0" />
       <SolidColorBrush x:Key="Brush.SuccessSoft" Color="#DDF2E5" />
+      <SolidColorBrush x:Key="Brush.Cat.Meeting" Color="#2F6FDE" />
+      <SolidColorBrush x:Key="Brush.Cat.MinistryEvent" Color="#8A4FD8" />
+      <SolidColorBrush x:Key="Brush.Cat.Training" Color="#1F8F5F" />
+      <SolidColorBrush x:Key="Brush.Cat.ExternalAppointment" Color="#0E8C9A" />
+      <SolidColorBrush x:Key="Brush.Cat.RecordingSession" Color="#C2610C" />
+      <SolidColorBrush x:Key="Brush.Cat.Other" Color="#6B7280" />
+      <SolidColorBrush x:Key="Brush.TodayRing" Color="#B45F0E" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="Brush.App" Color="#14161B" />
@@ -35,6 +42,13 @@
       <SolidColorBrush x:Key="Brush.Checking" Color="#E0B04D" />
       <SolidColorBrush x:Key="Brush.ErrorSoft" Color="#3D1F1C" />
       <SolidColorBrush x:Key="Brush.SuccessSoft" Color="#173322" />
+      <SolidColorBrush x:Key="Brush.Cat.Meeting" Color="#6EA2FF" />
+      <SolidColorBrush x:Key="Brush.Cat.MinistryEvent" Color="#B48CFF" />
+      <SolidColorBrush x:Key="Brush.Cat.Training" Color="#4CC48E" />
+      <SolidColorBrush x:Key="Brush.Cat.ExternalAppointment" Color="#4CC9D6" />
+      <SolidColorBrush x:Key="Brush.Cat.RecordingSession" Color="#F0A24A" />
+      <SolidColorBrush x:Key="Brush.Cat.Other" Color="#A0A7B4" />
+      <SolidColorBrush x:Key="Brush.TodayRing" Color="#F0A24A" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

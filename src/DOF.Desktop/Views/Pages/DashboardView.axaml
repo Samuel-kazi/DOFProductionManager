@@ -1,26 +1,92 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:cal="using:DOF.Desktop.ViewModels.Calendar"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
              x:Class="DOF.Desktop.Views.Pages.DashboardView"
-             x:DataType="pages:DashboardViewModel">
+             x:DataType="pages:DashboardViewModel"
+             x:Name="Root">
+
+  <UserControl.DataTemplates>
+    <!-- One dashboard entry: opens the original record. -->
+    <DataTemplate DataType="cal:CalendarItemViewModel">
+      <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0" Margin="0,0,0,4"
+              Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenItemCommand}" CommandParameter="{Binding}"
+              ToolTip.Tip="Open">
+        <Border CornerRadius="7" Background="{DynamicResource Brush.App}" Padding="0" ClipToBounds="True">
+          <Grid ColumnDefinitions="4,*,Auto">
+            <Border Background="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+            <StackPanel Grid.Column="1" Margin="12,8" Spacing="2">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="muted small" Text="{Binding WhenText}" />
+            </StackPanel>
+            <TextBlock Grid.Column="2" Classes="muted small" Text="{Binding AssigneeNames}" Margin="12,0"
+                       VerticalAlignment="Center" MaxWidth="220" TextTrimming="CharacterEllipsis" />
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
   <ScrollViewer>
     <StackPanel Margin="32,28" Spacing="20" MaxWidth="1100" HorizontalAlignment="Stretch">
-      <StackPanel Spacing="4">
-        <TextBlock Classes="h1" Text="{Binding Greeting}" />
-        <TextBlock Classes="muted" Text="{Binding TodayText}" />
-        <TextBlock Classes="muted small" Text="{Binding TimeZoneText}" />
-      </StackPanel>
-
-      <Border Classes="card">
-        <StackPanel Spacing="8">
-          <Border Classes="pill" HorizontalAlignment="Left">
-            <TextBlock Text="Arrives in Phase 3" Foreground="{DynamicResource Brush.Accent}" FontWeight="SemiBold" FontSize="12" />
-          </Border>
-          <TextBlock Classes="h2" Text="Today's schedule, your tasks and upcoming deadlines" />
-          <TextBlock Classes="muted" TextWrapping="Wrap"
-                     Text="Your personal dashboard and the management overview will appear here once calendar, task and production records exist." />
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="h1" Text="{Binding Greeting}" />
+          <TextBlock Classes="muted" Text="{Binding TodayText}" />
+          <TextBlock Classes="muted small" Text="{Binding TimeZoneText}" />
         </StackPanel>
-      </Border>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" IsVisible="{Binding CanViewOrganisation}">
+          <ToggleButton Content="My day" IsChecked="{Binding ShowingPersonal, Mode=OneWay}" Command="{Binding ShowPersonalCommand}"
+                        CornerRadius="6,0,0,6" />
+          <ToggleButton Content="Organisation" IsChecked="{Binding ShowingOrganisation, Mode=OneWay}"
+                        Command="{Binding ShowOrganisationCommand}" CornerRadius="0,6,6,0" />
+        </StackPanel>
+      </Grid>
+
+      <pageViews:PageStatus />
+
+      <!-- Personal -->
+      <Grid ColumnDefinitions="*,20,*" IsVisible="{Binding ShowingPersonal}">
+        <Border Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Today's schedule" />
+            <TextBlock Classes="muted" Text="Nothing scheduled for you today." IsVisible="{Binding TodayIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding TodaySchedule}" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Coming up for me · next 7 days" />
+            <TextBlock Classes="muted" Text="Nothing assigned to you this week." IsVisible="{Binding UpcomingIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding Upcoming}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Organisation -->
+      <Grid ColumnDefinitions="*,20,*" IsVisible="{Binding ShowingOrganisation}">
+        <Border Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Upcoming activities · next 7 days" />
+            <TextBlock Classes="muted" Text="No activities scheduled." IsVisible="{Binding OrganisationUpcomingIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding OrganisationUpcoming}" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Needs someone responsible" />
+            <TextBlock Classes="muted small" TextWrapping="Wrap"
+                       Text="Every activity should have a responsible person. Open one to assign people." />
+            <TextBlock Classes="muted" Text="Every upcoming activity has someone assigned." IsVisible="{Binding UnassignedIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding Unassigned}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <TextBlock Classes="muted small" TextWrapping="Wrap"
+                 Text="Tasks, assigned episodes, pending reviews, releases and notifications join the dashboard as those features arrive (Phases 4–7)." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

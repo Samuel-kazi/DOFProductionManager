@@ -25,6 +25,9 @@ dotnet ef database update --project src/DOF.Infrastructure --startup-project src
 - New entities derive from `Entity`; use `IVersioned` for editable records and `IArchivable` instead of deletes.
 - Review every generated migration before applying; no destructive migrations without explicit approval.
 - API routes under `/api/v1`, success bodies in `ApiResponse<T>`, errors as ProblemDetails.
+- Calendar: never copy a date into `calendar_events`. A record type that owns dates adds an `ICalendarSource`
+  (register it in `Application/DependencyInjection.cs`, add its type to `CalendarValues.SourceTypes`) and the
+  shell's `OpenRecordAsync` learns to open it.
 - Desktop: new pages derive from `PageViewModel`, call the API only through `ApiClient`, and get a
   `DataTemplate` in `App.axaml`. Use theme tokens (`Brush.*`), never hard-coded colours.
 - Desktop UI tests: wrap test bodies with `OnUiThread` (it uses the `Func<Task<T>>` Dispatch overload

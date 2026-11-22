@@ -50,9 +50,11 @@ Implemented in `DOF.Infrastructure/Persistence`:
   role gaining a permission) are inserted rather than mistaken for existing rows.
 - **Timestamps:** `DateTimeOffset` in the domain → `timestamptz` in PostgreSQL, always UTC.
   Date-only values use `DateOnly` → `date`.
-- **Audit timestamps:** `AuditingInterceptor` sets `created_at` / `updated_at` on every save, so
-  services never set them by hand. `ICurrentUser` now exists; `created_by` / `updated_by` columns
-  will be added with the first tables the specification requires them on (projects, Phase 4).
+- **Audit fields:** `AuditingInterceptor` (scoped) sets `created_at` / `updated_at` on every save and, for
+  entities deriving from `AuditableEntity`, `created_by` / `updated_by` from `ICurrentUser`. Both are
+  foreign keys to `users` with `RESTRICT`. Services never set these by hand.
+- **Enums** are stored as strings (`varchar`), matching the specification's VARCHAR status columns.
+  Because of that, the database sorts them alphabetically, so order by enum value in memory when it matters.
 - **Optimistic concurrency:** entities implementing `IVersioned` get an integer `version` column
   configured as a concurrency token. The interceptor increments it on every update; a save made
   against a stale version raises `DbUpdateConcurrencyException`.
@@ -137,6 +139,56 @@ persisted, through `ISecureStore`:
 Known limitations, accepted for now: no account lockout beyond rate limiting; no per-user permission
 grants outside roles; access tokens are not revocable before expiry except through deactivation.
 
+## Calendar (Phase 3)
+
+**Single source of truth.** A date lives only in the record that owns it. `calendar_events` holds only
+standalone events (meetings, ministry events, training, external appointments, unlinked recording
+sessions). Everything else reaches the calendar through an `ICalendarSource`:
+
+```text
+CalendarService ──► ICalendarSource (one per record type)
+                      ├─ StandaloneEventCalendarSource   (Phase 3)
+                      ├─ milestones / task deadlines     (Phase 4)
+                      ├─ episode recording, edit, review (Phase 5)
+                      └─ releases                        (Phase 6)
+```
+
+Each source projects its records into `CalendarItemResponse` (`sourceType` + `sourceId` identify the
+original; `id` is `"{sourceType}:{sourceId}"` plus a suffix where one record yields several items).
+`CalendarService` validates the range (end after start, at most 190 days), asks every source whose
+type passes the `sourceTypes` filter, and sorts the result. Items overlap the range when
+`start < rangeEnd && end > rangeStart`. Cancelled items are excluded unless `includeCancelled` or a
+status filter asks for them. Project and show filters match nothing in sources that have no project
+or show. **To add a source in a later phase:** implement `ICalendarSource`, register it in
+`Application/DependencyInjection.cs` and add its `sourceType` to `CalendarValues.SourceTypes`.
+Rescheduling always goes through the owning record's own endpoint.
+
+**Time zones.** Instants are UTC (`timestamptz`). The day/week/month/agenda endpoints and dashboards
+compute boundaries in the signed-in user's timezone (or `timeZone=`), with weeks starting on Monday.
+All-day events are snapped to whole days in the organisation timezone: midnight of the first day to the
+midnight after the last day. A midnight end is treated as exclusive, so re-saving doesn't lengthen
+the event (`ZonedTime.SnapToWholeDays`).
+
+**Events.** Versioned (optimistic concurrency) and auditable. `DELETE` cancels; the row stays.
+Create/update/cancel need `calendar.manage`; every signed-in user can read. Assignees must be active
+users; `Organizer` marks the responsible person.
+
+**Dashboards** reuse the calendar: personal = today's items and the next 7 days assigned to me;
+management (`reports.view`) = all upcoming activities plus those with nobody assigned. Every entry is
+a calendar item that links to its record (no decorative statistics). `/dashboard/overdue` arrives with
+tasks and milestones in Phase 4, since nothing in the system can be overdue until then.
+
+**Desktop calendar.** `CalendarViewModel` loads `GET /calendar` for the visible range (month = 6
+Monday-first weeks) and builds month cells, week/day columns or agenda groups in the user's timezone.
+Timed items are laid out by `Controls/TimeGridPanel` (48 px per hour) with overlapping items placed
+side by side (`TimeSlotLayout.AssignLanes`); day-long items go in the all-day row. Items are coloured
+by category (`Brush.Cat.*` tokens) and show assignee initials. Clicking an item opens its original
+record: standalone events open in the details panel, and other sources will open their own screens
+via `IRecordNavigator` (implemented by the shell). Dragging (`CalendarView.axaml.cs`) moves standalone
+events by whole days in the month view, and by days plus 15-minute steps in week/day view, through
+`PUT /calendar/events/{id}` with the current version, keeping the event's length. Filters (type,
+priority, mine, cancelled) query the server; the title filter narrows what's loaded.
+
 ## Desktop client (Phase 2)
 
 **Composition.** `Services/DesktopServices.Build` is the composition root (Microsoft.Extensions.DependencyInjection).
@@ -188,9 +240,11 @@ UI-thread errors are also shown in a dismissible banner. Nothing is swallowed si
 | DOF.IntegrationTests | The real API via `WebApplicationFactory`, against a real PostgreSQL database (`dof_production_manager_test`, override with `DOF_TEST_DATABASE`). The schema is dropped and rebuilt from migrations once per run; the host then seeds roles and a test Administrator. Tests run sequentially because some change shared role permissions. Also covers the desktop `AuthSession` against the real API, and the real macOS Keychain. EF Core's in-memory provider is not used. |
 | DOF.ArchitectureTests | Layer dependency rules (above) |
 
-**Desktop UI tests** (`DOF.IntegrationTests/Desktop/DesktopUiTests`) run the real views and view models
+**Desktop UI tests** (`DOF.IntegrationTests/Desktop/DesktopUiTests` and `CalendarUiTests`, helpers in `Ui.cs`) run the real views and view models
 in a headless Avalonia window (Skia rendering) against the real API: sign-in, navigation to every
-section, keyboard shortcuts, session restore, offline start, deactivation, password change and theme.
+section, keyboard shortcuts, session restore, offline start, deactivation, password change, theme, every
+calendar view, opening records, the event editor, drag-to-reschedule with simulated mouse input,
+filters, dashboards and quick create.
 They save screenshots to `tests/DOF.IntegrationTests/bin/Debug/net10.0/ui-snapshots/` for visual
 review. Avalonia's xUnit integration targets xUnit v3.2, so the tests drive `Avalonia.Headless`
 directly. Note: they must call `HeadlessUnitTestSession.Dispatch` with a `Func<Task<T>>`; a plain

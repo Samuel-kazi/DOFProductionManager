@@ -7,7 +7,7 @@ using DOF.Desktop.ViewModels.Pages;
 namespace DOF.Desktop.ViewModels;
 
 /// <summary>The signed-in application frame: sidebar navigation, top bar and the current page.</summary>
-public sealed partial class ShellViewModel : ViewModelBase
+public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
 {
     private readonly AuthSession _session;
     private readonly PreferencesStore _preferences;
@@ -19,6 +19,7 @@ public sealed partial class ShellViewModel : ViewModelBase
         PreferencesStore preferences,
         TimeProvider clock,
         Func<DashboardViewModel> dashboard,
+        Func<CalendarViewModel> calendar,
         Func<TeamViewModel> team,
         Func<SettingsViewModel> settings)
     {
@@ -32,8 +33,7 @@ public sealed partial class ShellViewModel : ViewModelBase
         PrimaryItems =
         [
             new("Dashboard", "Icon.Dashboard", dashboard, $"{shortcutPrefix}1"),
-            new("Calendar", "Icon.Calendar", () => new PlaceholderPageViewModel("Calendar", 3,
-                "Month, week, day and agenda views of every recording, deadline, milestone, release and event."), $"{shortcutPrefix}2"),
+            new("Calendar", "Icon.Calendar", calendar, $"{shortcutPrefix}2"),
             new("Projects", "Icon.Projects", () => new PlaceholderPageViewModel("Projects", 4,
                 "Projects, members, milestones and timelines."), $"{shortcutPrefix}3"),
             new("Shows & Episodes", "Icon.Shows", () => new PlaceholderPageViewModel("Shows & Episodes", 5,
@@ -86,10 +86,14 @@ public sealed partial class ShellViewModel : ViewModelBase
 
     public IEnumerable<NavigationItem> AllItems => PrimaryItems.Concat(FooterItems);
 
+    public bool CanCreateEvents => _session.CurrentUser?.Permissions.Contains("calendar.manage") == true;
+
     public Task StartAsync() => NavigateAsync(PrimaryItems[0]);
 
     [RelayCommand]
-    public async Task NavigateAsync(NavigationItem item)
+    public Task NavigateAsync(NavigationItem item) => ShowAsync(item, load: true);
+
+    private async Task<PageViewModel> ShowAsync(NavigationItem item, bool load)
     {
         foreach (var other in AllItems)
         {
@@ -97,8 +101,39 @@ public sealed partial class ShellViewModel : ViewModelBase
         }
 
         var page = item.CreatePage();
+        page.Navigator = this;
         CurrentPage = page;
-        await page.LoadAsync();
+        if (load)
+        {
+            await page.LoadAsync();
+        }
+        return page;
+    }
+
+    private NavigationItem CalendarItem => PrimaryItems.Single(i => i.Title == "Calendar");
+
+    /// <summary>Opens the original record behind a calendar or dashboard entry.</summary>
+    public async Task OpenRecordAsync(string sourceType, Guid sourceId)
+    {
+        switch (sourceType)
+        {
+            case "CalendarEvent":
+                var calendar = (CalendarViewModel)await ShowAsync(CalendarItem, load: false);
+                await calendar.OpenEventAsync(sourceId);
+                break;
+            default:
+                // Milestones, tasks, episodes and releases get their own screens in Phases 4–6.
+                AppLog.Warning($"No screen yet for {sourceType} {sourceId}");
+                break;
+        }
+    }
+
+    /// <summary>Quick create: opens the calendar with a new event.</summary>
+    [RelayCommand(CanExecute = nameof(CanCreateEvents))]
+    public async Task CreateEventAsync(DateOnly? date = null)
+    {
+        var calendar = (CalendarViewModel)await ShowAsync(CalendarItem, load: true);
+        await calendar.NewEventAsync(date);
     }
 
     [RelayCommand]

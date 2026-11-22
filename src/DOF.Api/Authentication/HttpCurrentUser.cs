@@ -7,4 +7,8 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUse
 {
     public Guid? UserId =>
         Guid.TryParse(accessor.HttpContext?.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out var id) ? id : null;
+
+    /// <summary>Permission claims are loaded from the database for each request (see AuthenticationSetup).</summary>
+    public bool HasPermission(string permission) =>
+        accessor.HttpContext?.User.HasClaim(AuthenticationSetup.PermissionClaimType, permission) == true;
 }

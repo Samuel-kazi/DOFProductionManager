@@ -14,6 +14,7 @@ using DOF.Desktop.Views;
 using DOF.Desktop.Views.Pages;
 using DOF.Domain.Rules;
 using static DOF.IntegrationTests.TestApi;
+using static DOF.IntegrationTests.Desktop.Ui;
 
 namespace DOF.IntegrationTests.Desktop;
 
@@ -23,8 +24,6 @@ namespace DOF.IntegrationTests.Desktop;
 /// </summary>
 public class DesktopUiTests(DofApiFactory factory, HeadlessSession headless)
 {
-    private static readonly string SnapshotDirectory = Path.Combine(AppContext.BaseDirectory, "ui-snapshots");
-
     [Fact]
     public Task Sign_in_opens_the_shell_and_every_section_can_be_reached() => OnUiThread(async () =>
     {
@@ -66,9 +65,9 @@ public class DesktopUiTests(DofApiFactory factory, HeadlessSession headless)
         Assert.Single(Find<TeamView>(window));
         Snapshot(window, "03-team");
 
-        await shell.NavigateCommand.ExecuteAsync(shell.PrimaryItems.Single(i => i.Title == "Calendar"));
+        await shell.NavigateCommand.ExecuteAsync(shell.PrimaryItems.Single(i => i.Title == "Projects"));
         Assert.IsType<PlaceholderPageViewModel>(shell.CurrentPage);
-        Snapshot(window, "04-calendar-placeholder");
+        Snapshot(window, "04-projects-placeholder");
 
         await shell.OpenSettingsCommand.ExecuteAsync(null);
         Assert.IsType<SettingsViewModel>(shell.CurrentPage);
@@ -132,7 +131,7 @@ public class DesktopUiTests(DofApiFactory factory, HeadlessSession headless)
         var store = new InMemorySecureStore();
         using (var first = new DesktopHarness(factory, store))
         {
-            await SignInAsync(first.Get<MainWindowViewModel>(), show: false);
+            await SignInAsync(first.Get<MainWindowViewModel>());
         }
 
         using var restarted = new DesktopHarness(factory, store);
@@ -224,80 +223,5 @@ public class DesktopUiTests(DofApiFactory factory, HeadlessSession headless)
         Assert.Equal(DOF.Desktop.Services.ThemePreference.Dark, harness.Preferences.Current.Theme);
     });
 
-    // ---- helpers ----
-
-    /// <summary>
-    /// Runs the whole async test on the Avalonia UI thread and waits for it to finish. (The overload taking
-    /// Func&lt;Task&lt;T&gt;&gt; is used deliberately: a plain Func&lt;Task&gt; would bind to Dispatch&lt;Task&gt;
-    /// and return without awaiting the test body.)
-    /// </summary>
-    private Task OnUiThread(Func<Task> test) => headless.Session.Dispatch(async () =>
-    {
-        await test();
-        return true;
-    }, Ct);
-
-    private static MainWindow Show(MainWindowViewModel main)
-    {
-        var window = new MainWindow { DataContext = main, Width = 1280, Height = 800 };
-        window.Show();
-        return window;
-    }
-
-    private static async Task<ShellViewModel> SignInAsync(MainWindowViewModel main, bool show = true)
-    {
-        await main.InitializeAsync();
-        var login = Assert.IsType<LoginViewModel>(main.Content);
-        login.Email = DofApiFactory.AdminEmail;
-        login.Password = DofApiFactory.AdminPassword;
-        await login.SignInCommand.ExecuteAsync(null);
-        var shell = await WaitForAsync(() => main.Content as ShellViewModel);
-        await WaitForAsync(() => shell.CurrentPage);
-        _ = show;
-        return shell;
-    }
-
-    private static async Task<T> WaitForAsync<T>(Func<T?> probe) where T : class
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(10);
-        while (DateTime.UtcNow < deadline)
-        {
-            Dispatcher.UIThread.RunJobs();
-            if (probe() is { } value)
-            {
-                return value;
-            }
-            await Task.Delay(20);
-        }
-        throw new TimeoutException("The expected UI state was not reached within 10 seconds.");
-    }
-
-    private static void Render(Window window)
-    {
-        Dispatcher.UIThread.RunJobs();
-        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-    }
-
-    private static List<T> Find<T>(Window window) where T : Visual
-    {
-        Render(window);
-        return window.GetVisualDescendants().OfType<T>().ToList();
-    }
-
-    /// <summary>Saves the current frame. A frame is only produced after something changed, so retry a few ticks.</summary>
-    private static void Snapshot(Window window, string name)
-    {
-        Directory.CreateDirectory(SnapshotDirectory);
-        for (var attempt = 0; attempt < 10; attempt++)
-        {
-            Render(window);
-            if (window.CaptureRenderedFrame() is { } frame)
-            {
-                frame.Save(Path.Combine(SnapshotDirectory, $"{name}.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
-                return;
-            }
-            window.InvalidateVisual();
-        }
-        Assert.Fail($"No frame was rendered for snapshot '{name}'.");
-    }
+    private Task OnUiThread(Func<Task> test) => Ui.Run(headless, test);
 }
