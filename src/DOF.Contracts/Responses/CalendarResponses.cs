@@ -49,8 +49,8 @@ public sealed record CalendarEventResponse(
     bool CanEdit);
 
 /// <summary>
-/// The signed-in user's day: today's calendar, upcoming items assigned to them, their open tasks, and
-/// tasks they created that are waiting for their review.
+/// The signed-in user's day: today's calendar, upcoming items assigned to them, their open tasks,
+/// tasks they created that are waiting for their review, and open episodes they produce or crew.
 /// </summary>
 public sealed record PersonalDashboardResponse(
     DateOnly Today,
@@ -58,7 +58,8 @@ public sealed record PersonalDashboardResponse(
     IReadOnlyList<CalendarItemResponse> TodaySchedule,
     IReadOnlyList<CalendarItemResponse> Upcoming,
     IReadOnlyList<TaskResponse> MyTasks,
-    IReadOnlyList<TaskResponse> PendingReviews);
+    IReadOnlyList<TaskResponse> PendingReviews,
+    IReadOnlyList<EpisodeSummaryResponse> MyEpisodes);
 
 public sealed record ManagementDashboardResponse(
     DateTimeOffset Start,
@@ -69,4 +70,5 @@ public sealed record ManagementDashboardResponse(
     IReadOnlyList<ProjectSummaryResponse> ActiveProjects,
     IReadOnlyList<MilestoneResponse> UpcomingMilestones,
     OverdueResponse Overdue,
-    IReadOnlyList<WorkloadSummaryResponse> TeamWorkload);
+    IReadOnlyList<WorkloadSummaryResponse> TeamWorkload,
+    IReadOnlyList<EpisodeSummaryResponse> AwaitingPublication);

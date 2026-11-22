@@ -30,3 +30,11 @@ public sealed record ChoiceOption(Guid? Id, string Label)
 {
     public override string ToString() => Label;
 }
+
+/// <summary>What a task belongs to: nothing, a project, or an episode (never both).</summary>
+public sealed record WorkLinkOption(Guid? ProjectId, Guid? EpisodeId, string Label)
+{
+    public static readonly WorkLinkOption None = new(null, null, "Nothing (standalone task)");
+
+    public override string ToString() => Label;
+}

@@ -6,6 +6,7 @@ using DOF.Contracts.Responses;
 using DOF.Desktop.Services;
 using DOF.Desktop.Services.Api;
 using DOF.Desktop.ViewModels.Calendar;
+using DOF.Desktop.ViewModels.Shows;
 using DOF.Desktop.ViewModels.Work;
 
 namespace DOF.Desktop.ViewModels.Pages;
@@ -22,7 +23,7 @@ public sealed class WorkloadRow(WorkloadSummaryResponse summary)
 }
 
 /// <summary>
-/// Personal dashboard (today, coming up, my tasks, reviews waiting for me) and, for people with
+/// Personal dashboard (today, coming up, my tasks, reviews waiting for me, my episodes) and, for people with
 /// <c>reports.view</c>, the organisation view. Every entry opens its original record.
 /// </summary>
 public sealed partial class DashboardViewModel(ApiClient api, AuthSession session, UserClock clock) : PageViewModel
@@ -61,6 +62,9 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
     public ObservableCollection<TaskItemViewModel> OverdueTasks { get; } = [];
     public ObservableCollection<MilestoneItemViewModel> OverdueMilestones { get; } = [];
     public ObservableCollection<WorkloadRow> TeamWorkload { get; } = [];
+    public ObservableCollection<EpisodeRowViewModel> MyEpisodes { get; } = [];
+    public ObservableCollection<EpisodeRowViewModel> OverdueEpisodes { get; } = [];
+    public ObservableCollection<EpisodeRowViewModel> AwaitingPublication { get; } = [];
 
     public bool TodayIsEmpty => TodaySchedule.Count == 0;
     public bool UpcomingIsEmpty => Upcoming.Count == 0;
@@ -70,7 +74,9 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
     public bool OrganisationUpcomingIsEmpty => OrganisationUpcoming.Count == 0;
     public bool ActiveProjectsIsEmpty => ActiveProjects.Count == 0;
     public bool UpcomingMilestonesIsEmpty => UpcomingMilestones.Count == 0;
-    public bool NothingOverdue => OverdueTasks.Count == 0 && OverdueMilestones.Count == 0;
+    public bool NothingOverdue => OverdueTasks.Count == 0 && OverdueMilestones.Count == 0 && OverdueEpisodes.Count == 0;
+    public bool MyEpisodesIsEmpty => MyEpisodes.Count == 0;
+    public bool AwaitingPublicationIsEmpty => AwaitingPublication.Count == 0;
 
     public override async Task LoadAsync()
     {
@@ -81,6 +87,7 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
             Fill(Upcoming, personal.Upcoming.Select(i => new CalendarItemViewModel(i, clock)));
             Fill(MyTasks, personal.MyTasks.Select(t => new TaskItemViewModel(t, clock)));
             Fill(PendingReviews, personal.PendingReviews.Select(t => new TaskItemViewModel(t, clock)));
+            Fill(MyEpisodes, personal.MyEpisodes.Select(e => new EpisodeRowViewModel(e, clock)));
 
             if (CanViewOrganisation)
             {
@@ -92,13 +99,16 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
                 Fill(UpcomingMilestones, m.UpcomingMilestones.Select(x => new MilestoneItemViewModel(x, today)));
                 Fill(OverdueTasks, m.Overdue.Tasks.Select(t => new TaskItemViewModel(t, clock)));
                 Fill(OverdueMilestones, m.Overdue.Milestones.Select(x => new MilestoneItemViewModel(x, today)));
+                Fill(OverdueEpisodes, m.Overdue.Episodes.Select(e => new EpisodeRowViewModel(e, clock)));
+                Fill(AwaitingPublication, m.AwaitingPublication.Select(e => new EpisodeRowViewModel(e, clock)));
                 Fill(TeamWorkload, m.TeamWorkload.Where(w => w.OpenTasks + w.OpenMilestones > 0).Select(w => new WorkloadRow(w)));
             }
         });
 
         foreach (var name in new[] { nameof(TodayIsEmpty), nameof(UpcomingIsEmpty), nameof(MyTasksIsEmpty), nameof(HasPendingReviews),
                      nameof(UnassignedIsEmpty), nameof(OrganisationUpcomingIsEmpty), nameof(ActiveProjectsIsEmpty),
-                     nameof(UpcomingMilestonesIsEmpty), nameof(NothingOverdue) })
+                     nameof(UpcomingMilestonesIsEmpty), nameof(NothingOverdue), nameof(MyEpisodesIsEmpty),
+                     nameof(AwaitingPublicationIsEmpty) })
         {
             OnPropertyChanged(name);
         }
@@ -117,6 +127,10 @@ public sealed partial class DashboardViewModel(ApiClient api, AuthSession sessio
     [RelayCommand]
     private Task OpenMilestoneAsync(MilestoneItemViewModel milestone) =>
         Navigator?.OpenRecordAsync("Milestone", milestone.Id) ?? Task.CompletedTask;
+
+    [RelayCommand]
+    private Task OpenEpisodeAsync(EpisodeRowViewModel episode) =>
+        Navigator?.OpenRecordAsync("Episode", episode.Id) ?? Task.CompletedTask;
 
     [RelayCommand]
     private Task OpenProjectAsync(ProjectCardViewModel project) =>

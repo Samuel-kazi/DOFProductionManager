@@ -5,7 +5,7 @@ namespace DOF.Domain.Entities;
 
 /// <summary>
 /// A unit of work with one primary responsible person and optional helpers. It may stand alone or
-/// belong to a project. (Named WorkTask to avoid confusion with System.Threading.Tasks.Task.)
+/// belong to a project or to an episode (not both). (Named WorkTask to avoid confusion with System.Threading.Tasks.Task.)
 /// </summary>
 public sealed class WorkTask : AuditableEntity, IVersioned
 {
@@ -16,6 +16,7 @@ public sealed class WorkTask : AuditableEntity, IVersioned
     public string Title { get; private set; } = null!;
     public string? Description { get; private set; }
     public Guid? ProjectId { get; private set; }
+    public Guid? EpisodeId { get; private set; }
     public DateTimeOffset? DueAt { get; private set; }
     public Priority Priority { get; private set; }
     public WorkStatus Status { get; private set; }
@@ -23,6 +24,7 @@ public sealed class WorkTask : AuditableEntity, IVersioned
     public Guid? CompletedBy { get; private set; }
     public int Version { get; private set; }
     public Project? Project { get; private set; }
+    public Episode? Episode { get; private set; }
 
     public IReadOnlyCollection<TaskAssignment> Assignments => _assignments;
 
@@ -32,23 +34,30 @@ public sealed class WorkTask : AuditableEntity, IVersioned
 
     public bool IsOverdue(DateTimeOffset now) => IsOpen && DueAt is { } due && due < now;
 
-    public static WorkTask Create(string title, string? description, Guid? projectId, DateTimeOffset? dueAt, Priority priority)
+    public static WorkTask Create(string title, string? description, Guid? projectId, Guid? episodeId,
+        DateTimeOffset? dueAt, Priority priority)
     {
         var task = new WorkTask { Status = WorkStatus.NotStarted };
-        task.Update(title, description, projectId, dueAt, priority);
+        task.Update(title, description, projectId, episodeId, dueAt, priority);
         return task;
     }
 
-    public void Update(string title, string? description, Guid? projectId, DateTimeOffset? dueAt, Priority priority)
+    public void Update(string title, string? description, Guid? projectId, Guid? episodeId, DateTimeOffset? dueAt,
+        Priority priority)
     {
         if (string.IsNullOrWhiteSpace(title))
         {
             throw new DomainException("A task needs a title.");
         }
+        if (projectId is not null && episodeId is not null)
+        {
+            throw new DomainException("A task belongs to a project or to an episode, not both.");
+        }
 
         Title = title.Trim();
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         ProjectId = projectId;
+        EpisodeId = episodeId;
         DueAt = dueAt?.ToUniversalTime();
         Priority = priority;
     }

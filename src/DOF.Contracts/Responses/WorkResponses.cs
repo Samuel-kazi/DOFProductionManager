@@ -75,7 +75,8 @@ public sealed record TaskResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     int Version,
-    bool CanEdit);
+    bool CanEdit,
+    EpisodeRefResponse? Episode = null);
 
 /// <summary>One entry of a record's history. Values are shown as text; the change itself is in <see cref="Summary"/>.</summary>
 public sealed record ActivityEntryResponse(
@@ -96,7 +97,11 @@ public sealed record ProjectTimelineResponse(
     IReadOnlyList<TaskResponse> Tasks,
     IReadOnlyList<ActivityEntryResponse> History);
 
-public sealed record OverdueResponse(IReadOnlyList<TaskResponse> Tasks, IReadOnlyList<MilestoneResponse> Milestones);
+/// <summary>Overdue work: tasks, milestones, and episodes with a missed production deadline or unrecorded past session.</summary>
+public sealed record OverdueResponse(
+    IReadOnlyList<TaskResponse> Tasks,
+    IReadOnlyList<MilestoneResponse> Milestones,
+    IReadOnlyList<EpisodeSummaryResponse> Episodes);
 
 public sealed record WorkloadSummaryResponse(
     Guid UserId,

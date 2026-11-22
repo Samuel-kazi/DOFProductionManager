@@ -42,7 +42,7 @@ public sealed record UpdateMilestoneRequest(
 
 /// <summary>
 /// If no assignees are given the creator becomes the primary responsible person. Assigning anyone else
-/// requires the <c>tasks.assign</c> permission.
+/// requires the <c>tasks.assign</c> permission. A task may belong to a project or an episode, not both.
 /// </summary>
 public sealed record CreateTaskRequest(
     string Title,
@@ -51,7 +51,8 @@ public sealed record CreateTaskRequest(
     DateTimeOffset? DueAt,
     string Priority,
     IReadOnlyList<Guid>? AssigneeIds,
-    Guid? PrimaryAssigneeId);
+    Guid? PrimaryAssigneeId,
+    Guid? EpisodeId = null);
 
 public sealed record UpdateTaskRequest(
     string Title,
@@ -61,6 +62,7 @@ public sealed record UpdateTaskRequest(
     string Priority,
     IReadOnlyList<Guid> AssigneeIds,
     Guid? PrimaryAssigneeId,
-    int Version);
+    int Version,
+    Guid? EpisodeId = null);
 
 public sealed record AssignTaskRequest(Guid UserId, bool IsPrimary);

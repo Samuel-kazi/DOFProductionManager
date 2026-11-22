@@ -13,6 +13,9 @@ public static class ActivityEntities
     public const string CalendarEvent = "CalendarEvent";
     public const string User = "User";
     public const string Role = "Role";
+    public const string Show = "Show";
+    public const string Season = "Season";
+    public const string Episode = "Episode";
 }
 
 /// <summary>Actions recorded in the activity log.</summary>

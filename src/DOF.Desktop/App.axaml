@@ -24,6 +24,7 @@
     <DataTemplate DataType="pages:DashboardViewModel"><pageViews:DashboardView /></DataTemplate>
     <DataTemplate DataType="pages:CalendarViewModel"><pageViews:CalendarView /></DataTemplate>
     <DataTemplate DataType="pages:ProjectsViewModel"><pageViews:ProjectsView /></DataTemplate>
+    <DataTemplate DataType="pages:ShowsViewModel"><pageViews:ShowsView /></DataTemplate>
     <DataTemplate DataType="pages:TasksViewModel"><pageViews:TasksView /></DataTemplate>
     <DataTemplate DataType="pages:TeamViewModel"><pageViews:TeamView /></DataTemplate>
     <DataTemplate DataType="pages:SettingsViewModel"><pageViews:SettingsView /></DataTemplate>

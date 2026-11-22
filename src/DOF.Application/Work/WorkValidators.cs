@@ -4,7 +4,7 @@ using FluentValidation;
 
 namespace DOF.Application.Work;
 
-internal static class WorkRules
+public static class WorkRules
 {
     public static IRuleBuilderOptions<T, string> OneOf<T>(this IRuleBuilder<T, string> rule, IReadOnlyList<string> allowed, string what) =>
         rule.Must(allowed.Contains).WithMessage($"{what} must be one of: {string.Join(", ", allowed)}.");
@@ -87,6 +87,8 @@ public sealed class CreateTaskRequestValidator : AbstractValidator<CreateTaskReq
     {
         RuleFor(r => r.Title).NotEmpty().MaximumLength(200);
         RuleFor(r => r.Description).MaximumLength(4000);
+        RuleFor(r => r.EpisodeId).Null().When(r => r.ProjectId is not null)
+            .WithMessage("A task belongs to a project or to an episode, not both.");
         RuleFor(r => r.Priority).OneOf(CalendarValues.Priorities, "Priority");
         RuleFor(r => r.AssigneeIds).Must(ids => ids is null || ids.Count <= 20).WithMessage("A task can have at most 20 assignees.");
     }
@@ -98,6 +100,8 @@ public sealed class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskReq
     {
         RuleFor(r => r.Title).NotEmpty().MaximumLength(200);
         RuleFor(r => r.Description).MaximumLength(4000);
+        RuleFor(r => r.EpisodeId).Null().When(r => r.ProjectId is not null)
+            .WithMessage("A task belongs to a project or to an episode, not both.");
         RuleFor(r => r.Priority).OneOf(CalendarValues.Priorities, "Priority");
         RuleFor(r => r.AssigneeIds).NotEmpty().WithMessage("A task needs at least one responsible person.")
             .Must(ids => ids.Count <= 20).WithMessage("A task can have at most 20 assignees.");

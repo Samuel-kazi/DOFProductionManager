@@ -70,13 +70,18 @@ public sealed class ActivityQueries(IApplicationDbContext db)
         return action switch
         {
             ActivityActions.Created => $"{label} created",
-            ActivityActions.StatusChanged => $"Status changed from {Val(old, "Status")} to {Val(@new, "Status")}",
+            ActivityActions.StatusChanged => $"Status changed from {Val(old, "Status")} to {Val(@new, "Status")}"
+                                             + (@new.GetValueOrDefault("Note") is { } note ? $": {note}" : ""),
             ActivityActions.Rescheduled => @new.Keys.FirstOrDefault() is { } key
                 ? $"{Humanise(key)} changed from {Val(old, key)} to {Val(@new, key)}"
                 : "Rescheduled",
             ActivityActions.AssigneesChanged => $"Responsibility changed to {Val(@new, "Assignees")}",
+            ActivityActions.MemberAdded when entityType == ActivityEntities.Episode =>
+                $"{Val(@new, "Member")} assigned as {Val(@new, "Role")}",
             ActivityActions.MemberAdded => $"{Val(@new, "Member")} joined as {Val(@new, "Role")}",
             ActivityActions.MemberRoleChanged => $"{Val(@new, "Member")}'s role changed from {Val(old, "Role")} to {Val(@new, "Role")}",
+            ActivityActions.MemberRemoved when entityType == ActivityEntities.Episode =>
+                $"{Val(old, "Member")} removed as {Val(old, "Role")}",
             ActivityActions.MemberRemoved => $"{Val(old, "Member")} left the project",
             ActivityActions.Cancelled => $"{label} cancelled",
             ActivityActions.RolesChanged => $"Roles changed to {Val(@new, "Roles")}",
@@ -92,7 +97,18 @@ public sealed class ActivityQueries(IApplicationDbContext db)
         "StartAt" => "Start",
         "TargetEndDate" => "Target end date",
         "StartDate" => "Start date",
-        "ProjectType" => "type",
+        "ProjectType" or "ShowType" => "type",
+        "RecordingStart" => "Recording",
+        "RecordingEnd" => "Recording end",
+        "RecordedAt" => "Recorded at",
+        "RecordingLocation" => "location",
+        "EditingDueDate" => "Editing deadline",
+        "ReviewDueDate" => "Review deadline",
+        "ApprovalDueDate" => "Approval deadline",
+        "EpisodeNumber" => "episode number",
+        "SeasonNumber" => "season number",
+        "DefaultDurationMinutes" => "default duration",
+        "EndDate" => "End date",
         "IsActive" => "active status",
         _ => key.ToLowerInvariant(),
     };

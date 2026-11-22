@@ -213,6 +213,191 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("calendar_event_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.Episode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("ApprovalDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("approval_due_date");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly?>("EditingDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("editing_due_date");
+
+                    b.Property<int?>("EpisodeNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("episode_number");
+
+                    b.Property<Guid?>("ProducerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("producer_id");
+
+                    b.Property<DateTimeOffset?>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<DateTimeOffset?>("RecordingEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recording_end");
+
+                    b.Property<string>("RecordingLocation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("recording_location");
+
+                    b.Property<DateTimeOffset?>("RecordingStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recording_start");
+
+                    b.Property<DateOnly?>("ReviewDueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("review_due_date");
+
+                    b.Property<Guid?>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<Guid>("ShowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("show_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_episodes");
+
+                    b.HasIndex("ApprovalDueDate")
+                        .HasDatabaseName("ix_episodes_approval_due_date");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_episodes_created_by");
+
+                    b.HasIndex("EditingDueDate")
+                        .HasDatabaseName("ix_episodes_editing_due_date");
+
+                    b.HasIndex("ProducerId")
+                        .HasDatabaseName("ix_episodes_producer_id");
+
+                    b.HasIndex("RecordingStart")
+                        .HasDatabaseName("ix_episodes_recording_start");
+
+                    b.HasIndex("ReviewDueDate")
+                        .HasDatabaseName("ix_episodes_review_due_date");
+
+                    b.HasIndex("ShowId")
+                        .HasDatabaseName("ix_episodes_show_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_episodes_status");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_episodes_updated_by");
+
+                    b.HasIndex("SeasonId", "EpisodeNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_episodes_season_id_episode_number")
+                        .HasFilter("season_id IS NOT NULL AND episode_number IS NOT NULL");
+
+                    b.HasIndex("ShowId", "EpisodeNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_episodes_show_id_episode_number_without_season")
+                        .HasFilter("season_id IS NULL AND episode_number IS NOT NULL");
+
+                    b.ToTable("episodes", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_episodes_episode_number", "episode_number IS NULL OR episode_number > 0");
+
+                            t.HasCheckConstraint("ck_episodes_recording_range", "(recording_start IS NULL AND recording_end IS NULL) OR (recording_start IS NOT NULL AND recording_end > recording_start)");
+                        });
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.EpisodeAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EpisodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("episode_id");
+
+                    b.Property<string>("Responsibility")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("responsibility");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_episode_assignments");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_episode_assignments_user_id");
+
+                    b.HasIndex("EpisodeId", "UserId", "Responsibility")
+                        .IsUnique()
+                        .HasDatabaseName("ix_episode_assignments_episode_id_user_id_responsibility");
+
+                    b.ToTable("episode_assignments", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Permission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -608,6 +793,155 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("role_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.Season", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SeasonNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("season_number");
+
+                    b.Property<Guid>("ShowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("show_id");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_seasons");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_seasons_created_by");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_seasons_updated_by");
+
+                    b.HasIndex("ShowId", "SeasonNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_seasons_show_id_season_number");
+
+                    b.ToTable("seasons", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.Show", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("DefaultDurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_duration_minutes");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ProducerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("producer_id");
+
+                    b.Property<string>("ShowType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("show_type");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_shows");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_shows_created_by");
+
+                    b.HasIndex("ProducerId")
+                        .HasDatabaseName("ix_shows_producer_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_shows_status");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_shows_updated_by");
+
+                    b.ToTable("shows", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.TaskAssignment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -772,6 +1106,10 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("due_at");
 
+                    b.Property<Guid?>("EpisodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("episode_id");
+
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -819,6 +1157,9 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.HasIndex("DueAt")
                         .HasDatabaseName("ix_tasks_due_at");
 
+                    b.HasIndex("EpisodeId")
+                        .HasDatabaseName("ix_tasks_episode_id");
+
                     b.HasIndex("ProjectId")
                         .HasDatabaseName("ix_tasks_project_id");
 
@@ -828,7 +1169,10 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.HasIndex("UpdatedBy")
                         .HasDatabaseName("ix_tasks_updated_by");
 
-                    b.ToTable("tasks", (string)null);
+                    b.ToTable("tasks", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_tasks_project_or_episode", "project_id IS NULL OR episode_id IS NULL");
+                        });
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.ActivityLog", b =>
@@ -870,6 +1214,63 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_calendar_event_assignments_users_user_id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.Episode", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_episodes_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ProducerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_episodes_users_producer_id");
+
+                    b.HasOne("DOF.Domain.Entities.Season", "Season")
+                        .WithMany()
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_episodes_seasons_season_id");
+
+                    b.HasOne("DOF.Domain.Entities.Show", "Show")
+                        .WithMany()
+                        .HasForeignKey("ShowId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_episodes_shows_show_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_episodes_users_updated_by");
+
+                    b.Navigation("Season");
+
+                    b.Navigation("Show");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.EpisodeAssignment", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.Episode", null)
+                        .WithMany("Assignments")
+                        .HasForeignKey("EpisodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_episode_assignments_episodes_episode_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_episode_assignments_users_user_id");
 
                     b.Navigation("User");
                 });
@@ -973,6 +1374,51 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("Permission");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.Season", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_seasons_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.Show", "Show")
+                        .WithMany()
+                        .HasForeignKey("ShowId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_seasons_shows_show_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_seasons_users_updated_by");
+
+                    b.Navigation("Show");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.Show", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_shows_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ProducerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_shows_users_producer_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_shows_users_updated_by");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.TaskAssignment", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.WorkTask", null)
@@ -1025,6 +1471,12 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_tasks_users_created_by");
 
+                    b.HasOne("DOF.Domain.Entities.Episode", "Episode")
+                        .WithMany()
+                        .HasForeignKey("EpisodeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tasks_episodes_episode_id");
+
                     b.HasOne("DOF.Domain.Entities.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId")
@@ -1037,10 +1489,17 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_tasks_users_updated_by");
 
+                    b.Navigation("Episode");
+
                     b.Navigation("Project");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
+                {
+                    b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.Episode", b =>
                 {
                     b.Navigation("Assignments");
                 });

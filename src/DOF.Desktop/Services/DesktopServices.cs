@@ -45,6 +45,7 @@ public static class DesktopServices
         AddWithFactory<DashboardViewModel>(services);
         AddWithFactory<CalendarViewModel>(services);
         AddWithFactory<ProjectsViewModel>(services);
+        AddWithFactory<ShowsViewModel>(services);
         AddWithFactory<TasksViewModel>(services);
         AddWithFactory<TeamViewModel>(services);
         AddWithFactory<SettingsViewModel>(services);

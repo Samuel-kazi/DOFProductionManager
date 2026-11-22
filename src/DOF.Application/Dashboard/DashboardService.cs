@@ -1,6 +1,7 @@
 using DOF.Application.Calendar;
 using DOF.Application.Common;
 using DOF.Application.Common.Abstractions;
+using DOF.Application.Shows;
 using DOF.Application.Work;
 using DOF.Contracts.Responses;
 using DOF.Domain.Enums;
@@ -19,7 +20,9 @@ public sealed class DashboardService(
     IApplicationDbContext db,
     WorkReaders readers,
     ProjectService projects,
-    WorkloadService workload)
+    WorkloadService workload,
+    EpisodeService episodes,
+    ShowReaders showReaders)
 {
     public const int DefaultDays = 7;
     public const int MaxDays = 60;
@@ -45,7 +48,8 @@ public sealed class DashboardService(
                 t.Status == WorkStatus.AwaitingReview && t.CreatedBy == me))
             .Take(ListLimit), ct);
 
-        return new PersonalDashboardResponse(today, zone.Id, todaySchedule, upcoming, myTasks, pendingReviews);
+        return new PersonalDashboardResponse(today, zone.Id, todaySchedule, upcoming, myTasks, pendingReviews,
+            await episodes.MineAsync(me, ListLimit, ct));
     }
 
     public async Task<ManagementDashboardResponse> GetManagementAsync(
@@ -65,7 +69,17 @@ public sealed class DashboardService(
             .OrderBy(m => m.DueDate).Take(ListLimit), ct);
 
         return new ManagementDashboardResponse(from, to, zone.Id, items, [.. items.Where(i => i.AssignedUsers.Count == 0)],
-            activeProjects, upcomingMilestones, await GetOverdueAsync(mine: false, ct), await workload.TeamAsync(ct));
+            activeProjects, upcomingMilestones, await GetOverdueAsync(mine: false, ct), await workload.TeamAsync(ct),
+            await AwaitingPublicationAsync(ct));
+    }
+
+    /// <summary>Approved or ready episodes not yet fully published, oldest recording first.</summary>
+    public async Task<IReadOnlyList<EpisodeSummaryResponse>> AwaitingPublicationAsync(CancellationToken ct)
+    {
+        var items = await showReaders.EpisodesAsync(db.Episodes.Where(e =>
+            (e.Status == EpisodeStatus.Approved || e.Status == EpisodeStatus.ReadyForRelease
+             || e.Status == EpisodeStatus.PartiallyPublished) && e.Show.Status != ShowStatus.Archived), ct);
+        return [.. items.OrderBy(e => e.RecordingStart ?? DateTimeOffset.MaxValue).Take(ListLimit)];
     }
 
     /// <summary>Open tasks past their due time and open milestones past their due date.</summary>
@@ -79,15 +93,25 @@ public sealed class DashboardService(
                                         && t.DueAt != null && t.DueAt < now);
         var milestones = db.ProjectMilestones.Where(m => m.Status != WorkStatus.Completed && m.Status != WorkStatus.Cancelled
                                                          && m.DueDate < today && m.Project.Status != ProjectStatus.Archived);
+        // Candidates are narrowed in SQL; Episode.IsOverdue applies the stage rules.
+        var episodes = db.Episodes.Where(e => e.Status != EpisodeStatus.Cancelled && e.Status != EpisodeStatus.Published
+                                              && e.Show.Status != ShowStatus.Archived
+                                              && (e.EditingDueDate < today || e.ReviewDueDate < today || e.ApprovalDueDate < today
+                                                  || (e.RecordingEnd < now && (e.Status == EpisodeStatus.Planned
+                                                                               || e.Status == EpisodeStatus.Scheduled))));
         if (mine)
         {
             tasks = tasks.Where(t => t.Assignments.Any(a => a.UserId == me));
             milestones = milestones.Where(m => m.AssignedTo == me);
+            episodes = episodes.Where(e => e.ProducerId == me || e.Assignments.Any(a => a.UserId == me));
         }
 
+        var overdueEpisodes = (await showReaders.EpisodesAsync(episodes, ct)).Where(e => e.IsOverdue)
+            .OrderBy(e => e.NextDeadline ?? DateOnly.MaxValue).Take(100).ToList();
         return new OverdueResponse(
             await readers.TasksAsync(tasks.OrderBy(t => t.DueAt).Take(100), ct),
-            await readers.MilestonesAsync(milestones.OrderBy(m => m.DueDate).Take(100), ct));
+            await readers.MilestonesAsync(milestones.OrderBy(m => m.DueDate).Take(100), ct),
+            overdueEpisodes);
     }
 
     public async Task<CalendarRangeResponse> GetUpcomingAsync(int? days, bool mine, string? timeZone, CancellationToken ct)

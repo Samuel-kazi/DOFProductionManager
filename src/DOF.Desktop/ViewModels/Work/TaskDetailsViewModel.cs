@@ -14,6 +14,8 @@ public sealed partial class TaskDetailsViewModel(TaskResponse task, IReadOnlyLis
     public string? Description => Task.Description;
     public string? ProjectName => Task.Project?.Name;
     public bool HasProject => Task.Project is not null;
+    public string? EpisodeName => WorkLabels.EpisodeName(Task.Episode);
+    public bool HasEpisode => Task.Episode is not null;
     public string DueText => WorkLabels.Due(Task.DueAt, clock);
     public bool IsOverdue => Task.IsOverdue;
     public string PriorityText => $"{Task.Priority} priority";

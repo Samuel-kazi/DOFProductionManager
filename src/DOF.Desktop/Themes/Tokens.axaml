@@ -26,6 +26,10 @@
       <SolidColorBrush x:Key="Brush.Cat.Other" Color="#6B7280" />
       <SolidColorBrush x:Key="Brush.Cat.Milestone" Color="#C0367A" />
       <SolidColorBrush x:Key="Brush.Cat.TaskDeadline" Color="#4F6B8A" />
+      <SolidColorBrush x:Key="Brush.Cat.Recording" Color="#C8382E" />
+      <SolidColorBrush x:Key="Brush.Cat.EditingDeadline" Color="#5B57D1" />
+      <SolidColorBrush x:Key="Brush.Cat.ReviewDeadline" Color="#9A6A00" />
+      <SolidColorBrush x:Key="Brush.Cat.ApprovalDeadline" Color="#5F7A1A" />
       <SolidColorBrush x:Key="Brush.TodayRing" Color="#B45F0E" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
@@ -52,6 +56,10 @@
       <SolidColorBrush x:Key="Brush.Cat.Other" Color="#A0A7B4" />
       <SolidColorBrush x:Key="Brush.Cat.Milestone" Color="#F27AB3" />
       <SolidColorBrush x:Key="Brush.Cat.TaskDeadline" Color="#9DB6D3" />
+      <SolidColorBrush x:Key="Brush.Cat.Recording" Color="#FF7A70" />
+      <SolidColorBrush x:Key="Brush.Cat.EditingDeadline" Color="#9C99FF" />
+      <SolidColorBrush x:Key="Brush.Cat.ReviewDeadline" Color="#E0A73C" />
+      <SolidColorBrush x:Key="Brush.Cat.ApprovalDeadline" Color="#B5C45A" />
       <SolidColorBrush x:Key="Brush.TodayRing" Color="#F0A24A" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>

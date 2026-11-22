@@ -61,6 +61,9 @@ internal sealed class WorkTaskConfiguration : IEntityTypeConfiguration<WorkTask>
         builder.HasIndex(t => t.DueAt);
         builder.HasIndex(t => t.Status);
         builder.HasIndex(t => t.ProjectId);
+        builder.HasIndex(t => t.EpisodeId);
+        builder.ToTable(t => t.HasCheckConstraint("ck_tasks_project_or_episode", "project_id IS NULL OR episode_id IS NULL"));
+        builder.HasOne(t => t.Episode).WithMany().HasForeignKey(t => t.EpisodeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(t => t.Project).WithMany().HasForeignKey(t => t.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<User>().WithMany().HasForeignKey(t => t.CompletedBy).OnDelete(DeleteBehavior.Restrict);
         builder.Ignore(t => t.PrimaryAssigneeId);

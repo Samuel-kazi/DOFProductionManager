@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:shows="using:DOF.Desktop.ViewModels.Shows"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Shows.EpisodeEditorView"
+             x:DataType="shows:EpisodeEditorViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="20,16,12,8">
+      <TextBlock Classes="h2" Text="{Binding Heading}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      <Button Grid.Column="1" Classes="toolbar" Content="✕" ToolTip.Tip="Close without saving"
+              Command="{Binding $parent[pageViews:ShowsView].((pages:ShowsViewModel)DataContext).CloseSidePanelCommand}" />
+    </Grid>
+    <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,20" Spacing="10">
+      <Border Classes="banner error" IsVisible="{Binding HasError}"><TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" /></Border>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Content="Save" IsDefault="True"
+                Command="{Binding $parent[pageViews:ShowsView].((pages:ShowsViewModel)DataContext).SaveEpisodeCommand}" CommandParameter="{Binding}" />
+        <Button Content="Discard" Command="{Binding $parent[pageViews:ShowsView].((pages:ShowsViewModel)DataContext).CloseSidePanelCommand}" />
+      </StackPanel>
+    </StackPanel>
+    <ScrollViewer>
+      <StackPanel Margin="20,0,20,8" Spacing="12">
+        <StackPanel Spacing="4"><TextBlock Text="Title" /><TextBox x:Name="TitleBox" Text="{Binding Title}" PlaceholderText="e.g. Walking in grace" /></StackPanel>
+        <Grid ColumnDefinitions="*,12,110">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Season" />
+            <ComboBox ItemsSource="{Binding Seasons}" SelectedItem="{Binding SelectedSeason}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="4">
+            <TextBlock Text="Number" />
+            <NumericUpDown Value="{Binding EpisodeNumber}" Minimum="1" Maximum="9999" FormatString="0" HorizontalAlignment="Stretch"
+                           PlaceholderText="{Binding NumberPlaceholder}" ToolTip.Tip="{Binding NumberHint}" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Producer" />
+          <ComboBox ItemsSource="{Binding Producers}" SelectedItem="{Binding SelectedProducer}" HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <TextBlock Classes="h3" Text="Recording" Margin="0,6,0,0" />
+        <CheckBox Content="Recording is scheduled" IsChecked="{Binding HasRecording}" />
+        <StackPanel Spacing="8" IsVisible="{Binding HasRecording}">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CalendarDatePicker SelectedDate="{Binding RecordingDate}" Width="150" />
+            <TimePicker SelectedTime="{Binding RecordingTime}" ClockIdentifier="24HourClock" MinuteIncrement="15" MinWidth="0" Width="180" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Length (minutes)" VerticalAlignment="Center" />
+            <NumericUpDown Value="{Binding DurationMinutes}" Minimum="5" Maximum="1440" Increment="15" FormatString="0" Width="130" />
+          </StackPanel>
+        </StackPanel>
+        <StackPanel Spacing="4"><TextBlock Text="Location" /><TextBox Text="{Binding Location}" PlaceholderText="e.g. Studio A" /></StackPanel>
+        <TextBlock Classes="h3" Text="Production deadlines" Margin="0,6,0,0" />
+        <Grid ColumnDefinitions="Auto,12,*" RowDefinitions="Auto,8,Auto,8,Auto">
+          <TextBlock Text="Editing" VerticalAlignment="Center" />
+          <CalendarDatePicker Grid.Column="2" SelectedDate="{Binding EditingDue}" HorizontalAlignment="Stretch" />
+          <TextBlock Grid.Row="2" Text="Review" VerticalAlignment="Center" />
+          <CalendarDatePicker Grid.Row="2" Grid.Column="2" SelectedDate="{Binding ReviewDue}" HorizontalAlignment="Stretch" />
+          <TextBlock Grid.Row="4" Text="Approval" VerticalAlignment="Center" />
+          <CalendarDatePicker Grid.Row="4" Grid.Column="2" SelectedDate="{Binding ApprovalDue}" HorizontalAlignment="Stretch" />
+        </Grid>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Description" />
+          <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

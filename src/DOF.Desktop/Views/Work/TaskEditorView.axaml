@@ -27,8 +27,8 @@
         </StackPanel>
         <Grid ColumnDefinitions="*,12,*">
           <StackPanel Spacing="4">
-            <TextBlock Text="Project" />
-            <ComboBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject}" HorizontalAlignment="Stretch" />
+            <TextBlock Text="Belongs to" />
+            <ComboBox ItemsSource="{Binding Links}" SelectedItem="{Binding SelectedLink}" HorizontalAlignment="Stretch" />
           </StackPanel>
           <StackPanel Grid.Column="2" Spacing="4">
             <TextBlock Text="Priority" />

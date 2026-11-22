@@ -221,9 +221,11 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
     private void CloseSidePanel() => SidePanel = null;
 
     [RelayCommand]
-    public async Task NewTaskAsync(Guid? projectId)
+    public async Task NewTaskAsync(Guid? projectId) => await NewTaskAsync(projectId, null);
+
+    public async Task NewTaskAsync(Guid? projectId, Guid? episodeId)
     {
-        if (await EditorAsync(null, projectId) is { } editor)
+        if (await EditorAsync(null, projectId, episodeId) is { } editor)
         {
             SidePanel = editor;
         }
@@ -238,7 +240,7 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
         }
     }
 
-    private async Task<TaskEditorViewModel?> EditorAsync(TaskResponse? existing, Guid? projectId)
+    private async Task<TaskEditorViewModel?> EditorAsync(TaskResponse? existing, Guid? projectId, Guid? episodeId = null)
     {
         TaskEditorViewModel? editor = null;
         await RunAsync(async () =>
@@ -249,7 +251,8 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
                 ? (await lookups.PeopleAsync()).Select(u => new PersonOption(u.Id, u.FullName))
                 : [new PersonOption(me, session.CurrentUser.FullName)];
             var projects = (await lookups.OpenProjectsAsync()).Select(p => new ChoiceOption(p.Id, p.Name));
-            editor = new TaskEditorViewModel(clock, people, projects, canAssign, me, existing, projectId);
+            var episodes = (await lookups.OpenEpisodesAsync()).Select(e => new ChoiceOption(e.Id, Lookups.EpisodeLabel(e)));
+            editor = new TaskEditorViewModel(clock, people, projects, episodes, canAssign, me, existing, projectId, episodeId);
         });
         return editor;
     }
@@ -264,10 +267,10 @@ public sealed partial class TasksViewModel(ApiClient api, AuthSession session, U
             var (ids, primary) = editor.Assignees();
             var saved = editor.Existing is { } existing
                 ? await api.PutAsync<TaskResponse>($"api/v1/tasks/{existing.Id}", new UpdateTaskRequest(
-                    editor.Title, editor.Description, editor.SelectedProject.Id, editor.Due, editor.Priority, ids, primary,
-                    existing.Version))
+                    editor.Title, editor.Description, editor.ProjectId, editor.Due, editor.Priority, ids, primary,
+                    existing.Version, editor.EpisodeId))
                 : await api.PostAsync<TaskResponse>("api/v1/tasks", new CreateTaskRequest(
-                    editor.Title, editor.Description, editor.SelectedProject.Id, editor.Due, editor.Priority, ids, primary));
+                    editor.Title, editor.Description, editor.ProjectId, editor.Due, editor.Priority, ids, primary, editor.EpisodeId));
             AppLog.Info($"Saved task {saved.Id}");
             await LoadCoreAsync();
             await OpenTaskAsync(saved.Id);

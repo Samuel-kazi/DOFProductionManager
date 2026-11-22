@@ -6,12 +6,15 @@ namespace DOF.Desktop.ViewModels;
 /// </summary>
 public interface IRecordNavigator
 {
-    /// <summary>Source types: CalendarEvent, Milestone, Task, Project.</summary>
+    /// <summary>Source types: CalendarEvent, Milestone, Task, Project, Show, Episode.</summary>
     Task OpenRecordAsync(string sourceType, Guid sourceId);
 
     Task CreateEventAsync(DateOnly? date = null);
 
     Task CreateTaskAsync(Guid? projectId = null);
+
+    /// <summary>The Tasks page with a new task that belongs to an episode.</summary>
+    Task CreateEpisodeTaskAsync(Guid episodeId);
 
     /// <summary>The Tasks page showing everything assigned to one person.</summary>
     Task ShowTasksForAsync(Guid userId, string fullName);

@@ -10,6 +10,10 @@
     <Setter Property="FontSize" Value="17" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
+  <Style Selector="TextBlock.h3">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
   <Style Selector="TextBlock.muted">
     <Setter Property="Foreground" Value="{DynamicResource Brush.TextMuted}" />
   </Style>
@@ -146,6 +150,28 @@
     <Setter Property="Height" Value="8" />
     <Setter Property="CornerRadius" Value="4" />
     <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Episode production timeline: done stages filled, the current one outlined in the accent colour. -->
+  <Style Selector="Border.stage">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,6" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+    <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
+    <Setter Property="MinWidth" Value="112" />
+  </Style>
+  <Style Selector="Border.stage.done">
+    <Setter Property="Background" Value="{DynamicResource Brush.SuccessSoft}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.SuccessSoft}" />
+  </Style>
+  <Style Selector="Border.stage.current">
+    <Setter Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="Border.stage.cancelled">
+    <Setter Property="Opacity" Value="0.55" />
   </Style>
 
   <!-- Avatars -->
