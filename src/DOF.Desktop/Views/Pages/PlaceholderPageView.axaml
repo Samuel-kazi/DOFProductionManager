@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             x:Class="DOF.Desktop.Views.Pages.PlaceholderPageView"
+             x:DataType="pages:PlaceholderPageViewModel">
+  <Border Classes="card" MaxWidth="560" Margin="32" Padding="32"
+          HorizontalAlignment="Center" VerticalAlignment="Center">
+    <StackPanel Spacing="12">
+      <Border Classes="pill" HorizontalAlignment="Left">
+        <TextBlock Text="{Binding PhaseText}" Foreground="{DynamicResource Brush.Accent}" FontWeight="SemiBold" FontSize="12" />
+      </Border>
+      <TextBlock Classes="h1" Text="{Binding Title}" />
+      <TextBlock Classes="muted" Text="{Binding Description}" TextWrapping="Wrap" />
+      <TextBlock Classes="muted small" TextWrapping="Wrap"
+                 Text="This section isn't built yet. It will show live records from the DOF server — never sample data." />
+    </StackPanel>
+  </Border>
+</UserControl>

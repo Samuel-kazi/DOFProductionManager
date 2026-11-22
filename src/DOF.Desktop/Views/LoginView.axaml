@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DOF.Desktop.ViewModels"
+             x:Class="DOF.Desktop.Views.LoginView"
+             x:DataType="vm:LoginViewModel">
+  <Grid>
+    <Border Classes="card" Width="400" Padding="32" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <StackPanel Spacing="16">
+        <StackPanel Spacing="6" HorizontalAlignment="Center">
+          <Path Classes="icon" Data="{StaticResource Icon.Sunrise}" Width="40" Height="40"
+                Stroke="{DynamicResource Brush.Accent}" HorizontalAlignment="Center" />
+          <TextBlock Classes="h2" Text="DOF Production Manager" HorizontalAlignment="Center" />
+          <TextBlock Classes="muted" Text="Dawn of Faith Ministry" HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Spacing="6">
+          <TextBlock Text="Email" />
+          <TextBox x:Name="EmailBox" Text="{Binding Email}" PlaceholderText="you@example.org" />
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <TextBlock Text="Password" />
+          <TextBox x:Name="PasswordBox" Text="{Binding Password}" PasswordChar="•" Classes="revealPasswordButton" />
+        </StackPanel>
+
+        <Border Classes="banner error" IsVisible="{Binding HasError}">
+          <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+        </Border>
+
+        <Button Classes="accent" IsDefault="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                Padding="0,9" Command="{Binding SignInCommand}">
+          <Panel>
+            <TextBlock Text="Sign in" IsVisible="{Binding !SignInCommand.IsRunning}" />
+            <TextBlock Text="Signing in…" IsVisible="{Binding SignInCommand.IsRunning}" />
+          </Panel>
+        </Button>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+          <Ellipse Classes="status" Classes.online="{Binding Connection.IsOnline}"
+                   Classes.offline="{Binding Connection.IsOffline}" VerticalAlignment="Center" />
+          <TextBlock Classes="muted small" Text="{Binding Connection.StatusText}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

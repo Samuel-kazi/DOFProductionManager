@@ -28,7 +28,12 @@ dotnet user-secrets set "Bootstrap:AdminPassword" "<choose-a-password-of-10+-cha
 dotnet build
 dotnet test                              # unit, integration (real PostgreSQL) and architecture tests
 dotnet run --project src/DOF.Api         # http://localhost:5028/swagger
+dotnet run --project src/DOF.Desktop     # the desktop app (talks to the API above)
 ```
+
+The desktop app reads its server address from `src/DOF.Desktop/appsettings.json`
+(`ApiBaseUrl`, default `http://localhost:5028/`); set `DOF_API_URL` to override it. Any address
+other than a local development server must use HTTPS.
 
 In Development the API applies pending migrations at startup. Elsewhere, apply them deliberately:
 

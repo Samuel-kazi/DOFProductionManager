@@ -14,6 +14,7 @@
 dotnet build                     # warnings are errors
 dotnet test                      # needs local PostgreSQL; integration tests use dof_production_manager_test
 dotnet run --project src/DOF.Api
+dotnet run --project src/DOF.Desktop   # desktop app; API address in src/DOF.Desktop/appsettings.json
 dotnet ef migrations add <Name> --project src/DOF.Infrastructure --startup-project src/DOF.Api --output-dir Persistence/Migrations
 dotnet ef database update --project src/DOF.Infrastructure --startup-project src/DOF.Api
 ```
@@ -24,3 +25,7 @@ dotnet ef database update --project src/DOF.Infrastructure --startup-project src
 - New entities derive from `Entity`; use `IVersioned` for editable records and `IArchivable` instead of deletes.
 - Review every generated migration before applying; no destructive migrations without explicit approval.
 - API routes under `/api/v1`, success bodies in `ApiResponse<T>`, errors as ProblemDetails.
+- Desktop: new pages derive from `PageViewModel`, call the API only through `ApiClient`, and get a
+  `DataTemplate` in `App.axaml`. Use theme tokens (`Brush.*`), never hard-coded colours.
+- Desktop UI tests: wrap test bodies with `OnUiThread` (it uses the `Func<Task<T>>` Dispatch overload
+  so the test is actually awaited). Review the screenshots in `ui-snapshots/` after UI changes.

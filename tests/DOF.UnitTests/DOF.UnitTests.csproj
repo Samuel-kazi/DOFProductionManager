@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\DOF.Application\DOF.Application.csproj" />
     <ProjectReference Include="..\..\src\DOF.Domain\DOF.Domain.csproj" />
     <ProjectReference Include="..\..\src\DOF.Infrastructure\DOF.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\DOF.Desktop\DOF.Desktop.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />

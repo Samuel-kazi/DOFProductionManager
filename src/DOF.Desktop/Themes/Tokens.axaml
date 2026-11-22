@@ -1,0 +1,40 @@
+<!-- Colour tokens. Every view uses these via DynamicResource so light and dark themes stay consistent. -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="Brush.App" Color="#F6F5F2" />
+      <SolidColorBrush x:Key="Brush.Surface" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="Brush.Sidebar" Color="#EFEDE8" />
+      <SolidColorBrush x:Key="Brush.Border" Color="#E2DFD8" />
+      <SolidColorBrush x:Key="Brush.Text" Color="#1F1D1A" />
+      <SolidColorBrush x:Key="Brush.TextMuted" Color="#6B6760" />
+      <SolidColorBrush x:Key="Brush.NavHover" Color="#E7E3DB" />
+      <SolidColorBrush x:Key="Brush.NavSelected" Color="#E0D9CB" />
+      <SolidColorBrush x:Key="Brush.Accent" Color="#B45F0E" />
+      <SolidColorBrush x:Key="Brush.AccentSoft" Color="#FBEBD9" />
+      <SolidColorBrush x:Key="Brush.Online" Color="#1E8A4C" />
+      <SolidColorBrush x:Key="Brush.Offline" Color="#C0392B" />
+      <SolidColorBrush x:Key="Brush.Checking" Color="#B7791F" />
+      <SolidColorBrush x:Key="Brush.ErrorSoft" Color="#FBE3E0" />
+      <SolidColorBrush x:Key="Brush.SuccessSoft" Color="#DDF2E5" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="Brush.App" Color="#14161B" />
+      <SolidColorBrush x:Key="Brush.Surface" Color="#1C1F26" />
+      <SolidColorBrush x:Key="Brush.Sidebar" Color="#101216" />
+      <SolidColorBrush x:Key="Brush.Border" Color="#2B2F38" />
+      <SolidColorBrush x:Key="Brush.Text" Color="#ECEAE6" />
+      <SolidColorBrush x:Key="Brush.TextMuted" Color="#9AA0AB" />
+      <SolidColorBrush x:Key="Brush.NavHover" Color="#1D2027" />
+      <SolidColorBrush x:Key="Brush.NavSelected" Color="#272B34" />
+      <SolidColorBrush x:Key="Brush.Accent" Color="#F0A24A" />
+      <SolidColorBrush x:Key="Brush.AccentSoft" Color="#3A2A17" />
+      <SolidColorBrush x:Key="Brush.Online" Color="#3FB871" />
+      <SolidColorBrush x:Key="Brush.Offline" Color="#F06B5D" />
+      <SolidColorBrush x:Key="Brush.Checking" Color="#E0B04D" />
+      <SolidColorBrush x:Key="Brush.ErrorSoft" Color="#3D1F1C" />
+      <SolidColorBrush x:Key="Brush.SuccessSoft" Color="#173322" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

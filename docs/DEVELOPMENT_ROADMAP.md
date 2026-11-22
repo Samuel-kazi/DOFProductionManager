@@ -7,7 +7,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 |---|---|---|
 | 0 | Project foundation | ✅ Complete (2026-11-22) |
 | 1 | Authentication and users | ✅ Complete (2026-11-22) |
-| 2 | Desktop foundation | Not started |
+| 2 | Desktop foundation | ✅ Complete (2026-11-22) |
 | 3 | Dashboard and calendar | Not started |
 | 4 | Tasks and projects | Not started |
 | 5 | Shows and episodes | Not started |
@@ -55,6 +55,26 @@ Deferred / open:
 - `activity_logs` (audit trail) arrives with the first operational records (Phase 4). Phase 1
   security events (logins, permission changes, deactivations) are written to the structured log.
 - The desktop login screen itself is Phase 2; Phase 1 delivers the session service it will use.
+
+## Phase 2 — Desktop foundation ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| Desktop app launches on macOS | Launched from the build on macOS 27.3 (arm64) against the local API; the log shows startup and "Online" |
+| Desktop app connects to the API | Connection indicator driven by `/api/v1/system/info` and every API call; offline start tested |
+| Login works | Headless UI test signs in through the real `LoginView`; wrong password and unreachable server show clear messages; stored sessions restore on restart |
+| Navigation works | UI test visits every sidebar section; shortcuts tested (⌘/Ctrl+3, ⌘/Ctrl+B, ⌘/Ctrl+,) |
+| Connection state is visible | Top bar and sign-in screen show Connected / Connecting… / Offline; offline banner in the shell |
+
+Also delivered: light/dark/system theme saved between launches, collapsible sidebar, Team directory,
+Settings (profile, theme, change password), session-expiry handling, file logging, error banner,
+and headless UI tests that save screenshots. 80 automated tests pass.
+
+Deferred / open:
+- Global search, quick create and notifications are visible but disabled until Phases 3 and 7.
+- Native desktop notifications and auto-update are separate packaging tasks (spec 2.1); not started.
+- App icon is still the Avalonia placeholder; needs a DOF icon asset.
+- Windows: not yet run (no Windows machine available).
 
 ## Supporting documents
 

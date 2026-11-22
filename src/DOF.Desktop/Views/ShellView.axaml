@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DOF.Desktop.ViewModels"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.ShellView"
+             x:DataType="vm:ShellViewModel">
+
+  <UserControl.DataTemplates>
+    <!-- One sidebar entry. Commands come from the shell (the item's grandparent data context). -->
+    <DataTemplate DataType="vm:NavigationItem">
+      <Button Classes="nav" Classes.selected="{Binding IsSelected}"
+              Command="{Binding $parent[UserControl].((vm:ShellViewModel)DataContext).NavigateCommand}"
+              CommandParameter="{Binding}"
+              ToolTip.Tip="{Binding ToolTip}">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <Path Classes="icon" Data="{Binding IconKey, Converter={x:Static conv:IconConverter.Instance}}" />
+          <TextBlock Classes="navlabel" Text="{Binding Title}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Grid ColumnDefinitions="Auto,*">
+
+    <!-- Sidebar -->
+    <Border Grid.Column="0" Classes="sidebar" Classes.collapsed="{Binding IsSidebarCollapsed}"
+            Background="{DynamicResource Brush.Sidebar}" BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="0,0,1,0" Padding="10,12">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" Margin="2,0,0,16">
+          <Button Classes="toolbar" Command="{Binding ToggleSidebarCommand}"
+                  ToolTip.Tip="Collapse or expand the sidebar (⌘B / Ctrl+B)">
+            <Path Classes="icon" Data="{StaticResource Icon.Menu}" />
+          </Button>
+          <StackPanel Grid.Column="1" Classes="expandedOnly" Orientation="Horizontal" Spacing="8"
+                      VerticalAlignment="Center" Margin="6,0,8,0">
+            <Path Classes="icon" Data="{StaticResource Icon.Sunrise}" Stroke="{DynamicResource Brush.Accent}" />
+            <TextBlock Text="DOF Production" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+        </Grid>
+
+        <StackPanel DockPanel.Dock="Bottom" Spacing="0">
+          <Separator Margin="0,8" />
+          <ItemsControl ItemsSource="{Binding FooterItems}" />
+          <Button Classes="nav" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="{Binding UserEmail}" Margin="0,6,0,0">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Border Classes="avatar" Width="26" Height="26" CornerRadius="13">
+                <TextBlock Text="{Binding UserInitials}" FontSize="11" />
+              </Border>
+              <TextBlock Classes="navlabel" Text="{Binding UserName}" VerticalAlignment="Center"
+                         TextTrimming="CharacterEllipsis" MaxWidth="150" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding PrimaryItems}" />
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- Main area -->
+    <Grid Grid.Column="1" RowDefinitions="Auto,*">
+
+      <!-- Top navigation -->
+      <Border Grid.Row="0" Background="{DynamicResource Brush.Surface}" BorderBrush="{DynamicResource Brush.Border}"
+              BorderThickness="0,0,0,1" Padding="20,10">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Column="0" Classes="h2" Text="{Binding CurrentPage.Title, FallbackValue=''}"
+                     VerticalAlignment="Center" />
+
+          <TextBox Grid.Column="1" Classes="search" MaxWidth="420" Margin="24,0" IsEnabled="False"
+                   PlaceholderText="Search — available once records exist (Phase 3)"
+                   ToolTip.Tip="Global search arrives with calendar and production records.">
+            <TextBox.InnerLeftContent>
+              <Path Classes="icon" Data="{StaticResource Icon.Search}" Margin="8,0,0,0"
+                    Stroke="{DynamicResource Brush.TextMuted}" />
+            </TextBox.InnerLeftContent>
+          </TextBox>
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+            <Button Classes="toolbar" IsEnabled="False" ToolTip.Tip="Quick create — arrives in Phase 3">
+              <Path Classes="icon" Data="{StaticResource Icon.Plus}" />
+            </Button>
+            <Button Classes="toolbar" IsEnabled="False" ToolTip.Tip="Notifications — arrive in Phase 7">
+              <Path Classes="icon" Data="{StaticResource Icon.Reminders}" />
+            </Button>
+
+            <TextBlock Classes="muted" Text="{Binding TodayText}" VerticalAlignment="Center" Margin="10,0" />
+
+            <Button Classes="toolbar" Command="{Binding CheckConnectionCommand}"
+                    ToolTip.Tip="Server connection — click to check now">
+              <StackPanel Orientation="Horizontal" Spacing="7">
+                <Ellipse Classes="status" Classes.online="{Binding Connection.IsOnline}"
+                         Classes.offline="{Binding Connection.IsOffline}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Connection.StatusText}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+
+            <Button Classes="toolbar" ToolTip.Tip="Account">
+              <Border Classes="avatar" Width="28" Height="28" CornerRadius="14">
+                <TextBlock Text="{Binding UserInitials}" FontSize="11" />
+              </Border>
+              <Button.Flyout>
+                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <MenuItem Header="{Binding UserName}" IsEnabled="False" />
+                  <MenuItem Header="{Binding UserEmail}" IsEnabled="False" />
+                  <Separator />
+                  <MenuItem Header="Settings" Command="{Binding OpenSettingsCommand}" />
+                  <MenuItem Header="Sign out" Command="{Binding SignOutCommand}" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Offline notice -->
+      <Border Grid.Row="1" Classes="banner error" VerticalAlignment="Top" HorizontalAlignment="Center"
+              Margin="0,12,0,0" ZIndex="1" IsVisible="{Binding Connection.IsOffline}">
+        <TextBlock Text="You're offline. Changes can't be saved until the connection to the DOF server returns." />
+      </Border>
+
+      <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
+    </Grid>
+  </Grid>
+</UserControl>

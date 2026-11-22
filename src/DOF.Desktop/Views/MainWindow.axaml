@@ -1,22 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DOF.Desktop.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="DOF.Desktop.Views.MainWindow"
-        x:DataType="vm:MainViewModel"
+        x:DataType="vm:MainWindowViewModel"
+        Title="DOF Production Manager"
+        Width="1280" Height="800" MinWidth="960" MinHeight="620"
+        WindowStartupLocation="CenterScreen"
         Icon="/Assets/avalonia-logo.ico"
-        Title="DOF Production Manager">
+        Background="{DynamicResource Brush.App}">
+  <Grid RowDefinitions="Auto,*">
+    <!-- App-wide error banner: unexpected failures are shown, never silently swallowed. -->
+    <Border Grid.Row="0" Classes="banner error" CornerRadius="0" IsVisible="{Binding HasAppError}">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding AppError}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Dismiss" Margin="12,0,0,0" Command="{Binding DismissAppErrorCommand}" />
+      </Grid>
+    </Border>
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainViewModel />
-    </Design.DataContext>
+    <ContentControl Grid.Row="1" Content="{Binding Content}" />
 
-    <TextBox Text="{Binding Greeting}"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center" />
-
+    <StackPanel Grid.Row="1" IsVisible="{Binding IsStarting}" Spacing="14"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Path Classes="icon" Data="{StaticResource Icon.Sunrise}" Width="40" Height="40"
+            Stroke="{DynamicResource Brush.Accent}" HorizontalAlignment="Center" />
+      <TextBlock Classes="h2" Text="DOF Production Manager" HorizontalAlignment="Center" />
+      <ProgressBar IsIndeterminate="True" Width="220" />
+      <TextBlock Classes="muted" Text="Connecting…" HorizontalAlignment="Center" />
+    </StackPanel>
+  </Grid>
 </Window>

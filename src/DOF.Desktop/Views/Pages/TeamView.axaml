@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             x:Class="DOF.Desktop.Views.Pages.TeamView"
+             x:DataType="pages:TeamViewModel">
+  <DockPanel Margin="32,24">
+    <StackPanel DockPanel.Dock="Top" Spacing="14" Margin="0,0,0,16">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBox Text="{Binding SearchText}" PlaceholderText="Search by name or email" MaxWidth="420"
+                 HorizontalAlignment="Left" MinWidth="300">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" />
+          </TextBox.KeyBindings>
+        </TextBox>
+        <CheckBox Grid.Column="1" Content="Include deactivated" IsChecked="{Binding IncludeDeactivated}" Margin="16,0" />
+        <Button Grid.Column="2" Content="Search" Command="{Binding SearchCommand}" />
+      </Grid>
+      <pageViews:PageStatus />
+      <TextBlock Classes="muted small" Text="{Binding SummaryText}" />
+    </StackPanel>
+
+    <Panel>
+      <TextBlock Classes="muted" Text="No one matches that search." IsVisible="{Binding IsEmpty}"
+                 HorizontalAlignment="Center" Margin="0,40" />
+      <ScrollViewer>
+        <ItemsControl ItemsSource="{Binding Members}" Margin="0,0,16,0">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="pages:TeamMemberRow">
+              <Border Classes="card" Padding="14,10" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                  <Border Classes="avatar"><TextBlock Text="{Binding Initials}" /></Border>
+                  <StackPanel Grid.Column="1" Margin="14,0" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{Binding FullName}" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted small" Text="{Binding Email}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <TextBlock Classes="muted" Text="{Binding Roles}" VerticalAlignment="Center" />
+                    <Border Classes="pill" IsVisible="{Binding !IsActive}">
+                      <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{DynamicResource Brush.Accent}" />
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
+  </DockPanel>
+</UserControl>
