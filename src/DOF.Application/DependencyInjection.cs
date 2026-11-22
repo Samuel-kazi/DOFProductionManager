@@ -2,6 +2,7 @@ using DOF.Application.Activity;
 using DOF.Application.Auth;
 using DOF.Application.Calendar;
 using DOF.Application.Dashboard;
+using DOF.Application.Releases;
 using DOF.Application.Shows;
 using DOF.Application.Users;
 using DOF.Application.Work;
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarSource, MilestoneCalendarSource>();
         services.AddScoped<ICalendarSource, TaskDeadlineCalendarSource>();
         services.AddScoped<ICalendarSource, EpisodeCalendarSource>();
+        services.AddScoped<ICalendarSource, ReleaseCalendarSource>();
         services.AddScoped<CalendarService>();
         services.AddScoped<CalendarEventService>();
         services.AddScoped<DashboardService>();
@@ -40,6 +42,11 @@ public static class DependencyInjection
         services.AddScoped<ShowReaders>();
         services.AddScoped<ShowService>();
         services.AddScoped<EpisodeService>();
+
+        services.AddScoped<ReleaseAccess>();
+        services.AddScoped<ReleaseReaders>();
+        services.AddScoped<ReleaseService>();
+        services.AddScoped<ChannelService>();
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 

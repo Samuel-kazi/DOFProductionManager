@@ -24,6 +24,8 @@ public interface IApplicationDbContext
     DbSet<Season> Seasons { get; }
     DbSet<Episode> Episodes { get; }
     DbSet<EpisodeAssignment> EpisodeAssignments { get; }
+    DbSet<DistributionChannel> DistributionChannels { get; }
+    DbSet<Release> Releases { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 

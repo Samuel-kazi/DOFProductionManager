@@ -19,5 +19,8 @@ public sealed class Lookups(ApiClient api)
     public async Task<IReadOnlyList<ShowSummaryResponse>> ShowsAsync() =>
         (await api.GetAsync<PagedResponse<ShowSummaryResponse>>("api/v1/shows?pageSize=100")).Items;
 
+    public async Task<IReadOnlyList<DistributionChannelResponse>> ChannelsAsync() =>
+        await api.GetAsync<List<DistributionChannelResponse>>("api/v1/distribution-channels");
+
     public static string EpisodeLabel(EpisodeSummaryResponse e) => $"{e.ShowName} {e.Code}".TrimEnd() + $": {e.Title}";
 }

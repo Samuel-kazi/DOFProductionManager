@@ -31,6 +31,7 @@ public sealed class EpisodeService(
     ShowReaders readers,
     ShowService shows,
     WorkReaders work,
+    Releases.ReleaseReaders releaseReaders,
     ActivityRecorder activity,
     ActivityQueries history,
     ILogger<EpisodeService> logger)
@@ -84,6 +85,7 @@ public sealed class EpisodeService(
                     .SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new NotFoundException("Episode", id);
         var names = await work.NamesAsync([e.ProducerId, e.CreatedBy], ct);
         var tasks = await work.TasksAsync(WorkReaders.Ordered(db.Tasks.Where(t => t.EpisodeId == id)), ct);
+        var releases = await releaseReaders.ReleasesAsync(Releases.ReleaseReaders.Ordered(db.Releases.Where(r => r.EpisodeId == id)), ct);
         var assigneeIds = e.Assignments.Select(a => a.UserId).ToList();
 
         return new EpisodeResponse(e.Id, new ShowRefResponse(e.ShowId, e.Show.Name), ShowReaders.Ref(e.Season), e.EpisodeNumber,
@@ -94,7 +96,7 @@ public sealed class EpisodeService(
             [.. e.Assignments
                 .OrderBy(a => a.Responsibility).ThenBy(a => a.User.FullName)
                 .Select(a => new EpisodeAssignmentResponse(a.Id, a.UserId, a.User.FullName, a.Responsibility.ToString(), a.AssignedAt))],
-            ShowReaders.Timeline(e, work.OrganisationZone), tasks,
+            ShowReaders.Timeline(e, work.OrganisationZone), tasks, releases,
             WorkReaders.Summary(e.CreatedBy, names), e.CreatedAt, e.UpdatedAt, e.Version,
             access.CanEditEpisode(e.Show.ProducerId, e.ProducerId),
             access.CanChangeEpisodeStatus(e.Show.ProducerId, e.ProducerId, assigneeIds));

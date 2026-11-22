@@ -7,6 +7,7 @@
              xmlns:work="using:DOF.Desktop.ViewModels.Work"
              xmlns:workViews="using:DOF.Desktop.Views.Work"
              xmlns:shows="using:DOF.Desktop.ViewModels.Shows"
+             xmlns:rel="using:DOF.Desktop.ViewModels.Releases"
              x:Class="DOF.Desktop.Views.Pages.DashboardView"
              x:DataType="pages:DashboardViewModel"
              x:Name="Root">
@@ -62,6 +63,24 @@
               <TextBlock Classes="small" Text="{Binding StatusText}" HorizontalAlignment="Right" />
               <TextBlock Classes="small" Text="{Binding DeadlineText}" IsVisible="{Binding HasDeadline}" HorizontalAlignment="Right"
                          Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+    <DataTemplate DataType="rel:ReleaseRowViewModel">
+      <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0" Margin="0,0,0,4"
+              Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenReleaseCommand}" CommandParameter="{Binding}">
+        <Border CornerRadius="7" Background="{DynamicResource Brush.App}" ClipToBounds="True">
+          <Grid ColumnDefinitions="4,*,Auto">
+            <Border Background="{DynamicResource Brush.Cat.Release}" />
+            <StackPanel Grid.Column="1" Margin="12,8" Spacing="2">
+              <TextBlock Text="{Binding ChannelName}" FontWeight="SemiBold" />
+              <TextBlock Classes="muted small" Text="{Binding EpisodeText}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="12,0" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Classes="small" Text="{Binding WhenText}" Classes.overdue="{Binding IsOverdue}" HorizontalAlignment="Right" />
+              <TextBlock Classes="muted small" Text="{Binding StatusText}" HorizontalAlignment="Right" />
             </StackPanel>
           </Grid>
         </Border>
@@ -146,6 +165,7 @@
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Overdue" />
             <TextBlock Classes="muted" Text="Nothing is overdue." IsVisible="{Binding NothingOverdue}" />
+            <ItemsControl ItemsSource="{Binding OverdueReleases}" />
             <ItemsControl ItemsSource="{Binding OverdueEpisodes}" />
             <ItemsControl ItemsSource="{Binding OverdueMilestones}" />
             <ItemsControl ItemsSource="{Binding OverdueTasks}">
@@ -234,10 +254,17 @@
             <ItemsControl ItemsSource="{Binding AwaitingPublication}" />
           </StackPanel>
         </Border>
+        <Border Grid.Row="6" Grid.Column="2" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Upcoming releases · 14 days" />
+            <TextBlock Classes="muted" Text="No releases scheduled." IsVisible="{Binding UpcomingReleasesIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding UpcomingReleases}" />
+          </StackPanel>
+        </Border>
       </Grid>
 
       <TextBlock Classes="muted small" TextWrapping="Wrap"
-                 Text="Releases and notifications join the dashboard as those features arrive (Phases 6–7)." />
+                 Text="Notifications join the dashboard with the reminder engine (Phase 7)." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

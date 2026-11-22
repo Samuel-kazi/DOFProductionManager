@@ -6,7 +6,7 @@ namespace DOF.Desktop.ViewModels;
 /// </summary>
 public interface IRecordNavigator
 {
-    /// <summary>Source types: CalendarEvent, Milestone, Task, Project, Show, Episode.</summary>
+    /// <summary>Source types: CalendarEvent, Milestone, Task, Project, Show, Episode, Release.</summary>
     Task OpenRecordAsync(string sourceType, Guid sourceId);
 
     Task CreateEventAsync(DateOnly? date = null);
@@ -15,6 +15,9 @@ public interface IRecordNavigator
 
     /// <summary>The Tasks page with a new task that belongs to an episode.</summary>
     Task CreateEpisodeTaskAsync(Guid episodeId);
+
+    /// <summary>The Releases page with a new release for an episode.</summary>
+    Task CreateReleaseAsync(Guid episodeId);
 
     /// <summary>The Tasks page showing everything assigned to one person.</summary>
     Task ShowTasksForAsync(Guid userId, string fullName);

@@ -1,6 +1,10 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DOF.Desktop.Services;
+using DOF.Contracts.Common;
+using DOF.Contracts.Requests;
+using DOF.Contracts.Responses;
 using DOF.Desktop.Services.Api;
 
 namespace DOF.Desktop.ViewModels.Pages;
@@ -10,9 +14,58 @@ public sealed partial class SettingsViewModel(
     PreferencesStore preferences,
     IThemeService theme,
     ConnectionMonitor connection,
-    DesktopSettings settings) : PageViewModel
+    DesktopSettings settings,
+    ApiClient api) : PageViewModel
 {
     public override string Title => "Settings";
+
+    // ---- distribution channels (settings.manage) ----
+
+    public bool CanManageChannels => session.CurrentUser?.Permissions.Contains("settings.manage") == true;
+    public ObservableCollection<DistributionChannelResponse> Channels { get; } = [];
+    public IReadOnlyList<string> ChannelTypes => ReleaseValues.ChannelTypes;
+    [ObservableProperty] public partial string NewChannelName { get; set; } = string.Empty;
+    [ObservableProperty] public partial string NewChannelType { get; set; } = "Video";
+
+    public override async Task LoadAsync()
+    {
+        if (!CanManageChannels)
+        {
+            return;
+        }
+        await RunAsync(async () =>
+        {
+            var channels = await api.GetAsync<List<DistributionChannelResponse>>("api/v1/distribution-channels?includeInactive=true");
+            Channels.Clear();
+            foreach (var channel in channels)
+            {
+                Channels.Add(channel);
+            }
+        });
+    }
+
+    [RelayCommand]
+    private async Task AddChannelAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(NewChannelName)
+            && await RunAsync(() => api.PostAsync<DistributionChannelResponse>("api/v1/distribution-channels",
+                new DistributionChannelRequest(NewChannelName.Trim(), NewChannelType, null))))
+        {
+            NewChannelName = string.Empty;
+            await LoadAsync();
+        }
+    }
+
+    /// <summary>Channels are never deleted; deactivating hides them from new releases and keeps existing ones.</summary>
+    [RelayCommand]
+    private async Task ToggleChannelAsync(DistributionChannelResponse channel)
+    {
+        if (await RunAsync(() => api.PutAsync<DistributionChannelResponse>($"api/v1/distribution-channels/{channel.Id}",
+                new DistributionChannelRequest(channel.Name, channel.ChannelType, channel.Description, !channel.IsActive))))
+        {
+            await LoadAsync();
+        }
+    }
 
     public IReadOnlyList<ThemePreference> ThemeOptions { get; } = Enum.GetValues<ThemePreference>();
 

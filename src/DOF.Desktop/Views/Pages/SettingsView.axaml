@@ -1,8 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:responses="using:DOF.Contracts.Responses"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
              x:Class="DOF.Desktop.Views.Pages.SettingsView"
-             x:DataType="pages:SettingsViewModel">
+             x:DataType="pages:SettingsViewModel"
+             x:Name="Root">
   <ScrollViewer>
     <StackPanel Margin="32,24" Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
 
@@ -53,6 +56,31 @@
           <TextBlock Classes="h2" Text="Server" />
           <TextBlock Classes="muted" Text="{Binding ServerAddress, StringFormat='Address: {0}'}" />
           <TextBlock Classes="muted" Text="{Binding ServerVersion, StringFormat='Version: {0}'}" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card" IsVisible="{Binding CanManageChannels}">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Distribution channels" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="Where episodes are published. Deactivated channels keep their releases but take no new ones." />
+          <pageViews:PageStatus />
+          <ItemsControl ItemsSource="{Binding Channels}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="responses:DistributionChannelResponse">
+                <Grid ColumnDefinitions="*,110,Auto" Margin="0,3">
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Classes.muted="{Binding !IsActive}" />
+                  <TextBlock Grid.Column="1" Classes="muted small" Text="{Binding ChannelType}" VerticalAlignment="Center" />
+                  <ToggleSwitch Grid.Column="2" IsChecked="{Binding IsActive, Mode=OneWay}" OnContent="Active" OffContent="Inactive"
+                                Command="{Binding #Root.((pages:SettingsViewModel)DataContext).ToggleChannelCommand}" CommandParameter="{Binding}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Grid ColumnDefinitions="*,8,130,8,Auto">
+            <TextBox Text="{Binding NewChannelName}" PlaceholderText="New channel name" />
+            <ComboBox Grid.Column="2" ItemsSource="{Binding ChannelTypes}" SelectedItem="{Binding NewChannelType}" HorizontalAlignment="Stretch" />
+            <Button Grid.Column="4" Content="Add" Command="{Binding AddChannelCommand}" />
+          </Grid>
         </StackPanel>
       </Border>
     </StackPanel>

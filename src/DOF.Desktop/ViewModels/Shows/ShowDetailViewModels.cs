@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using DOF.Contracts.Common;
 using DOF.Contracts.Responses;
 using DOF.Desktop.Services;
+using DOF.Desktop.ViewModels.Releases;
 using DOF.Desktop.ViewModels.Work;
 
 namespace DOF.Desktop.ViewModels.Shows;
@@ -79,6 +80,7 @@ public sealed partial class EpisodeDetailViewModel : ObservableObject
         Stages = [.. episode.Timeline.Select(s => new StageViewModel(s, clock.Today))];
         Crew = [.. episode.Assignments];
         Tasks = [.. episode.Tasks.Select(t => new TaskItemViewModel(t, clock))];
+        Releases = [.. episode.Releases.Select(r => new ReleaseRowViewModel(r, clock))];
         History = [.. history.Select(h => HistoryLine.From(h, clock))];
         People = [.. people];
         NewResponsibility = "Editor";
@@ -105,7 +107,7 @@ public sealed partial class EpisodeDetailViewModel : ObservableObject
             new("Approval deadline", Date(episode.ApprovalDueDate)),
         ];
 
-        // Publication statuses follow release confirmations (Phase 6); they are shown, never offered.
+        // Publication statuses follow release confirmations; they are shown, never offered.
         StatusOptions = ShowValues.PublicationStatuses.Contains(episode.Status)
             ? [episode.Status]
             : [.. ShowValues.EpisodeStatuses.Where(s => !ShowValues.PublicationStatuses.Contains(s))];
@@ -135,6 +137,15 @@ public sealed partial class EpisodeDetailViewModel : ObservableObject
     public IReadOnlyList<HistoryLine> History { get; }
     public IReadOnlyList<ChoiceOption> People { get; }
     public bool HasNoTasks => Tasks.Count == 0;
+    public IReadOnlyList<ReleaseRowViewModel> Releases { get; }
+    public bool HasNoReleases => Releases.Count == 0;
+    public bool CanScheduleReleases { get; init; }
+
+    /// <summary>Production and distribution are reported separately (spec 6.4).</summary>
+    public string DistributionSummary => Releases.Count(r => !r.IsCancelled) is var live && live == 0
+        ? "No releases planned yet."
+        : $"{Releases.Count(r => r.Release.Status == "Published")} of {live} channels published"
+          + (Releases.Any(r => r.IsOverdue) ? " · a release is overdue" : "");
 
     [ObservableProperty] public partial string SelectedStatus { get; set; }
     [ObservableProperty] public partial ChoiceOption? NewPerson { get; set; }

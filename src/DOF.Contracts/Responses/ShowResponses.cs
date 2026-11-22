@@ -96,6 +96,7 @@ public sealed record EpisodeResponse(
     IReadOnlyList<EpisodeAssignmentResponse> Assignments,
     IReadOnlyList<EpisodeStageResponse> Timeline,
     IReadOnlyList<TaskResponse> Tasks,
+    IReadOnlyList<ReleaseResponse> Releases,
     UserSummaryResponse? CreatedBy,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,

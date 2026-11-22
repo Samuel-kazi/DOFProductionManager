@@ -267,6 +267,49 @@ colours and can be dragged: the recording keeps its length and a deadline moves 
 task editor's "Belongs to" picker offers projects and episodes. Dashboards add *My episodes*, overdue
 episodes and *Awaiting publication*.
 
+## Releases (Phase 6)
+
+**Records.** A release is one episode on one distribution channel, with its own time, status,
+assignee, link and notes (optionally linked to a project). An episode has at most one live release per
+channel. Channels are seeded, managed in Settings with `settings.manage`, and deactivated rather than
+deleted.
+
+**Rules** (in `Release`): ordinary edits set only workflow statuses (Draft, AwaitingApproval, Ready,
+Scheduled, Failed). Publishing, postponing and cancelling each have their own action. **Publication
+needs an explicit confirmation** with the actual time, never in the future, and the scheduled time is
+kept. Nothing publishes a release because its time has passed. **Overdue is derived at read time**: an
+open release past its time without confirmation is flagged (`isOverdue`, `displayStatus`, the
+calendar status, `/releases/overdue`, the dashboards), and a database check stops "Overdue" from ever
+being stored. Postponing needs a reason and either moves the release or holds it until further notice.
+Rescheduling a postponed or failed release schedules it again. Published and cancelled releases are
+closed. The previous time and the reasons are recorded in the history.
+
+**Episodes follow their releases.** After every release change, `ReleaseService` recomputes the
+episode's status from its live (non-cancelled) releases in the same unit of work: some published →
+PartiallyPublished, all → Published, none → back to ReadyForRelease if it had been marked published.
+Each change is recorded on the episode with the note "Follows its releases". This is the only way an
+episode reaches a publication status.
+
+**Permissions** (`ReleaseAccess`): `releases.schedule` creates, edits, reschedules, postpones and
+cancels. That permission or being the release's assignee allows confirming publication.
+
+**Calendar.** `ReleaseCalendarSource` places each release at its scheduled time. Dragging calls
+`/schedule` on the release itself, so the previous time is in the history and nothing is copied.
+
+**Reminders.** Reminder offsets and delivery are Phase 7. Reminders will be computed from
+`releases.scheduled_at` by the reconciliation job (spec Part 8, job 3), so a rescheduled release
+updates its reminders through that job. The acceptance check for "rescheduled releases update their
+reminders" is part of Phase 7 testing.
+
+**Desktop.** *Releases* page with the views from spec 6.4 (All, Ready to publish, Scheduled, Published,
+Postponed, Overdue, Cancelled), a "Mine" filter, search, and a line summarising finished-but-
+undistributed content. The details panel has publish (with a confirmation tick box), reschedule,
+postpone (with a reason), cancel and edit forms, plus history. The episode page has a *Distribution*
+panel listing each channel's scheduled time, publication time and status, and a "Schedule a release"
+button. Calendar release items can be dragged. The organisation dashboard shows upcoming and overdue
+releases. Lists discard results from a slower earlier load, so switching views quickly never shows a
+stale list (Releases and Tasks pages).
+
 ## Desktop client (Phase 2)
 
 **Composition.** `Services/DesktopServices.Build` is the composition root (Microsoft.Extensions.DependencyInjection).
@@ -322,7 +365,7 @@ UI-thread errors are also shown in a dismissible banner. Nothing is swallowed si
 in a headless Avalonia window (Skia rendering) against the real API: sign-in, navigation to every
 section, keyboard shortcuts, session restore, offline start, deactivation, password change, theme, every
 calendar view, opening records, the event editor, drag-to-reschedule with simulated mouse input,
-filters, dashboards, quick create, the projects and tasks pages (`WorkUiTests`), and shows, seasons and episodes (`ShowUiTests`). Each UI test has
+filters, dashboards, quick create, the projects and tasks pages (`WorkUiTests`), shows, seasons and episodes (`ShowUiTests`), and releases and channels (`ReleaseUiTests`). Each UI test has
 a 90-second limit. At the end of the run the fixture closes windows tests left open; if they are left
 open, the headless platform's shutdown never completes.
 They save screenshots to `tests/DOF.IntegrationTests/bin/Debug/net10.0/ui-snapshots/` for visual

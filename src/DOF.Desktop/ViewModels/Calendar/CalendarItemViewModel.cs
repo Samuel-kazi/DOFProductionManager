@@ -23,6 +23,7 @@ public sealed class CalendarItemViewModel
     public DateTime End { get; }
     public bool IsAllDay => Item.IsAllDay;
     public bool IsCancelled => Item.Status == Contracts.Common.CalendarValues.Cancelled;
+    public bool IsOverdue => Item.Status == Contracts.Common.ReleaseValues.Overdue;
     public string? Location => Item.Location;
 
     /// <summary>Resource key of the category colour (see Themes/Tokens.axaml).</summary>
@@ -34,8 +35,8 @@ public sealed class CalendarItemViewModel
     public string AssigneeNames { get; }
     public bool HasNoOwner => Item.AssignedUsers.Count == 0;
 
-    /// <summary>Dragging changes the original record (event, milestone, task, or an episode's recording or deadline).</summary>
-    public bool CanReschedule => Item.CanEdit && !IsCancelled && Item.SourceType is "CalendarEvent" or "Milestone" or "Task" or "Episode";
+    /// <summary>Dragging changes the original record (event, milestone, task, release, or an episode's recording or deadline).</summary>
+    public bool CanReschedule => Item.CanEdit && !IsCancelled && Item.SourceType is "CalendarEvent" or "Milestone" or "Task" or "Episode" or "Release";
 
     /// <summary>Spans whole days (all-day, or 24 hours or more) and so belongs in the all-day row.</summary>
     public bool IsDayLong => IsAllDay || End - Start >= TimeSpan.FromHours(24);

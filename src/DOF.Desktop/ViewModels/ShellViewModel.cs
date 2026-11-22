@@ -23,6 +23,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
         Func<ProjectsViewModel> projects,
         Func<ShowsViewModel> shows,
         Func<TasksViewModel> tasks,
+        Func<ReleasesViewModel> releases,
         Func<TeamViewModel> team,
         Func<SettingsViewModel> settings)
     {
@@ -40,8 +41,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
             new("Projects", "Icon.Projects", projects, $"{shortcutPrefix}3"),
             new("Shows & Episodes", "Icon.Shows", shows, $"{shortcutPrefix}4"),
             new("Tasks", "Icon.Tasks", tasks, $"{shortcutPrefix}5"),
-            new("Releases", "Icon.Releases", () => new PlaceholderPageViewModel("Releases", 6,
-                "Distribution across YouTube, Spotify, television and other channels, with publication confirmation."), $"{shortcutPrefix}6"),
+            new("Releases", "Icon.Releases", releases, $"{shortcutPrefix}6"),
             new("Reminders", "Icon.Reminders", () => new PlaceholderPageViewModel("Reminders", 7,
                 "Upcoming, delivered and failed reminders, and notification preferences."), $"{shortcutPrefix}7"),
             new("Reports", "Icon.Reports", () => new PlaceholderPageViewModel("Reports", 8,
@@ -113,6 +113,7 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
     private NavigationItem CalendarItem => PrimaryItems.Single(i => i.Title == "Calendar");
     private NavigationItem ProjectsItem => PrimaryItems.Single(i => i.Title == "Projects");
     private NavigationItem TasksItem => PrimaryItems.Single(i => i.Title == "Tasks");
+    private NavigationItem ReleasesItem => PrimaryItems.Single(i => i.Title == "Releases");
     private NavigationItem ShowsItem => PrimaryItems.Single(i => i.Title == "Shows & Episodes");
 
     public bool CanCreateProjects => _session.CurrentUser?.Permissions.Contains("projects.create") == true;
@@ -142,8 +143,10 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
             case "Episode":
                 await ((ShowsViewModel)await ShowAsync(ShowsItem, load: false)).OpenEpisodeAsync(sourceId);
                 break;
+            case "Release":
+                await ((ReleasesViewModel)await ShowAsync(ReleasesItem, load: true)).OpenReleaseAsync(sourceId);
+                break;
             default:
-                // Releases get their own screen in Phase 6.
                 AppLog.Warning($"No screen yet for {sourceType} {sourceId}");
                 break;
         }
@@ -155,6 +158,12 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
     {
         var tasks = (TasksViewModel)await ShowAsync(TasksItem, load: true);
         await tasks.NewTaskAsync(projectId);
+    }
+
+    public async Task CreateReleaseAsync(Guid episodeId)
+    {
+        var releases = (await ShowAsync(ReleasesItem, load: true)) as ReleasesViewModel;
+        await releases!.NewReleaseAsync(episodeId);
     }
 
     public async Task CreateEpisodeTaskAsync(Guid episodeId)

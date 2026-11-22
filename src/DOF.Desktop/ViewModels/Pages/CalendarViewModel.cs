@@ -31,7 +31,7 @@ public sealed partial class CalendarViewModel : PageViewModel
         _clock = clock;
         AnchorDate = clock.Today;
         EventTypeFilters = [.. CalendarValues.EventTypes.Append(CalendarValues.MilestoneItem).Append(CalendarValues.TaskDeadlineItem)
-            .Concat(CalendarValues.EpisodeItems)
+            .Concat(CalendarValues.EpisodeItems).Append(CalendarValues.ReleaseItem)
             .Select(t => new FilterOption(t, CalendarLabels.Humanize(t)))];
         PriorityFilters = [.. CalendarValues.Priorities.Select(p => new FilterOption(p, p))];
         foreach (var option in EventTypeFilters.Concat(PriorityFilters))
@@ -427,6 +427,19 @@ public sealed partial class CalendarViewModel : PageViewModel
             });
             await LoadAsync();
             return movedTask;
+        }
+
+        if (item.Item.SourceType == "Release")
+        {
+            var movedRelease = await RunAsync(async () =>
+            {
+                var r = await _api.GetAsync<ReleaseResponse>($"api/v1/releases/{item.Item.SourceId}");
+                await _api.PatchAsync<ReleaseResponse>($"api/v1/releases/{r.Id}/schedule",
+                    new RescheduleReleaseRequest(_clock.FromLocal(newLocalStart), r.Version));
+                AppLog.Info($"Rescheduled release {r.Id}");
+            });
+            await LoadAsync();
+            return movedRelease;
         }
 
         if (item.Item.SourceType == "Episode")

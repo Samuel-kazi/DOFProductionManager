@@ -14,6 +14,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddCalendarEvents` | 3 | Adds `calendar_events`, `calendar_event_assignments`. Additive only. |
 | `AddProjectsTasksAndActivity` | 4 | Adds `projects`, `project_members`, `project_milestones`, `tasks`, `task_assignments`, `activity_logs`, and the append-only trigger on `activity_logs`. Additive only. |
 | `AddShowsAndEpisodes` | 5 | Adds `shows`, `seasons`, `episodes`, `episode_assignments`, nullable `tasks.episode_id` with its index, foreign key and the `ck_tasks_project_or_episode` check. Additive only. |
+| `AddReleases` | 6 | Adds `distribution_channels` and `releases`. Additive only. Channels are seeded at startup (not in the migration). |
 
 ## Tables
 
@@ -132,6 +133,25 @@ specification's column list to hold the "Location" shown on the episode screen (
 (Producer, Director, Presenter, Editor, Reviewer, PublishingManager, Crew), `assigned_at`. Unique
 `(episode_id, user_id, responsibility)`: one person may hold several responsibilities. `Crew` covers the
 episode screen's "assigned crew" (spec 6.3).
+
+### distribution_channels
+`name varchar(100)` (unique), `channel_type varchar(40)` (Video, Audio, Social, Broadcast, Web, Other),
+`description text null`, `is_active boolean`, `created_by` / `updated_by`. Seeded at startup with
+YouTube, Spotify, Facebook, Instagram, Television, Website and Other (added once by name, so later edits
+are kept). Never deleted.
+
+### releases
+`episode_id → episodes (restrict; indexed)`, `project_id → projects null (restrict; indexed)`,
+`distribution_channel_id → distribution_channels (restrict)`, `scheduled_at timestamptz null` (indexed;
+kept after publication), `actual_published_at timestamptz null`, `status varchar(40)` (Draft,
+AwaitingApproval, Ready, Scheduled, Published, Postponed, Cancelled, Failed; indexed), `assigned_to →
+users null (restrict; indexed)`, `external_url varchar(2000) null`, `notes text null`,
+`postponement_reason` / `cancellation_reason text null`, `published_by → users null`, `created_by` /
+`updated_by`, `version`. Unique `(episode_id, distribution_channel_id)` where `status <> 'Cancelled'`.
+Checks: `ck_releases_published_has_time` (Published needs `actual_published_at`) and
+`ck_releases_status_not_overdue` ("Overdue" is derived when reading and is never stored). `notes` and
+`published_by` go beyond the specification's column list, to hold the screen's notes and who
+confirmed publication.
 
 ### activity_logs
 `user_id → users null (restrict)`, `entity_type varchar(40)`, `entity_id uuid`, `action varchar(40)`,

@@ -1,6 +1,7 @@
 using DOF.Application.Common;
 using DOF.Application.Common.Abstractions;
 using DOF.Domain.Entities;
+using DOF.Domain.Enums;
 using DOF.Domain.Rules;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +70,32 @@ public static class DatabaseSeeder
             logger.LogInformation("Seeded permissions: {Permissions}", string.Join(", ", newPermissions));
         }
 
+        await SeedChannelsAsync(db, logger, ct);
         await CreateBootstrapAdministratorAsync(sp, db, roles[SystemRoles.Administrator], logger, ct);
+    }
+
+    /// <summary>The specification's channel list. Added once by name; later edits and deactivations are kept.</summary>
+    internal static readonly (string Name, ChannelType Type)[] DefaultChannels =
+    [
+        ("YouTube", ChannelType.Video), ("Spotify", ChannelType.Audio), ("Facebook", ChannelType.Social),
+        ("Instagram", ChannelType.Social), ("Television", ChannelType.Broadcast), ("Website", ChannelType.Web),
+        ("Other", ChannelType.Other),
+    ];
+
+    private static async Task SeedChannelsAsync(DofDbContext db, ILogger logger, CancellationToken ct)
+    {
+        var existing = (await db.DistributionChannels.Select(c => c.Name).ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = DefaultChannels.Where(c => !existing.Contains(c.Name)).ToList();
+        foreach (var (name, type) in added)
+        {
+            db.DistributionChannels.Add(DistributionChannel.Create(name, type, null));
+        }
+        if (added.Count > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Seeded distribution channels: {Channels}", string.Join(", ", added.Select(c => c.Name)));
+        }
     }
 
     private static async Task CreateBootstrapAdministratorAsync(

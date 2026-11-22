@@ -101,7 +101,8 @@ public sealed record ProjectTimelineResponse(
 public sealed record OverdueResponse(
     IReadOnlyList<TaskResponse> Tasks,
     IReadOnlyList<MilestoneResponse> Milestones,
-    IReadOnlyList<EpisodeSummaryResponse> Episodes);
+    IReadOnlyList<EpisodeSummaryResponse> Episodes,
+    IReadOnlyList<ReleaseResponse> Releases);
 
 public sealed record WorkloadSummaryResponse(
     Guid UserId,

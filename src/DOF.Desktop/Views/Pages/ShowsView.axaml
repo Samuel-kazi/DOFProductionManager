@@ -3,6 +3,7 @@
              xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
              xmlns:shows="using:DOF.Desktop.ViewModels.Shows"
              xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:rel="using:DOF.Desktop.ViewModels.Releases"
              xmlns:responses="using:DOF.Contracts.Responses"
              xmlns:pageViews="using:DOF.Desktop.Views.Pages"
              xmlns:showViews="using:DOF.Desktop.Views.Shows"
@@ -249,6 +250,46 @@
                           <TextBlock Classes="muted small" Text="{Binding DateText}" IsVisible="{Binding HasDate}" />
                         </StackPanel>
                       </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+
+            <!-- Distribution: each channel independently -->
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="h2" Text="Distribution" />
+                    <TextBlock Classes="muted small" Text="{Binding DistributionSummary}" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Content="Schedule a release" IsVisible="{Binding CanScheduleReleases}" VerticalAlignment="Top"
+                          Command="{Binding #Root.((pages:ShowsViewModel)DataContext).NewReleaseCommand}" />
+                </Grid>
+                <Grid ColumnDefinitions="140,*,*,Auto" IsVisible="{Binding !HasNoReleases}" Margin="12,0">
+                  <TextBlock Classes="muted small" Text="Channel" />
+                  <TextBlock Grid.Column="1" Classes="muted small" Text="Scheduled" />
+                  <TextBlock Grid.Column="2" Classes="muted small" Text="Published" />
+                  <TextBlock Grid.Column="3" Classes="muted small" Text="Status" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Releases}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="rel:ReleaseRowViewModel">
+                      <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+                              Command="{Binding #Root.((pages:ShowsViewModel)DataContext).OpenReleaseCommand}" CommandParameter="{Binding}">
+                        <Border Classes="row" Margin="0,0,0,2">
+                          <Grid ColumnDefinitions="140,*,*,Auto">
+                            <TextBlock Text="{Binding ChannelName}" FontWeight="SemiBold" Classes.done="{Binding IsCancelled}" />
+                            <TextBlock Grid.Column="1" Classes="small" Text="{Binding ScheduledText}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Classes="small" Text="{Binding PublishedText}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                              <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                              <TextBlock Classes="small" Text="{Binding StatusText}" Classes.overdue="{Binding IsOverdue}" />
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </Button>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>

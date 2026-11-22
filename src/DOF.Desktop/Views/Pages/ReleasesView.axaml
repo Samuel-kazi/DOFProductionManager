@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:rel="using:DOF.Desktop.ViewModels.Releases"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:relViews="using:DOF.Desktop.Views.Releases"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Pages.ReleasesView"
+             x:DataType="pages:ReleasesViewModel"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="rel:ReleaseDetailsViewModel"><relViews:ReleaseDetailsView /></DataTemplate>
+    <DataTemplate DataType="rel:ReleaseEditorViewModel"><relViews:ReleaseEditorView /></DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Grid ColumnDefinitions="*,Auto">
+    <DockPanel Margin="24,16,24,12">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,8">
+        <ListBox ItemsSource="{Binding Views}" SelectedItem="{Binding SelectedView}" Background="Transparent">
+          <ListBox.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="pages:ReleaseViewOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <CheckBox Grid.Column="2" Content="Mine" IsChecked="{Binding OnlyMine}" Margin="0,0,12,0" IsVisible="{Binding !HasSidePanel}" />
+        <TextBox Grid.Column="3" Text="{Binding SearchText}" PlaceholderText="Search releases" Width="180" Margin="0,0,8,0"
+                 IsVisible="{Binding !HasSidePanel}">
+          <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" /></TextBox.KeyBindings>
+        </TextBox>
+        <Button Grid.Column="4" Classes="accent" Content="New release" Command="{Binding NewReleaseCommand}" CommandParameter="{x:Null}"
+                IsVisible="{Binding ShowNewButton}" />
+      </Grid>
+      <TextBlock DockPanel.Dock="Top" Classes="muted small" Text="{Binding UnpublishedSummary}" Margin="2,0,0,10" TextWrapping="Wrap"
+                 IsVisible="{Binding UnpublishedSummary, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      <pageViews:PageStatus DockPanel.Dock="Top" Margin="0,0,0,8" />
+      <Panel>
+        <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" Margin="0,40" />
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Items}" Margin="0,0,14,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="rel:ReleaseRowViewModel">
+                <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+                        Command="{Binding #Root.((pages:ReleasesViewModel)DataContext).OpenRowCommand}" CommandParameter="{Binding}">
+                  <Border Classes="row" Margin="0,0,0,4">
+                    <Grid ColumnDefinitions="110,*,Auto">
+                      <TextBlock Text="{Binding ChannelName}" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                      <StackPanel Grid.Column="1" Spacing="2" Margin="8,0">
+                        <TextBlock Text="{Binding EpisodeText}" TextTrimming="CharacterEllipsis" Classes.done="{Binding IsCancelled}" />
+                        <TextBlock Classes="small" Text="{Binding WhenText}" Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                          <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                          <TextBlock Classes="small" Text="{Binding StatusText}" Classes.overdue="{Binding IsOverdue}" />
+                        </StackPanel>
+                        <TextBlock Classes="muted small" Text="{Binding AssigneeText}" HorizontalAlignment="Right" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Panel>
+    </DockPanel>
+
+    <Border Grid.Column="1" Width="380" IsVisible="{Binding HasSidePanel}" Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,0,0,0">
+      <ContentControl Content="{Binding SidePanel}" />
+    </Border>
+  </Grid>
+</UserControl>

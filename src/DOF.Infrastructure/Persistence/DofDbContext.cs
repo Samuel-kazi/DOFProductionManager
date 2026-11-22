@@ -24,6 +24,8 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<Season> Seasons => Set<Season>();
     public DbSet<Episode> Episodes => Set<Episode>();
     public DbSet<EpisodeAssignment> EpisodeAssignments => Set<EpisodeAssignment>();
+    public DbSet<DistributionChannel> DistributionChannels => Set<DistributionChannel>();
+    public DbSet<Release> Releases => Set<Release>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
