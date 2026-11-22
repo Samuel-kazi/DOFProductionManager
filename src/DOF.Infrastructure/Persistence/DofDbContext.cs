@@ -20,6 +20,10 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<WorkTask> Tasks => Set<WorkTask>();
     public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<Show> Shows => Set<Show>();
+    public DbSet<Season> Seasons => Set<Season>();
+    public DbSet<Episode> Episodes => Set<Episode>();
+    public DbSet<EpisodeAssignment> EpisodeAssignments => Set<EpisodeAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

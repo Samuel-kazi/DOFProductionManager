@@ -228,6 +228,45 @@ for me, overdue work, active projects, upcoming milestones and team workload, an
 opens that person's tasks. Status pickers ignore empty or repeated values, because a picker being torn
 down can write back an empty value and would otherwise trigger a reload loop.
 
+## Shows and episodes (Phase 5)
+
+**Records.** A show (versioned, archivable) has numbered seasons and episodes. An episode belongs to its
+show and optionally to one of that show's seasons (one-off productions have none), and owns its
+recording session (`recording_start`/`end`, location), `recorded_at`, and editing, review and approval
+deadlines. `episode_assignments` hold responsibilities (Producer, Director, Presenter, Editor,
+Reviewer, PublishingManager, Crew). The episode's producer always holds a Producer assignment. Tasks
+may belong to an episode instead of a project (`tasks.episode_id`, never both, enforced in the domain,
+the validator and a database check).
+
+**Lifecycle.** Any status can be set, including corrections; the activity log keeps every change and
+an optional note. Entering a post-recording stage records `recorded_at`, and going back to Planned or
+Scheduled clears it. A deadline counts as met once the episode reaches the next stage (editing → in
+review, review → awaiting approval, approval → approved). An episode is overdue when a pending
+deadline has passed, or when a recording session ended and the episode is still Planned or Scheduled.
+Publication statuses (`PartiallyPublished`, `Published`) cannot be set by hand. Phase 6 will derive
+them from release confirmations, so a scheduled release is never shown as published. Cancelling sets
+`archived_at`; archived shows take no new seasons, episodes or episode tasks.
+
+**Permissions** (`ShowAccess`): `episodes.manage` creates and archives shows and edits everything. A
+show's producer edits the show, its seasons and its episodes. An episode's producer edits that
+episode and its crew. Anyone assigned to an episode may change its production status. Reading is open
+to every signed-in user.
+
+**Calendar.** `EpisodeCalendarSource` reads the episode directly: a timed `Recording` item plus all-day
+deadline items while each deadline is still pending, all opening the episode. Item ids are
+`Episode:{id}:{type}`, so one episode can contribute several items without any copy. Rescheduling
+updates the episode itself. The `showId` filter applies to episodes and to tasks belonging to episodes.
+
+**Desktop.** *Shows & Episodes* page: show cards (season and episode counts, next recording), or "My
+episodes". A show page lists each season with its episodes plus a "Without a season" group. The episode
+page has a header with a status picker (publication statuses are never offered), a production timeline
+(Planned → Recording → Editing → Review → Approval → Release preparation → Published), production
+information, crew assignment, tasks ("Add task" opens a task already linked to the episode) and
+history. Show, season and episode editors open in the side panel. Calendar episode items use their own
+colours and can be dragged: the recording keeps its length and a deadline moves to the new day. The
+task editor's "Belongs to" picker offers projects and episodes. Dashboards add *My episodes*, overdue
+episodes and *Awaiting publication*.
+
 ## Desktop client (Phase 2)
 
 **Composition.** `Services/DesktopServices.Build` is the composition root (Microsoft.Extensions.DependencyInjection).
@@ -283,7 +322,7 @@ UI-thread errors are also shown in a dismissible banner. Nothing is swallowed si
 in a headless Avalonia window (Skia rendering) against the real API: sign-in, navigation to every
 section, keyboard shortcuts, session restore, offline start, deactivation, password change, theme, every
 calendar view, opening records, the event editor, drag-to-reschedule with simulated mouse input,
-filters, dashboards, quick create, and the projects and tasks pages (`WorkUiTests`). Each UI test has
+filters, dashboards, quick create, the projects and tasks pages (`WorkUiTests`), and shows, seasons and episodes (`ShowUiTests`). Each UI test has
 a 90-second limit. At the end of the run the fixture closes windows tests left open; if they are left
 open, the headless platform's shutdown never completes.
 They save screenshots to `tests/DOF.IntegrationTests/bin/Debug/net10.0/ui-snapshots/` for visual

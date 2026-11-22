@@ -52,7 +52,7 @@ access token as `Authorization: Bearer <token>`.
 | GET | `/api/v1/milestones/{id}` | Signed in | Milestone |
 | PUT | `/api/v1/milestones/{id}` | edit rights¹ or assignee | Update incl. due date and status; requires `version` |
 | PATCH | `/api/v1/milestones/{id}/complete` | edit rights¹ or assignee | Complete |
-| GET | `/api/v1/tasks` | Signed in | Paged; `assigneeId`, `createdById`, `assignedByMe`, `projectId`, `statuses`, `open`, `overdue`, `search` |
+| GET | `/api/v1/tasks` | Signed in | Paged; `assigneeId`, `createdById`, `assignedByMe`, `projectId`, `episodeId`, `statuses`, `open`, `overdue`, `search` |
 | GET | `/api/v1/tasks/my-tasks` | Signed in | My open tasks |
 | GET | `/api/v1/tasks/overdue` | Signed in | Open tasks past due; `mine=true` |
 | POST | `/api/v1/tasks` | Signed in² | Create → 201 |
@@ -62,17 +62,63 @@ access token as `Authorization: Bearer <token>`.
 | POST | `/api/v1/tasks/{id}/assignments` | task editors³ ² | `{userId, isPrimary}` |
 | DELETE | `/api/v1/tasks/{id}/assignments/{userId}` | task editors³ ² | Remove an assignee (not the last) |
 | GET | `/api/v1/tasks/{id}/history` | Signed in | History, newest first |
-| GET | `/api/v1/dashboard/overdue` | Signed in | Overdue tasks and milestones; `mine=true` |
+| GET | `/api/v1/dashboard/overdue` | Signed in | Overdue tasks, milestones and episodes; `mine=true` |
 | GET | `/api/v1/users/{id}/workload` | Signed in | Counts, open tasks and open milestones |
 
 ¹ `projects.edit` or the project's manager. ² Assigning anyone other than yourself needs `tasks.assign`.
 ³ The task's creator, its assignees, or `tasks.assign` holders.
 
-The personal dashboard now also returns `myTasks` and `pendingReviews` (tasks you created that await
-review). The management dashboard adds `activeProjects`, `upcomingMilestones` (14 days), `overdue` and
-`teamWorkload`. Calendar items from milestones have `sourceType: "Milestone"`, `eventType: "Milestone"`
+Tasks take an optional `episodeId` on create and update. A task belongs to a project **or** an episode,
+never both (400 when both are sent; 422 for a missing or cancelled episode). Task responses include
+`episode {id, title, showId, showName, code}`.
+
+### Shows, seasons and episodes (Phase 5)
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/shows` | Signed in | Paged summaries; `search`, `statuses`, `showType`, `producerId`, `includeArchived` |
+| POST | `/api/v1/shows` | `episodes.manage` | Create → 201 |
+| GET | `/api/v1/shows/{id}` | Signed in | Show with seasons, `canEdit`, `canManage` |
+| PUT | `/api/v1/shows/{id}` | show editors⁴ | Update; requires `version` |
+| PATCH | `/api/v1/shows/{id}/status` | show editors⁴ (archive/restore: `episodes.manage`) | `{status, version?}` |
+| GET | `/api/v1/shows/{id}/history` | Signed in | History of the show and its seasons |
+| GET / POST | `/api/v1/shows/{id}/seasons` | Signed in / show editors⁴ | List / create → 201 (no number → next season; duplicate → 409) |
+| GET / PUT | `/api/v1/seasons/{id}` | Signed in / show editors⁴ | Season; update incl. number and status (requires `version`) |
+| GET | `/api/v1/shows/{id}/episodes` | Signed in | All the show's episodes in season/number order, seasonless last |
+| POST | `/api/v1/shows/{id}/episodes` | show editors⁴ | One-off episode without a season → 201 |
+| GET | `/api/v1/seasons/{id}/episodes` | Signed in | The season's episodes |
+| POST | `/api/v1/seasons/{id}/episodes` | show editors⁴ | Create → 201 (no number → next in season; duplicate → 409) |
+| GET | `/api/v1/episodes` | Signed in | Paged; `showId`, `seasonId`, `assigneeId`, `mine`, `statuses`, `open`, `search` |
+| GET | `/api/v1/episodes/{id}` | Signed in | Episode with crew, production timeline, tasks, `isOverdue`, `canEdit`, `canChangeStatus` |
+| PUT | `/api/v1/episodes/{id}` | episode editors⁵ | Update incl. season, number, producer, recording and deadlines; requires `version` |
+| PATCH | `/api/v1/episodes/{id}/status` | episode editors⁵ or crew | `{status, version?, recordedAt?, note?}` |
+| POST | `/api/v1/episodes/{id}/assignments` | episode editors⁵ | `{userId, responsibility}` (Producer, Director, Presenter, Editor, Reviewer, PublishingManager, Crew) |
+| DELETE | `/api/v1/episodes/{id}/assignments/{assignmentId}` | episode editors⁵ | Remove (not the current producer's Producer assignment) |
+| GET | `/api/v1/episodes/{id}/history` | Signed in | History, newest first |
+
+⁴ `episodes.manage` or the show's producer. ⁵ Show editors plus the episode's producer.
+
+Episode rules: an episode can only join a season of its own show; numbers are unique within a season
+(and within a show's seasonless episodes). A recording start without an end uses the show's usual
+length (or 60 minutes). Deadlines must run editing ≤ review ≤ approval. Any status can be set,
+including corrections back to an earlier stage; entering a post-recording stage records `recordedAt`
+(the given time, else the end of a past session, else now; never in the future), and returning to
+Planned or Scheduled clears it. `Scheduled` needs a recording time. `PartiallyPublished` and
+`Published` cannot be set by hand: they will follow release confirmations (Phase 6). Every change is
+in the history, with the optional `note` on status changes.
+
+`GET /episodes/{id}/releases` (distribution schedules) is listed in the specification under episodes
+and is delivered with releases in Phase 6.
+
+The personal dashboard now also returns `myTasks`, `pendingReviews` (tasks you created that await
+review) and `myEpisodes` (open episodes you produce or crew). The management dashboard adds
+`activeProjects`, `upcomingMilestones` (14 days), `overdue` (tasks, milestones, episodes),
+`teamWorkload` and `awaitingPublication` (approved, ready or partially published episodes). Calendar items from milestones have `sourceType: "Milestone"`, `eventType: "Milestone"`
 and are all-day. Task deadlines have `sourceType: "Task"`, `eventType: "TaskDeadline"`, no `endAt`, and
-the project name in `location`.
+the project (or "Show: Episode") name in `location`. Episodes contribute `sourceType: "Episode"` items
+with ids `Episode:{id}:{eventType}`: a timed `Recording` (location = recording location) and all-day
+`EditingDeadline`, `ReviewDeadline` and `ApprovalDeadline` items, only while the episode has not yet
+passed that stage. Episode items have priority `Normal`, match `showId`, and never match `projectId`.
 
 **Calendar filters** (all optional, repeatable where plural): `eventTypes`, `sourceTypes`, `statuses`,
 `priorities`, `assignedUserId`, `projectId`, `showId`, `includeCancelled`, and `timeZone` (IANA, for the
@@ -86,4 +132,4 @@ Status codes: 400 validation, 401 not signed in / bad credentials, 403 missing p
 404 not found, 409 duplicate or stale `version`, 422 business rule (e.g. last Administrator),
 429 rate limit.
 
-All endpoints listed in the specification for Phases 1–4 are implemented.
+All endpoints listed in the specification for Phases 1–5 are implemented, except `GET /episodes/{id}/releases` (Phase 6).

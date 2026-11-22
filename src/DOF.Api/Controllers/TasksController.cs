@@ -16,15 +16,15 @@ public sealed class TasksController(TaskService tasks) : ControllerBase
 {
     /// <summary>
     /// Lists tasks. Filters: <c>assigneeId</c>, <c>createdById</c>, <c>assignedByMe</c> (created by me for
-    /// others), <c>projectId</c>, <c>statuses</c>, <c>open</c>, <c>overdue</c>, <c>search</c>.
+    /// others), <c>projectId</c>, <c>episodeId</c>, <c>statuses</c>, <c>open</c>, <c>overdue</c>, <c>search</c>.
     /// </summary>
     [HttpGet]
     public async Task<ApiResponse<PagedResponse<TaskResponse>>> List(
         [FromQuery] Guid? assigneeId, [FromQuery] Guid? createdById, [FromQuery] bool assignedByMe, [FromQuery] Guid? projectId,
-        [FromQuery] string[]? statuses, [FromQuery] bool? open, [FromQuery] bool overdue, [FromQuery] string? search,
+        [FromQuery] Guid? episodeId, [FromQuery] string[]? statuses, [FromQuery] bool? open, [FromQuery] bool overdue, [FromQuery] string? search,
         [FromQuery] int? page, [FromQuery] int? pageSize, CancellationToken ct) =>
         ApiResponse<PagedResponse<TaskResponse>>.Ok(await tasks.ListAsync(
-            new TaskQuery(assigneeId, createdById, assignedByMe, projectId, statuses, open, overdue, search), page, pageSize, ct));
+            new TaskQuery(assigneeId, createdById, assignedByMe, projectId, episodeId, statuses, open, overdue, search), page, pageSize, ct));
 
     /// <summary>Open tasks assigned to the signed-in user.</summary>
     [HttpGet("my-tasks")]

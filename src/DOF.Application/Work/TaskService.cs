@@ -19,6 +19,7 @@ public sealed record TaskQuery(
     Guid? CreatedById = null,
     bool AssignedByMe = false,
     Guid? ProjectId = null,
+    Guid? EpisodeId = null,
     IReadOnlyCollection<string>? Statuses = null,
     bool? Open = null,
     bool OverdueOnly = false,
@@ -70,9 +71,10 @@ public sealed class TaskService(
         }
         EnsureMayAssign(assignees, alreadyAssigned: []);
         await EnsureProjectOpenAsync(request.ProjectId, ct);
+        await EnsureEpisodeOpenAsync(request.EpisodeId, ct);
         await EnsureActiveUsersAsync(assignees, ct);
 
-        var task = WorkTask.Create(request.Title, request.Description, request.ProjectId, request.DueAt,
+        var task = WorkTask.Create(request.Title, request.Description, request.ProjectId, request.EpisodeId, request.DueAt,
             WorkParsing.Parse<Priority>(request.Priority, "priority"));
         task.SetAssignees(assignees, request.PrimaryAssigneeId, readers.Now);
         db.Tasks.Add(task);
@@ -94,6 +96,10 @@ public sealed class TaskService(
         {
             await EnsureProjectOpenAsync(request.ProjectId, ct);
         }
+        if (request.EpisodeId != task.EpisodeId)
+        {
+            await EnsureEpisodeOpenAsync(request.EpisodeId, ct);
+        }
         await EnsureActiveUsersAsync(request.AssigneeIds.Except(current), ct);
 
         var before = Snapshot(task);
@@ -101,7 +107,7 @@ public sealed class TaskService(
         var previousAssignees = await AssigneeNamesAsync(task, ct);
         var previousPrimary = task.PrimaryAssigneeId;
 
-        task.Update(request.Title, request.Description, request.ProjectId, request.DueAt,
+        task.Update(request.Title, request.Description, request.ProjectId, request.EpisodeId, request.DueAt,
             WorkParsing.Parse<Priority>(request.Priority, "priority"));
         task.SetAssignees(request.AssigneeIds, request.PrimaryAssigneeId, readers.Now);
 
@@ -205,6 +211,10 @@ public sealed class TaskService(
         {
             query = query.Where(t => t.ProjectId == project);
         }
+        if (filter.EpisodeId is { } episode)
+        {
+            query = query.Where(t => t.EpisodeId == episode);
+        }
         if (WorkParsing.ParseAll<WorkStatus>(filter.Statuses) is { } statuses)
         {
             query = query.Where(t => statuses.Contains(t.Status));
@@ -272,6 +282,21 @@ public sealed class TaskService(
         project.EnsureNotArchived();
     }
 
+    private async Task EnsureEpisodeOpenAsync(Guid? episodeId, CancellationToken ct)
+    {
+        if (episodeId is null)
+        {
+            return;
+        }
+        var episode = await db.Episodes.Include(e => e.Show).SingleOrDefaultAsync(e => e.Id == episodeId, ct)
+                      ?? throw new DomainException("The selected episode does not exist.");
+        episode.Show.EnsureNotArchived();
+        if (episode.IsCancelled)
+        {
+            throw new DomainException("The selected episode is cancelled.");
+        }
+    }
+
     private async Task EnsureActiveUsersAsync(IEnumerable<Guid> ids, CancellationToken ct)
     {
         var wanted = ids.Distinct().ToList();
@@ -300,5 +325,6 @@ public sealed class TaskService(
     private static Dictionary<string, object?> Snapshot(WorkTask t) => new()
     {
         ["Title"] = t.Title, ["Description"] = t.Description, ["Priority"] = t.Priority.ToString(), ["Project"] = t.ProjectId,
+        ["Episode"] = t.EpisodeId,
     };
 }

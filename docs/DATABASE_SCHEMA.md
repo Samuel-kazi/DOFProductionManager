@@ -13,6 +13,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddIdentityAndPermissions` | 1 | Adds `users`, `roles`, `user_roles`, `permissions`, `role_permissions`, `refresh_tokens`. Additive only. |
 | `AddCalendarEvents` | 3 | Adds `calendar_events`, `calendar_event_assignments`. Additive only. |
 | `AddProjectsTasksAndActivity` | 4 | Adds `projects`, `project_members`, `project_milestones`, `tasks`, `task_assignments`, `activity_logs`, and the append-only trigger on `activity_logs`. Additive only. |
+| `AddShowsAndEpisodes` | 5 | Adds `shows`, `seasons`, `episodes`, `episode_assignments`, nullable `tasks.episode_id` with its index, foreign key and the `ck_tasks_project_or_episode` check. Additive only. |
 
 ## Tables
 
@@ -94,12 +95,43 @@ timestamptz null`, `created_by` / `updated_by`, `version`.
 ### tasks
 `title varchar(200)`, `description text null`, `project_id → projects null (restrict; indexed)`,
 `due_at timestamptz null` (indexed), `priority varchar(20)`, `status varchar(40)` (as milestones;
-indexed), `completed_at`, `completed_by → users null`, `created_by` / `updated_by`, `version`.
-(`episode_id` arrives with episodes in Phase 5.)
+indexed), `completed_at`, `completed_by → users null`, `episode_id → episodes null (restrict; indexed)`,
+`created_by` / `updated_by`, `version`. Check `ck_tasks_project_or_episode`: a task has a project or an
+episode, not both.
 
 ### task_assignments
 `task_id → tasks (cascade)`, `user_id → users (restrict; indexed)`, `assigned_at`, `is_primary boolean`;
 unique `(task_id, user_id)`. Exactly one primary per task (enforced by the domain).
+
+### shows
+`name varchar(200)`, `description text null`, `producer_id → users null (restrict; indexed)`,
+`show_type varchar(40)` (Recurring, LimitedSeries, OneOff, SpecialProduction), `status varchar(40)`
+(InDevelopment, Active, OnHiatus, Ended, Archived; indexed), `default_duration_minutes integer null`,
+`archived_at timestamptz null`, `created_by` / `updated_by`, `version`.
+
+### seasons
+`show_id → shows (restrict)`, `season_number integer`, `name varchar(200) null`, `start_date` /
+`end_date date null`, `status varchar(40)` (Planned, InProduction, Completed, Cancelled),
+`created_by` / `updated_by`, `version`. Unique `(show_id, season_number)`.
+
+### episodes
+`show_id → shows (restrict; indexed)`, `season_id → seasons null (restrict)`, `episode_number integer
+null`, `title varchar(200)`, `description text null`, `producer_id → users null (restrict; indexed)`,
+`recording_start` / `recording_end timestamptz null` (start indexed), `recording_location varchar(200)
+null`, `recorded_at timestamptz null`, `editing_due_date` / `review_due_date` / `approval_due_date date
+null` (each indexed), `status varchar(40)` (Planned, Scheduled, Recorded, Editing, InReview,
+AwaitingApproval, Approved, ReadyForRelease, PartiallyPublished, Published, Cancelled; indexed),
+`archived_at timestamptz null` (set while cancelled), `created_by` / `updated_by`, `version`.
+Unique `(season_id, episode_number)` where both are set, and unique `(show_id, episode_number)` for
+episodes without a season. Checks: `ck_episodes_recording_range` (both recording times or neither, end
+after start) and `ck_episodes_episode_number` (positive). `recording_location` goes beyond the
+specification's column list to hold the "Location" shown on the episode screen (spec 6.3).
+
+### episode_assignments
+`episode_id → episodes (cascade)`, `user_id → users (restrict; indexed)`, `responsibility varchar(40)`
+(Producer, Director, Presenter, Editor, Reviewer, PublishingManager, Crew), `assigned_at`. Unique
+`(episode_id, user_id, responsibility)`: one person may hold several responsibilities. `Crew` covers the
+episode screen's "assigned crew" (spec 6.3).
 
 ### activity_logs
 `user_id → users null (restrict)`, `entity_type varchar(40)`, `entity_id uuid`, `action varchar(40)`,

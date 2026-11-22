@@ -6,6 +6,7 @@
              xmlns:conv="using:DOF.Desktop.Converters"
              xmlns:work="using:DOF.Desktop.ViewModels.Work"
              xmlns:workViews="using:DOF.Desktop.Views.Work"
+             xmlns:shows="using:DOF.Desktop.ViewModels.Shows"
              x:Class="DOF.Desktop.Views.Pages.DashboardView"
              x:DataType="pages:DashboardViewModel"
              x:Name="Root">
@@ -47,6 +48,25 @@
         </Border>
       </Button>
     </DataTemplate>
+    <DataTemplate DataType="shows:EpisodeRowViewModel">
+      <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0" Margin="0,0,0,4"
+              Command="{Binding #Root.((pages:DashboardViewModel)DataContext).OpenEpisodeCommand}" CommandParameter="{Binding}">
+        <Border CornerRadius="7" Background="{DynamicResource Brush.App}" ClipToBounds="True">
+          <Grid ColumnDefinitions="4,*,Auto">
+            <Border Background="{DynamicResource Brush.Cat.Recording}" />
+            <StackPanel Grid.Column="1" Margin="12,8" Spacing="2">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+              <TextBlock Classes="muted small" Text="{Binding ShowName}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Margin="12,0" VerticalAlignment="Center" Spacing="2">
+              <TextBlock Classes="small" Text="{Binding StatusText}" HorizontalAlignment="Right" />
+              <TextBlock Classes="small" Text="{Binding DeadlineText}" IsVisible="{Binding HasDeadline}" HorizontalAlignment="Right"
+                         Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
   </UserControl.DataTemplates>
 
   <ScrollViewer>
@@ -68,7 +88,7 @@
       <pageViews:PageStatus />
 
       <!-- Personal -->
-      <Grid ColumnDefinitions="*,20,*" RowDefinitions="Auto,20,Auto" IsVisible="{Binding ShowingPersonal}">
+      <Grid ColumnDefinitions="*,20,*" RowDefinitions="Auto,20,Auto,20,Auto" IsVisible="{Binding ShowingPersonal}">
         <Border Classes="card" VerticalAlignment="Top">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Today's schedule" />
@@ -97,6 +117,14 @@
             <ItemsControl ItemsSource="{Binding Upcoming}" />
           </StackPanel>
         </Border>
+        <Border Grid.Row="4" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="My episodes" />
+            <TextBlock Classes="muted" Text="You are not producing or crewing any open episodes." IsVisible="{Binding MyEpisodesIsEmpty}"
+                       TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding MyEpisodes}" />
+          </StackPanel>
+        </Border>
         <Border Grid.Row="2" Grid.Column="2" Classes="card" VerticalAlignment="Top" IsVisible="{Binding HasPendingReviews}">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Waiting for my review" />
@@ -113,11 +141,12 @@
       </Grid>
 
       <!-- Organisation -->
-      <Grid ColumnDefinitions="*,20,*" RowDefinitions="Auto,20,Auto,20,Auto" IsVisible="{Binding ShowingOrganisation}">
+      <Grid ColumnDefinitions="*,20,*" RowDefinitions="Auto,20,Auto,20,Auto,20,Auto" IsVisible="{Binding ShowingOrganisation}">
         <Border Classes="card" VerticalAlignment="Top">
           <StackPanel Spacing="10">
             <TextBlock Classes="h2" Text="Overdue" />
             <TextBlock Classes="muted" Text="Nothing is overdue." IsVisible="{Binding NothingOverdue}" />
+            <ItemsControl ItemsSource="{Binding OverdueEpisodes}" />
             <ItemsControl ItemsSource="{Binding OverdueMilestones}" />
             <ItemsControl ItemsSource="{Binding OverdueTasks}">
               <ItemsControl.ItemTemplate>
@@ -197,10 +226,18 @@
             <ItemsControl ItemsSource="{Binding Unassigned}" />
           </StackPanel>
         </Border>
+        <Border Grid.Row="6" Classes="card" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Awaiting publication" />
+            <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Approved and ready episodes that are not yet published everywhere." />
+            <TextBlock Classes="muted" Text="No episodes are waiting to be published." IsVisible="{Binding AwaitingPublicationIsEmpty}" />
+            <ItemsControl ItemsSource="{Binding AwaitingPublication}" />
+          </StackPanel>
+        </Border>
       </Grid>
 
       <TextBlock Classes="muted small" TextWrapping="Wrap"
-                 Text="Assigned episodes, releases and notifications join the dashboard as those features arrive (Phases 5–7)." />
+                 Text="Releases and notifications join the dashboard as those features arrive (Phases 6–7)." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

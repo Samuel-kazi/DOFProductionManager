@@ -70,8 +70,8 @@
                      VerticalAlignment="Center" />
 
           <TextBox Grid.Column="1" Classes="search" MaxWidth="420" Margin="24,0" IsEnabled="False"
-                   PlaceholderText="Search — coming once projects and episodes exist"
-                   ToolTip.Tip="Global search arrives once there are projects, episodes and tasks to search. Use the calendar's filter for events.">
+                   PlaceholderText="Global search — not available yet"
+                   ToolTip.Tip="Global search is not built yet. Use the search boxes on the Projects, Shows &amp; Episodes and Tasks pages, and the calendar's filter.">
             <TextBox.InnerLeftContent>
               <Path Classes="icon" Data="{StaticResource Icon.Search}" Margin="8,0,0,0"
                     Stroke="{DynamicResource Brush.TextMuted}" />

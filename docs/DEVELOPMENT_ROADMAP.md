@@ -10,7 +10,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | 2 | Desktop foundation | ✅ Complete (2026-11-22) |
 | 3 | Dashboard and calendar | ✅ Complete (2026-11-22) |
 | 4 | Tasks and projects | ✅ Complete (2026-11-22) |
-| 5 | Shows and episodes | Not started |
+| 5 | Shows and episodes | ✅ Complete (2026-11-22) |
 | 6 | Release management | Not started |
 | 7 | Reminder engine | Not started |
 | 8 | Reports and refinement | Not started |
@@ -108,9 +108,27 @@ assignment rules, overdue lists, team workload, `/users/{id}/workload`, and hist
 user and role changes. 140 automated tests pass.
 
 Deferred / open:
-- Tasks linked to episodes (`episode_id`): Phase 5.
+- Tasks linked to episodes (`episode_id`): done in Phase 5.
 - Overdue *notifications* and escalation: Phase 7 (background jobs). Overdue *lists* exist now.
 - Global search remains disabled.
+
+## Phase 5 — Shows and episodes ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| A show can have multiple seasons | API test creates numbered seasons (auto-numbering, duplicates → 409, renumbering); UI test builds a show and season from the Shows page |
+| Seasons can have multiple episodes | API test: numbered episodes per season, duplicates rejected, one-off episodes without a season, no moving into another show's season |
+| Episodes can have different producers and editors | API test: two episodes in one season with different producers and editors; per-episode permissions (producers edit their own, crew change status only); UI test assigns an editor |
+| Recording dates appear in the calendar | `EpisodeCalendarSource`; API test checks the timed recording and deadline items, show/assignee filters, moving without duplication, deadlines leaving as stages complete, cancelled episodes leaving; UI test opens the episode from the calendar and drags the recording |
+
+Also delivered: production deadlines and overdue episodes, the episode lifecycle with corrections and
+notes in the history, the production timeline, tasks linked to episodes (including the calendar's show
+filter and drag keeping the link), *My episodes*, and *Awaiting publication*. 162 automated tests pass.
+
+Deferred / open:
+- `GET /episodes/{id}/releases` and the episode screen's distribution panel: Phase 6 (releases).
+- Publication statuses are reserved for Phase 6 release confirmations.
+- Global search is still disabled (spec 6.1); no phase assigns it yet.
 
 ## Supporting documents
 

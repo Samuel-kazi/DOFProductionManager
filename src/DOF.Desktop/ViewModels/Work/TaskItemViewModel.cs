@@ -10,7 +10,8 @@ public sealed partial class TaskItemViewModel(TaskResponse task, UserClock clock
     public TaskResponse Task { get; } = task;
     public Guid Id => Task.Id;
     public string Title => Task.Title;
-    public string? ProjectName => Task.Project?.Name;
+    /// <summary>The project or episode the task belongs to.</summary>
+    public string? ProjectName => Task.Project?.Name ?? WorkLabels.EpisodeName(Task.Episode);
     public string DueText => WorkLabels.Due(Task.DueAt, clock);
     public bool IsOverdue => Task.IsOverdue;
     public bool IsCompleted => Task.Status == "Completed";

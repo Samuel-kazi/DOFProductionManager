@@ -66,14 +66,14 @@ public sealed class MilestoneCalendarSource(
     }
 }
 
-/// <summary>Task deadlines, shown as points in time.</summary>
+/// <summary>Task deadlines, shown as points in time. The location line names the task's project or episode.</summary>
 public sealed class TaskDeadlineCalendarSource(IApplicationDbContext db, WorkAccess access) : ICalendarSource
 {
     public string SourceType => nameof(CalendarSourceType.Task);
 
     public async Task<IReadOnlyList<CalendarItemResponse>> GetItemsAsync(CalendarQuery query, ICurrentUser user, CancellationToken ct)
     {
-        if (query.ShowId is not null || !CalendarEventMapping.Includes(query.EventTypes, CalendarValues.TaskDeadlineItem))
+        if (!CalendarEventMapping.Includes(query.EventTypes, CalendarValues.TaskDeadlineItem))
         {
             return [];
         }
@@ -99,12 +99,16 @@ public sealed class TaskDeadlineCalendarSource(IApplicationDbContext db, WorkAcc
         {
             tasks = tasks.Where(t => t.ProjectId == project);
         }
+        if (query.ShowId is { } show)
+        {
+            tasks = tasks.Where(t => t.Episode != null && t.Episode.ShowId == show);
+        }
 
         var rows = await tasks
             .Select(t => new
             {
                 t.Id, t.Title, t.DueAt, t.Status, t.Priority, t.CreatedBy,
-                ProjectName = t.Project != null ? t.Project.Name : null,
+                ProjectName = t.Project != null ? t.Project.Name : t.Episode != null ? t.Episode.Show.Name + ": " + t.Episode.Title : null,
                 Assignees = t.Assignments.Select(a => new { a.UserId, a.User.FullName, a.IsPrimary }).ToList(),
             })
             .ToListAsync(ct);

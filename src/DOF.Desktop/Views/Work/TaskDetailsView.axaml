@@ -23,6 +23,7 @@
           <TextBlock Text="{Binding DueText, StringFormat='Due {0}'}" Classes.overdue="{Binding IsOverdue}" />
           <TextBlock Classes="muted small" Text="{Binding PriorityText}" />
           <TextBlock Classes="muted small" Text="{Binding ProjectName, StringFormat='Project: {0}'}" IsVisible="{Binding HasProject}" />
+          <TextBlock Classes="muted small" Text="{Binding EpisodeName, StringFormat='Episode: {0}'}" IsVisible="{Binding HasEpisode}" />
         </StackPanel>
         <StackPanel Spacing="4">
           <TextBlock Classes="muted small" Text="Status" />

@@ -1,0 +1,368 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:shows="using:DOF.Desktop.ViewModels.Shows"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:responses="using:DOF.Contracts.Responses"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:showViews="using:DOF.Desktop.Views.Shows"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Pages.ShowsView"
+             x:DataType="pages:ShowsViewModel"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="shows:ShowEditorViewModel"><showViews:ShowEditorView /></DataTemplate>
+    <DataTemplate DataType="shows:SeasonEditorViewModel"><showViews:SeasonEditorView /></DataTemplate>
+    <DataTemplate DataType="shows:EpisodeEditorViewModel"><showViews:EpisodeEditorView /></DataTemplate>
+  </UserControl.DataTemplates>
+
+  <UserControl.Resources>
+    <!-- One episode row, used by the season lists and "My episodes". -->
+    <DataTemplate x:Key="EpisodeRow" x:DataType="shows:EpisodeRowViewModel">
+      <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+              Command="{Binding #Root.((pages:ShowsViewModel)DataContext).OpenEpisodeRowCommand}" CommandParameter="{Binding}">
+        <Border Classes="row" Margin="0,0,0,4">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Classes.done="{Binding IsCancelled}" />
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Classes="muted small" Text="{Binding RecordingText}" />
+                <TextBlock Classes="small" Text="{Binding DeadlineText}" IsVisible="{Binding HasDeadline}"
+                           Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+              </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                <TextBlock Classes="small" Text="{Binding StatusText}" />
+              </StackPanel>
+              <TextBlock Classes="muted small" Text="{Binding ProducerText}" HorizontalAlignment="Right" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Button>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid ColumnDefinitions="*,Auto">
+    <Panel Margin="24,16,24,12">
+
+      <!-- LIST: shows, or my episodes -->
+      <DockPanel IsVisible="{Binding ShowingList}">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="0,0,0,12">
+          <TextBox Text="{Binding SearchText}" PlaceholderText="Search shows" Width="240" IsEnabled="{Binding !OnlyMyEpisodes}">
+            <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" /></TextBox.KeyBindings>
+          </TextBox>
+          <CheckBox Grid.Column="1" Content="My episodes" IsChecked="{Binding OnlyMyEpisodes}" Margin="16,0,0,0" />
+          <CheckBox Grid.Column="2" Content="Include archived" IsChecked="{Binding IncludeArchived}" Margin="16,0,0,0"
+                    IsVisible="{Binding !OnlyMyEpisodes}" />
+          <Button Grid.Column="4" Classes="accent" Content="New show" Command="{Binding NewShowCommand}" IsVisible="{Binding CanCreate}" />
+        </Grid>
+        <pageViews:PageStatus DockPanel.Dock="Top" Margin="0,0,0,8" />
+        <Panel>
+          <TextBlock Classes="muted" Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" Margin="0,40" />
+          <ScrollViewer IsVisible="{Binding ShowingShowCards}">
+            <ItemsControl ItemsSource="{Binding Shows}" Margin="0,0,14,0">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="shows:ShowCardViewModel">
+                  <Button Classes="toolbar" Padding="0" Margin="0,0,12,12" Width="330" HorizontalContentAlignment="Stretch"
+                          Command="{Binding #Root.((pages:ShowsViewModel)DataContext).OpenCardCommand}" CommandParameter="{Binding}">
+                    <Border Classes="card" Padding="16" Height="150">
+                      <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Spacing="4">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                            <TextBlock Classes="small" Text="{Binding StatusText}" />
+                            <TextBlock Classes="muted small" Text="{Binding TypeText, StringFormat='· {0}'}" />
+                          </StackPanel>
+                          <TextBlock Classes="h2" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="muted small" Text="{Binding ProducerText}" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Spacing="3">
+                          <TextBlock Classes="small muted" Text="{Binding NextRecordingText}" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="small" Text="{Binding CountsText}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <Panel />
+                      </DockPanel>
+                    </Border>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+          <ScrollViewer IsVisible="{Binding ShowingMyEpisodes}">
+            <StackPanel Margin="0,0,14,0" MaxWidth="900" HorizontalAlignment="Left">
+              <ItemsControl ItemsSource="{Binding MyEpisodes}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="shows:EpisodeRowViewModel">
+                    <StackPanel Spacing="2">
+                      <TextBlock Classes="muted small" Text="{Binding ShowName}" Margin="2,4,0,0" />
+                      <ContentControl Content="{Binding}" ContentTemplate="{StaticResource EpisodeRow}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Panel>
+      </DockPanel>
+
+      <!-- SHOW -->
+      <DockPanel IsVisible="{Binding ShowingShow}">
+        <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+          <Button Classes="toolbar" Content="{Binding BackText}" Command="{Binding BackCommand}" HorizontalAlignment="Left" Padding="4,2" />
+          <pageViews:PageStatus />
+        </StackPanel>
+        <ScrollViewer>
+          <StackPanel Spacing="16" Margin="0,0,14,0" DataContext="{Binding ShowDetail}" x:DataType="shows:ShowDetailViewModel">
+            <Border Classes="card">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="h1" Text="{Binding Name}" TextWrapping="Wrap" />
+                  <TextBlock Classes="muted" Text="{Binding TypeText}" />
+                  <StackPanel Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="{Binding ProducerText, StringFormat='Producer: {0}'}" />
+                    <TextBlock Classes="muted" Text="{Binding DurationText}" />
+                  </StackPanel>
+                  <TextBlock Classes="muted" Text="{Binding Description}" TextWrapping="Wrap"
+                             IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8" HorizontalAlignment="Right">
+                  <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" IsEnabled="{Binding CanEditStatus}" Width="170">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Content="Edit show" HorizontalAlignment="Stretch" IsVisible="{Binding CanEdit}"
+                          Command="{Binding #Root.((pages:ShowsViewModel)DataContext).EditShowCommand}" />
+                  <Button Content="Add season" HorizontalAlignment="Stretch" IsVisible="{Binding CanAddSeasons}"
+                          Command="{Binding #Root.((pages:ShowsViewModel)DataContext).NewSeasonCommand}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <TextBlock Classes="muted" Text="No seasons yet. Add a season, or add one-off episodes below." IsVisible="{Binding HasNoSeasons}" />
+            <ItemsControl ItemsSource="{Binding Groups}" Margin="0,0,0,-16">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="shows:SeasonGroupViewModel">
+                  <Border Classes="card" Margin="0,0,0,16">
+                    <StackPanel Spacing="10">
+                      <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2">
+                          <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Classes="h2" Text="{Binding Heading}" />
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasStatus}" VerticalAlignment="Center">
+                              <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                              <TextBlock Classes="small" Text="{Binding StatusText}" />
+                            </StackPanel>
+                          </StackPanel>
+                          <TextBlock Classes="muted small" Text="{Binding DatesText}"
+                                     IsVisible="{Binding DatesText, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                          <Button Content="Edit season" IsVisible="{Binding CanEditSeason}"
+                                  Command="{Binding #Root.((pages:ShowsViewModel)DataContext).EditSeasonCommand}" CommandParameter="{Binding}" />
+                          <Button Content="{Binding AddLabel}" IsVisible="{Binding CanAddEpisodes}"
+                                  Command="{Binding #Root.((pages:ShowsViewModel)DataContext).NewEpisodeCommand}" CommandParameter="{Binding}" />
+                        </StackPanel>
+                      </Grid>
+                      <TextBlock Classes="muted" Text="No episodes yet." IsVisible="{Binding HasNoEpisodes}" />
+                      <ItemsControl ItemsSource="{Binding Episodes}" ItemTemplate="{StaticResource EpisodeRow}" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Classes="h2" Text="History" />
+                <ItemsControl ItemsSource="{Binding History}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="work:HistoryLine">
+                      <StackPanel Margin="0,0,0,8" Spacing="1">
+                        <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                        <TextBlock Classes="muted small" Text="{Binding Meta}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+
+      <!-- EPISODE -->
+      <DockPanel IsVisible="{Binding ShowingEpisode}">
+        <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+          <Button Classes="toolbar" Content="{Binding BackText}" Command="{Binding BackCommand}" HorizontalAlignment="Left" Padding="4,2" />
+          <pageViews:PageStatus />
+        </StackPanel>
+        <ScrollViewer>
+          <StackPanel Spacing="16" Margin="0,0,14,0" DataContext="{Binding EpisodeDetail}" x:DataType="shows:EpisodeDetailViewModel">
+            <!-- Header -->
+            <Border Classes="card">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="muted" Text="{Binding ShowName}" />
+                    <TextBlock Classes="muted" Text="{Binding SeasonText, StringFormat='· {0}'}" />
+                    <TextBlock Classes="muted" Text="{Binding NumberText, StringFormat='· {0}'}" />
+                  </StackPanel>
+                  <TextBlock Classes="h1" Text="{Binding Title}" TextWrapping="Wrap" />
+                  <StackPanel Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="{Binding ProducerText, StringFormat='Producer: {0}'}" />
+                    <TextBlock Classes="overdue" Text="A production deadline has passed" IsVisible="{Binding IsOverdue}" />
+                  </StackPanel>
+                  <TextBlock Classes="muted" Text="{Binding Description}" TextWrapping="Wrap"
+                             IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8" HorizontalAlignment="Right">
+                  <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" IsEnabled="{Binding CanChangeStatus}" Width="190">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Content="Edit episode" HorizontalAlignment="Stretch" IsVisible="{Binding CanEdit}"
+                          Command="{Binding #Root.((pages:ShowsViewModel)DataContext).EditEpisodeCommand}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <!-- Production timeline -->
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Classes="h2" Text="Production timeline" />
+                <ItemsControl ItemsSource="{Binding Stages}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="shows:StageViewModel">
+                      <Border Classes="stage" Classes.done="{Binding IsDone}" Classes.current="{Binding IsCurrent}"
+                              Classes.cancelled="{Binding IsCancelled}" Margin="0,0,8,8">
+                        <StackPanel Spacing="2">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="{Binding Marker}" />
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                          </StackPanel>
+                          <TextBlock Classes="muted small" Text="{Binding DateText}" IsVisible="{Binding HasDate}" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="*,16,*">
+              <!-- Production information -->
+              <Border Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="h2" Text="Production information" />
+                  <ItemsControl ItemsSource="{Binding Information}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="shows:InfoLine">
+                        <Grid ColumnDefinitions="140,*" Margin="0,3">
+                          <TextBlock Classes="muted" Text="{Binding Label}" />
+                          <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+
+              <!-- Crew -->
+              <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="h2" Text="Crew" />
+                  <ItemsControl ItemsSource="{Binding Crew}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="responses:EpisodeAssignmentResponse">
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
+                          <TextBlock Text="{Binding FullName}" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="1" Classes="muted small" VerticalAlignment="Center" Margin="12,0"
+                                     Text="{Binding Responsibility, Converter={x:Static conv:HumanizeConverter.Instance}}" />
+                          <Button Grid.Column="2" Classes="toolbar" Content="✕" Padding="6,2" ToolTip.Tip="Remove from this episode"
+                                  IsVisible="{Binding #Root.((pages:ShowsViewModel)DataContext).EpisodeDetail.CanEditCrew, FallbackValue=False}"
+                                  Command="{Binding #Root.((pages:ShowsViewModel)DataContext).UnassignCommand}" CommandParameter="{Binding}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Grid ColumnDefinitions="*,8,150,8,Auto" IsVisible="{Binding CanEditCrew}">
+                    <ComboBox ItemsSource="{Binding People}" SelectedItem="{Binding NewPerson}" PlaceholderText="Add a person" HorizontalAlignment="Stretch" />
+                    <ComboBox Grid.Column="2" ItemsSource="{Binding Responsibilities}" SelectedItem="{Binding NewResponsibility}" HorizontalAlignment="Stretch">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" /></DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Grid.Column="4" Content="Assign" Command="{Binding #Root.((pages:ShowsViewModel)DataContext).AssignCommand}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,16,*">
+              <!-- Tasks -->
+              <Border Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="h2" Text="Tasks" />
+                    <Button Grid.Column="1" Content="Add task" IsVisible="{Binding CanAddTasks}"
+                            Command="{Binding #Root.((pages:ShowsViewModel)DataContext).NewTaskCommand}" />
+                  </Grid>
+                  <TextBlock Classes="muted" Text="No tasks yet." IsVisible="{Binding HasNoTasks}" />
+                  <ItemsControl ItemsSource="{Binding Tasks}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="work:TaskItemViewModel">
+                        <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+                                Command="{Binding #Root.((pages:ShowsViewModel)DataContext).OpenTaskCommand}" CommandParameter="{Binding}">
+                          <Border Classes="row" Margin="0,0,0,2">
+                            <Grid ColumnDefinitions="*,Auto">
+                              <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes.done="{Binding IsCompleted}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Classes="small" Text="{Binding DueText}" Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+                              </StackPanel>
+                              <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                <TextBlock Classes="small" Text="{Binding StatusText}" HorizontalAlignment="Right" />
+                                <TextBlock Classes="muted small" Text="{Binding PrimaryName}" HorizontalAlignment="Right" />
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+
+              <!-- History -->
+              <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="h2" Text="History" />
+                  <ItemsControl ItemsSource="{Binding History}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="work:HistoryLine">
+                        <StackPanel Margin="0,0,0,8" Spacing="1">
+                          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                          <TextBlock Classes="muted small" Text="{Binding Meta}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Panel>
+
+    <Border Grid.Column="1" Width="380" IsVisible="{Binding HasSidePanel}" Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,0,0,0">
+      <ContentControl Content="{Binding SidePanel}" />
+    </Border>
+  </Grid>
+</UserControl>

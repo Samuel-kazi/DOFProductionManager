@@ -20,6 +20,10 @@ public interface IApplicationDbContext
     DbSet<WorkTask> Tasks { get; }
     DbSet<TaskAssignment> TaskAssignments { get; }
     DbSet<ActivityLog> ActivityLogs { get; }
+    DbSet<Show> Shows { get; }
+    DbSet<Season> Seasons { get; }
+    DbSet<Episode> Episodes { get; }
+    DbSet<EpisodeAssignment> EpisodeAssignments { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 

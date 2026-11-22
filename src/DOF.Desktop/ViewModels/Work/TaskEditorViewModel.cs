@@ -12,20 +12,37 @@ public sealed partial class TaskEditorViewModel : ObservableObject
     private readonly UserClock _clock;
 
     public TaskEditorViewModel(UserClock clock, IEnumerable<PersonOption> people, IEnumerable<ChoiceOption> projects,
-        bool canAssignOthers, Guid me, TaskResponse? existing, Guid? projectId)
+        IEnumerable<ChoiceOption> episodes, bool canAssignOthers, Guid me, TaskResponse? existing, Guid? projectId,
+        Guid? episodeId = null)
     {
         _clock = clock;
         Existing = existing;
         CanAssignOthers = canAssignOthers;
         Me = me;
         People = new ObservableCollection<PersonOption>(people);
-        Projects = [new ChoiceOption(null, "No project"), .. projects];
+        Links =
+        [
+            WorkLinkOption.None,
+            .. projects.Select(p => new WorkLinkOption(p.Id, null, $"Project · {p.Label}")),
+            .. episodes.Select(e => new WorkLinkOption(null, e.Id, $"Episode · {e.Label}")),
+        ];
 
         Title = existing?.Title ?? string.Empty;
         Description = existing?.Description;
         Priority = existing?.Priority ?? "Normal";
-        var selectedProject = existing?.Project?.Id ?? projectId;
-        SelectedProject = Projects.FirstOrDefault(p => p.Id == selectedProject) ?? Projects[0];
+        var wantedProject = existing is null ? projectId : existing.Project?.Id;
+        var wantedEpisode = existing is null ? episodeId : existing.Episode?.Id;
+        // A linked record that is no longer offered (archived project, cancelled episode) stays selectable.
+        if (wantedProject is { } p && Links.All(l => l.ProjectId != p) && existing?.Project is { } project)
+        {
+            Links.Add(new WorkLinkOption(project.Id, null, $"Project · {project.Name}"));
+        }
+        if (wantedEpisode is { } ep && Links.All(l => l.EpisodeId != ep) && existing?.Episode is { } episode)
+        {
+            Links.Add(new WorkLinkOption(null, episode.Id, $"Episode · {episode.ShowName} {episode.Code}: {episode.Title}"));
+        }
+        SelectedLink = Links.FirstOrDefault(l => wantedEpisode is not null ? l.EpisodeId == wantedEpisode
+                           : wantedProject is not null && l.ProjectId == wantedProject) ?? WorkLinkOption.None;
 
         if (existing?.DueAt is { } due)
         {
@@ -66,13 +83,16 @@ public sealed partial class TaskEditorViewModel : ObservableObject
     public bool CanAssignOthers { get; }
     public Guid Me { get; }
     public IReadOnlyList<string> Priorities => CalendarValues.Priorities;
-    public IReadOnlyList<ChoiceOption> Projects { get; }
+    public List<WorkLinkOption> Links { get; }
     public ObservableCollection<PersonOption> People { get; }
 
     [ObservableProperty] public partial string Title { get; set; }
     [ObservableProperty] public partial string? Description { get; set; }
     [ObservableProperty] public partial string Priority { get; set; }
-    [ObservableProperty] public partial ChoiceOption SelectedProject { get; set; }
+    [ObservableProperty] public partial WorkLinkOption SelectedLink { get; set; }
+
+    public Guid? ProjectId => SelectedLink?.ProjectId;
+    public Guid? EpisodeId => SelectedLink?.EpisodeId;
     [ObservableProperty] public partial bool HasDueDate { get; set; }
     [ObservableProperty] public partial DateTime? DueDate { get; set; }
     [ObservableProperty] public partial TimeSpan? DueTime { get; set; }

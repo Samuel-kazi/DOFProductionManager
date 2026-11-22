@@ -20,6 +20,14 @@ public static class CalendarValues
     /// <summary>Item event types contributed by sources other than standalone events.</summary>
     public const string MilestoneItem = "Milestone";
     public const string TaskDeadlineItem = "TaskDeadline";
+    public const string RecordingItem = "Recording";
+    public const string EditingDeadlineItem = "EditingDeadline";
+    public const string ReviewDeadlineItem = "ReviewDeadline";
+    public const string ApprovalDeadlineItem = "ApprovalDeadline";
+
+    /// <summary>The episode items: a timed recording session plus all-day production deadlines.</summary>
+    public static readonly IReadOnlyList<string> EpisodeItems =
+        [RecordingItem, EditingDeadlineItem, ReviewDeadlineItem, ApprovalDeadlineItem];
 
     public const string Cancelled = "Cancelled";
 }

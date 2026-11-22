@@ -17,13 +17,17 @@ public sealed class WorkReaders(
     public DateTimeOffset Now => clock.GetUtcNow();
 
     /// <summary>Today in the organisation's timezone (milestone due dates are calendar dates).</summary>
-    public DateOnly Today => ZonedTime.LocalDate(Now, ZonedTime.Find(organisation.Value.DefaultTimeZone));
+    public DateOnly Today => ZonedTime.LocalDate(Now, OrganisationZone);
+
+    public TimeZoneInfo OrganisationZone => ZonedTime.Find(organisation.Value.DefaultTimeZone);
 
     public async Task<List<TaskResponse>> TasksAsync(IQueryable<WorkTask> query, CancellationToken ct)
     {
         var tasks = await query.AsNoTracking()
             .Include(t => t.Assignments).ThenInclude(a => a.User)
             .Include(t => t.Project)
+            .Include(t => t.Episode).ThenInclude(e => e!.Show)
+            .Include(t => t.Episode).ThenInclude(e => e!.Season)
             .ToListAsync(ct);
 
         var names = await NamesAsync(tasks.SelectMany(t => new[] { t.CreatedBy, t.CompletedBy }), ct);
@@ -36,8 +40,12 @@ public sealed class WorkReaders(
                 .Select(a => new TaskAssigneeResponse(a.UserId, a.User.FullName, a.IsPrimary))],
             Summary(t.CreatedBy, names), t.CompletedAt, Summary(t.CompletedBy, names),
             t.IsOverdue(now), t.CreatedAt, t.UpdatedAt, t.Version,
-            access.CanEditTask(t.CreatedBy, t.Assignments.Select(a => a.UserId)))).ToList();
+            access.CanEditTask(t.CreatedBy, t.Assignments.Select(a => a.UserId)),
+            t.Episode is null ? null : EpisodeRef(t.Episode))).ToList();
     }
+
+    public static EpisodeRefResponse EpisodeRef(Episode e) =>
+        new(e.Id, e.Title, e.ShowId, e.Show.Name, Episode.Code(e.Season?.SeasonNumber, e.EpisodeNumber));
 
     public async Task<TaskResponse?> TaskAsync(Guid id, CancellationToken ct) =>
         (await TasksAsync(db.Tasks.Where(t => t.Id == id), ct)).SingleOrDefault();

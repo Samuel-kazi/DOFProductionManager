@@ -15,6 +15,9 @@ public static class WorkLabels
         _ => value,
     };
 
+    public static string? EpisodeName(EpisodeRefResponse? e) =>
+        e is null ? null : $"{e.ShowName} {e.Code}".TrimEnd() + $": {e.Title}";
+
     public static string ProjectType(string value) => value switch
     {
         "ShowProduction" => "Show production",

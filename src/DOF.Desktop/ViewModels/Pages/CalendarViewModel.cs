@@ -7,6 +7,7 @@ using DOF.Contracts.Responses;
 using DOF.Desktop.Services;
 using DOF.Desktop.Services.Api;
 using DOF.Desktop.ViewModels.Calendar;
+using DOF.Desktop.ViewModels.Shows;
 
 namespace DOF.Desktop.ViewModels.Pages;
 
@@ -30,6 +31,7 @@ public sealed partial class CalendarViewModel : PageViewModel
         _clock = clock;
         AnchorDate = clock.Today;
         EventTypeFilters = [.. CalendarValues.EventTypes.Append(CalendarValues.MilestoneItem).Append(CalendarValues.TaskDeadlineItem)
+            .Concat(CalendarValues.EpisodeItems)
             .Select(t => new FilterOption(t, CalendarLabels.Humanize(t)))];
         PriorityFilters = [.. CalendarValues.Priorities.Select(p => new FilterOption(p, p))];
         foreach (var option in EventTypeFilters.Concat(PriorityFilters))
@@ -419,11 +421,25 @@ public sealed partial class CalendarViewModel : PageViewModel
                 var t = await _api.GetAsync<TaskResponse>($"api/v1/tasks/{item.Item.SourceId}");
                 await _api.PutAsync<TaskResponse>($"api/v1/tasks/{t.Id}", new UpdateTaskRequest(
                     t.Title, t.Description, t.Project?.Id, _clock.FromLocal(newLocalStart), t.Priority,
-                    [.. t.Assignees.Select(a => a.UserId)], t.Assignees.FirstOrDefault(a => a.IsPrimary)?.UserId, t.Version));
+                    [.. t.Assignees.Select(a => a.UserId)], t.Assignees.FirstOrDefault(a => a.IsPrimary)?.UserId, t.Version,
+                    t.Episode?.Id));
                 AppLog.Info($"Rescheduled task {t.Id}");
             });
             await LoadAsync();
             return movedTask;
+        }
+
+        if (item.Item.SourceType == "Episode")
+        {
+            var movedEpisode = await RunAsync(async () =>
+            {
+                var e = await _api.GetAsync<EpisodeResponse>($"api/v1/episodes/{item.Item.SourceId}");
+                await _api.PutAsync<EpisodeResponse>($"api/v1/episodes/{e.Id}", EpisodeMove.Apply(e, item.Item.EventType,
+                    newLocalStart, _clock));
+                AppLog.Info($"Rescheduled {item.Item.EventType} of episode {e.Id}");
+            });
+            await LoadAsync();
+            return movedEpisode;
         }
 
         var moved = await RunAsync(async () =>

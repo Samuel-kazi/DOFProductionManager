@@ -34,8 +34,8 @@ public sealed class CalendarItemViewModel
     public string AssigneeNames { get; }
     public bool HasNoOwner => Item.AssignedUsers.Count == 0;
 
-    /// <summary>Only records the calendar itself owns can be dragged here; others reschedule in their own screens.</summary>
-    public bool CanReschedule => Item.CanEdit && !IsCancelled && Item.SourceType is "CalendarEvent" or "Milestone" or "Task";
+    /// <summary>Dragging changes the original record (event, milestone, task, or an episode's recording or deadline).</summary>
+    public bool CanReschedule => Item.CanEdit && !IsCancelled && Item.SourceType is "CalendarEvent" or "Milestone" or "Task" or "Episode";
 
     /// <summary>Spans whole days (all-day, or 24 hours or more) and so belongs in the all-day row.</summary>
     public bool IsDayLong => IsAllDay || End - Start >= TimeSpan.FromHours(24);

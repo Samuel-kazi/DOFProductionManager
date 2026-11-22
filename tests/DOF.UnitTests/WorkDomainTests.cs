@@ -8,7 +8,7 @@ public class WorkDomainTests
 {
     private static readonly DateTimeOffset Now = new(2033, 1, 3, 9, 0, 0, TimeSpan.Zero);
 
-    private static WorkTask NewTask() => WorkTask.Create("Edit", null, null, Now.AddDays(1), Priority.Normal);
+    private static WorkTask NewTask() => WorkTask.Create("Edit", null, null, null, Now.AddDays(1), Priority.Normal);
 
     [Fact]
     public void Tasks_always_have_exactly_one_primary_assignee()
