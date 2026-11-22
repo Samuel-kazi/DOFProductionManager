@@ -28,7 +28,10 @@ dotnet ef database update --project src/DOF.Infrastructure --startup-project src
 - Calendar: never copy a date into `calendar_events`. A record type that owns dates adds an `ICalendarSource`
   (register it in `Application/DependencyInjection.cs`, add its type to `CalendarValues.SourceTypes`) and the
   shell's `OpenRecordAsync` learns to open it.
+- Record important changes with `ActivityRecorder` in the same unit of work. `activity_logs` is append-only (DB trigger).
+- Permission checks for projects, milestones and tasks live in `WorkAccess`; never rely on the desktop hiding buttons.
 - Desktop: new pages derive from `PageViewModel`, call the API only through `ApiClient`, and get a
   `DataTemplate` in `App.axaml`. Use theme tokens (`Brush.*`), never hard-coded colours.
 - Desktop UI tests: wrap test bodies with `OnUiThread` (it uses the `Func<Task<T>>` Dispatch overload
-  so the test is actually awaited). Review the screenshots in `ui-snapshots/` after UI changes.
+  so the test is actually awaited, with a 90 s limit). Review the screenshots in `ui-snapshots/` after UI changes.
+- A UI test that seems to hang the run is usually an unclosed window or a picker feedback loop, not a slow test.

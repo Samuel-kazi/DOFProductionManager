@@ -48,15 +48,25 @@ public sealed record CalendarEventResponse(
     int Version,
     bool CanEdit);
 
+/// <summary>
+/// The signed-in user's day: today's calendar, upcoming items assigned to them, their open tasks, and
+/// tasks they created that are waiting for their review.
+/// </summary>
 public sealed record PersonalDashboardResponse(
     DateOnly Today,
     string TimeZone,
     IReadOnlyList<CalendarItemResponse> TodaySchedule,
-    IReadOnlyList<CalendarItemResponse> Upcoming);
+    IReadOnlyList<CalendarItemResponse> Upcoming,
+    IReadOnlyList<TaskResponse> MyTasks,
+    IReadOnlyList<TaskResponse> PendingReviews);
 
 public sealed record ManagementDashboardResponse(
     DateTimeOffset Start,
     DateTimeOffset End,
     string TimeZone,
     IReadOnlyList<CalendarItemResponse> UpcomingActivities,
-    IReadOnlyList<CalendarItemResponse> Unassigned);
+    IReadOnlyList<CalendarItemResponse> Unassigned,
+    IReadOnlyList<ProjectSummaryResponse> ActiveProjects,
+    IReadOnlyList<MilestoneResponse> UpcomingMilestones,
+    OverdueResponse Overdue,
+    IReadOnlyList<WorkloadSummaryResponse> TeamWorkload);

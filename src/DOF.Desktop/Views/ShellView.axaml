@@ -79,12 +79,14 @@
           </TextBox>
 
           <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
-            <Button Classes="toolbar" ToolTip.Tip="Quick create" IsEnabled="{Binding CanCreateEvents}">
+            <Button Classes="toolbar" ToolTip.Tip="Quick create">
               <Path Classes="icon" Data="{StaticResource Icon.Plus}" />
               <Button.Flyout>
                 <MenuFlyout Placement="BottomEdgeAlignedRight">
+                  <MenuItem Header="New task" Command="{Binding CreateTaskCommand}" CommandParameter="{x:Null}" />
                   <MenuItem Header="New event" Command="{Binding CreateEventCommand}" CommandParameter="{x:Null}" />
-                  <MenuItem Header="New project, task, episode… (coming in Phases 4–6)" IsEnabled="False" />
+                  <MenuItem Header="New project" Command="{Binding CreateProjectCommand}" />
+                  <MenuItem Header="New show or episode (coming in Phase 5)" IsEnabled="False" />
                 </MenuFlyout>
               </Button.Flyout>
             </Button>

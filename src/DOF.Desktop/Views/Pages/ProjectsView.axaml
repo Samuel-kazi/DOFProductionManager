@@ -1,0 +1,231 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:responses="using:DOF.Contracts.Responses"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:workViews="using:DOF.Desktop.Views.Work"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Pages.ProjectsView"
+             x:DataType="pages:ProjectsViewModel"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="work:ProjectEditorViewModel"><workViews:ProjectEditorView /></DataTemplate>
+    <DataTemplate DataType="work:MilestoneEditorViewModel"><workViews:MilestoneEditorView /></DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Grid ColumnDefinitions="*,Auto">
+    <Panel Margin="24,16,24,12">
+
+      <!-- LIST -->
+      <DockPanel IsVisible="{Binding ShowingList}">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Margin="0,0,0,12">
+          <TextBox Text="{Binding SearchText}" PlaceholderText="Search projects" Width="240">
+            <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" /></TextBox.KeyBindings>
+          </TextBox>
+          <CheckBox Grid.Column="1" Content="Only mine" IsChecked="{Binding OnlyMine}" Margin="16,0,0,0" />
+          <CheckBox Grid.Column="2" Content="Include archived" IsChecked="{Binding IncludeArchived}" Margin="16,0,0,0" />
+          <Button Grid.Column="4" Classes="accent" Content="New project" Command="{Binding NewProjectCommand}"
+                  IsVisible="{Binding CanCreate}" />
+        </Grid>
+        <pageViews:PageStatus DockPanel.Dock="Top" Margin="0,0,0,8" />
+        <Panel>
+          <TextBlock Classes="muted" Text="No projects yet." IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" Margin="0,40" />
+          <ScrollViewer>
+            <ItemsControl ItemsSource="{Binding Projects}" Margin="0,0,14,0">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="pages:ProjectCardViewModel">
+                  <Button Classes="toolbar" Padding="0" Margin="0,0,12,12" Width="330" HorizontalContentAlignment="Stretch"
+                          Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).OpenCardCommand}" CommandParameter="{Binding}">
+                    <Border Classes="card" Padding="16" Height="150">
+                      <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Spacing="4">
+                          <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                            <TextBlock Classes="small" Text="{Binding StatusText}" />
+                            <TextBlock Classes="muted small" Text="{Binding TypeText, StringFormat='· {0}'}" />
+                          </StackPanel>
+                          <TextBlock Classes="h2" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                          <TextBlock Classes="muted small" Text="{Binding ManagerText}" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Spacing="3">
+                          <TextBlock Classes="small muted" Text="{Binding NextMilestoneText}" TextTrimming="CharacterEllipsis" />
+                          <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Classes="small" Text="{Binding OpenTasksText}" />
+                            <TextBlock Classes="small overdue" Text="{Binding OverdueText}" IsVisible="{Binding HasOverdue}" />
+                          </StackPanel>
+                        </StackPanel>
+                        <Panel />
+                      </DockPanel>
+                    </Border>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Panel>
+      </DockPanel>
+
+      <!-- DETAIL -->
+      <DockPanel IsVisible="{Binding ShowingDetail}">
+        <StackPanel DockPanel.Dock="Top" Spacing="10" Margin="0,0,0,12">
+          <Button Classes="toolbar" Content="‹ All projects" Command="{Binding BackToListCommand}" HorizontalAlignment="Left" Padding="4,2" />
+          <pageViews:PageStatus />
+        </StackPanel>
+        <ScrollViewer>
+          <StackPanel Spacing="16" Margin="0,0,14,0" DataContext="{Binding Detail}" x:DataType="work:ProjectDetailViewModel">
+            <Border Classes="card">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="h1" Text="{Binding Name}" TextWrapping="Wrap" />
+                  <TextBlock Classes="muted" Text="{Binding TypeText}" />
+                  <StackPanel Orientation="Horizontal" Spacing="16">
+                    <TextBlock Text="{Binding ManagerText, StringFormat='Manager: {0}'}" />
+                    <TextBlock Classes="muted" Text="{Binding DatesText}" />
+                    <TextBlock Classes="muted" Text="{Binding PriorityText}" />
+                  </StackPanel>
+                  <TextBlock Classes="muted" Text="{Binding Description}" TextWrapping="Wrap"
+                             IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8" HorizontalAlignment="Right">
+                  <ComboBox ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding SelectedStatus}" IsEnabled="{Binding CanEditStatus}" Width="170">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" /></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Content="Edit project" HorizontalAlignment="Stretch" IsVisible="{Binding CanEdit}"
+                          Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).EditProjectCommand}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="*,16,*">
+              <!-- Milestones -->
+              <Border Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="h2" Text="Milestones" />
+                    <Button Grid.Column="1" Content="Add milestone" IsVisible="{Binding CanAddWork}"
+                            Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).NewMilestoneCommand}" />
+                  </Grid>
+                  <TextBlock Classes="muted" Text="No milestones yet." IsVisible="{Binding HasNoMilestones}" />
+                  <ItemsControl ItemsSource="{Binding Milestones}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="work:MilestoneItemViewModel">
+                        <Border Classes="row">
+                          <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Button Classes="toolbar" Padding="2" ToolTip.Tip="Mark complete" IsEnabled="{Binding CanEdit}"
+                                    Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).CompleteMilestoneCommand}" CommandParameter="{Binding}">
+                              <CheckBox IsChecked="{Binding IsCompleted, Mode=OneWay}" IsHitTestVisible="False" />
+                            </Button>
+                            <Button Grid.Column="1" Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="4,2"
+                                    Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).OpenMilestoneCommand}" CommandParameter="{Binding}">
+                              <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes.done="{Binding IsCompleted}" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                  <TextBlock Classes="small" Text="{Binding DueText}" Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+                                  <TextBlock Classes="muted small" Text="{Binding AssigneeText}" />
+                                </StackPanel>
+                              </StackPanel>
+                            </Button>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                              <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                              <TextBlock Classes="small" Text="{Binding StatusText}" />
+                            </StackPanel>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+
+              <!-- Tasks -->
+              <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="h2" Text="Tasks" />
+                    <Button Grid.Column="1" Content="Add task" IsVisible="{Binding !IsArchived}"
+                            Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).NewTaskCommand}" />
+                  </Grid>
+                  <TextBlock Classes="muted" Text="No tasks yet." IsVisible="{Binding HasNoTasks}" />
+                  <ItemsControl ItemsSource="{Binding Tasks}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="work:TaskItemViewModel">
+                        <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0"
+                                Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).OpenTaskCommand}" CommandParameter="{Binding}">
+                          <Border Classes="row" Margin="0,0,0,2">
+                            <Grid ColumnDefinitions="*,Auto">
+                              <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes.done="{Binding IsCompleted}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Classes="small" Text="{Binding DueText}" Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+                              </StackPanel>
+                              <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Right">
+                                <TextBlock Classes="small" Text="{Binding StatusText}" HorizontalAlignment="Right" />
+                                <TextBlock Classes="muted small" Text="{Binding PrimaryName}" HorizontalAlignment="Right" />
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,16,*">
+              <!-- Members -->
+              <Border Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="h2" Text="Members" />
+                  <ItemsControl ItemsSource="{Binding Members}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="responses:ProjectMemberResponse">
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
+                          <TextBlock Text="{Binding FullName}" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="1" Classes="muted small" Text="{Binding ProjectRole}" VerticalAlignment="Center" Margin="12,0" />
+                          <Button Grid.Column="2" Classes="toolbar" Content="✕" Padding="6,2" ToolTip.Tip="Remove from project"
+                                  IsVisible="{Binding #Root.((pages:ProjectsViewModel)DataContext).Detail.CanAddWork, FallbackValue=False}"
+                                  Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).RemoveMemberCommand}" CommandParameter="{Binding}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Grid ColumnDefinitions="*,8,120,8,Auto" IsVisible="{Binding CanAddWork}">
+                    <ComboBox ItemsSource="{Binding NonMembers}" SelectedItem="{Binding NewMember}" PlaceholderText="Add a person" HorizontalAlignment="Stretch" />
+                    <TextBox Grid.Column="2" Text="{Binding NewMemberRole}" PlaceholderText="Role" />
+                    <Button Grid.Column="4" Content="Add" Command="{Binding #Root.((pages:ProjectsViewModel)DataContext).AddMemberCommand}" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <!-- History -->
+              <Border Grid.Column="2" Classes="card" VerticalAlignment="Top">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="h2" Text="History" />
+                  <ItemsControl ItemsSource="{Binding History}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="work:HistoryLine">
+                        <StackPanel Margin="0,0,0,8" Spacing="1">
+                          <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+                          <TextBlock Classes="muted small" Text="{Binding Meta}" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Panel>
+
+    <Border Grid.Column="1" Width="380" IsVisible="{Binding HasSidePanel}" Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,0,0,0">
+      <ContentControl Content="{Binding SidePanel}" />
+    </Border>
+  </Grid>
+</UserControl>

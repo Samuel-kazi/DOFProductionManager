@@ -40,6 +40,40 @@ access token as `Authorization: Bearer <token>`.
 | GET | `/api/v1/dashboard/management` | `reports.view` | Upcoming activities and unassigned ones; optional `start`/`end` dates (≤ 60 days) |
 | GET | `/api/v1/dashboard/upcoming` | Signed in | Next `days` (1–60, default 7); `mine=true` for mine only |
 
+| GET | `/api/v1/projects` | Signed in | Paged summaries; `search`, `statuses`, `projectType`, `managerId`, `memberId`, `includeArchived` |
+| POST | `/api/v1/projects` | `projects.create` | Create → 201; the manager becomes a member |
+| GET | `/api/v1/projects/{id}` | Signed in | Detail with members and milestones, `canEdit`, `canArchive` |
+| PUT | `/api/v1/projects/{id}` | edit rights¹ | Update; requires `version` |
+| PATCH | `/api/v1/projects/{id}/status` | edit rights¹ (archive/restore: `projects.archive`) | `{status, version?}` |
+| GET | `/api/v1/projects/{id}/timeline` | Signed in | Milestones, tasks and full history of the project and its work |
+| POST | `/api/v1/projects/{id}/members` | edit rights¹ | `{userId, projectRole}`; adds or changes role |
+| DELETE | `/api/v1/projects/{id}/members/{userId}` | edit rights¹ | Remove (not the manager) |
+| GET / POST | `/api/v1/projects/{id}/milestones` | Signed in / edit rights¹ | List / create → 201 |
+| GET | `/api/v1/milestones/{id}` | Signed in | Milestone |
+| PUT | `/api/v1/milestones/{id}` | edit rights¹ or assignee | Update incl. due date and status; requires `version` |
+| PATCH | `/api/v1/milestones/{id}/complete` | edit rights¹ or assignee | Complete |
+| GET | `/api/v1/tasks` | Signed in | Paged; `assigneeId`, `createdById`, `assignedByMe`, `projectId`, `statuses`, `open`, `overdue`, `search` |
+| GET | `/api/v1/tasks/my-tasks` | Signed in | My open tasks |
+| GET | `/api/v1/tasks/overdue` | Signed in | Open tasks past due; `mine=true` |
+| POST | `/api/v1/tasks` | Signed in² | Create → 201 |
+| GET | `/api/v1/tasks/{id}` | Signed in | Task with assignees, `isOverdue`, `canEdit` |
+| PUT | `/api/v1/tasks/{id}` | task editors³ | Update incl. due date and assignees; requires `version` |
+| PATCH | `/api/v1/tasks/{id}/status` | task editors³ | `{status, version?}`; Completed records who/when |
+| POST | `/api/v1/tasks/{id}/assignments` | task editors³ ² | `{userId, isPrimary}` |
+| DELETE | `/api/v1/tasks/{id}/assignments/{userId}` | task editors³ ² | Remove an assignee (not the last) |
+| GET | `/api/v1/tasks/{id}/history` | Signed in | History, newest first |
+| GET | `/api/v1/dashboard/overdue` | Signed in | Overdue tasks and milestones; `mine=true` |
+| GET | `/api/v1/users/{id}/workload` | Signed in | Counts, open tasks and open milestones |
+
+¹ `projects.edit` or the project's manager. ² Assigning anyone other than yourself needs `tasks.assign`.
+³ The task's creator, its assignees, or `tasks.assign` holders.
+
+The personal dashboard now also returns `myTasks` and `pendingReviews` (tasks you created that await
+review). The management dashboard adds `activeProjects`, `upcomingMilestones` (14 days), `overdue` and
+`teamWorkload`. Calendar items from milestones have `sourceType: "Milestone"`, `eventType: "Milestone"`
+and are all-day. Task deadlines have `sourceType: "Task"`, `eventType: "TaskDeadline"`, no `endAt`, and
+the project name in `location`.
+
 **Calendar filters** (all optional, repeatable where plural): `eventTypes`, `sourceTypes`, `statuses`,
 `priorities`, `assignedUserId`, `projectId`, `showId`, `includeCancelled`, and `timeZone` (IANA, for the
 day/week/month/agenda boundaries).
@@ -52,4 +86,4 @@ Status codes: 400 validation, 401 not signed in / bad credentials, 403 missing p
 404 not found, 409 duplicate or stale `version`, 422 business rule (e.g. last Administrator),
 429 rate limit.
 
-Not yet implemented: `GET /users/{id}/workload` and `GET /dashboard/overdue` (need tasks and milestones, Phase 4).
+All endpoints listed in the specification for Phases 1–4 are implemented.

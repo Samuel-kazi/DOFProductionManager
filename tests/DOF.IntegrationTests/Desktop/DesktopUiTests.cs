@@ -65,9 +65,9 @@ public class DesktopUiTests(DofApiFactory factory, HeadlessSession headless)
         Assert.Single(Find<TeamView>(window));
         Snapshot(window, "03-team");
 
-        await shell.NavigateCommand.ExecuteAsync(shell.PrimaryItems.Single(i => i.Title == "Projects"));
+        await shell.NavigateCommand.ExecuteAsync(shell.PrimaryItems.Single(i => i.Title == "Shows & Episodes"));
         Assert.IsType<PlaceholderPageViewModel>(shell.CurrentPage);
-        Snapshot(window, "04-projects-placeholder");
+        Snapshot(window, "04-shows-placeholder");
 
         await shell.OpenSettingsCommand.ExecuteAsync(null);
         Assert.IsType<SettingsViewModel>(shell.CurrentPage);

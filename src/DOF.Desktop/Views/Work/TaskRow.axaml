@@ -1,0 +1,32 @@
+<!-- One task in a list: tick to complete, click to open. Commands come from the hosting page. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Work.TaskRow"
+             x:DataType="work:TaskItemViewModel">
+  <Border Classes="row">
+    <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+      <CheckBox x:Name="Done" IsChecked="{Binding IsCompleted, Mode=OneWay}" IsEnabled="{Binding CanEdit}"
+                ToolTip.Tip="Mark complete" VerticalAlignment="Center" Click="OnDoneClick" />
+      <Button Grid.Column="1" Classes="toolbar" Padding="4,2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+              Click="OnOpenClick">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Classes.done="{Binding IsCompleted}" TextTrimming="CharacterEllipsis" />
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Classes="small" Text="{Binding DueText}" Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+            <TextBlock Classes="muted small" Text="{Binding ProjectName}"
+                       IsVisible="{Binding ProjectName, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <TextBlock Classes="small" Text="{Binding Priority, StringFormat='{}{0} priority'}" IsVisible="{Binding IsHighPriority}"
+                       Foreground="{DynamicResource Brush.Accent}" />
+          </StackPanel>
+        </StackPanel>
+      </Button>
+      <TextBlock Grid.Column="2" Classes="muted small" Text="{Binding PrimaryName}" VerticalAlignment="Center" Margin="12,0"
+                 MaxWidth="180" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AssigneesText}" />
+      <Border Grid.Column="3" Classes="statusDot" Margin="0,0,6,0"
+              Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+      <TextBlock Grid.Column="4" Classes="small" Text="{Binding StatusText}" VerticalAlignment="Center" Width="110" />
+    </Grid>
+  </Border>
+</UserControl>

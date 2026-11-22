@@ -22,11 +22,18 @@ internal static class Ui
     {
         await test();
         return true;
-    }, Ct);
+    }, Ct).WaitAsync(TestTimeout, Ct); // a stuck UI thread fails the test instead of hanging the whole run
+
+    public static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(90);
+
+    /// <summary>Windows opened by tests; closed at the end of the run if a test didn't.</summary>
+    public static List<Window> OpenWindows { get; } = [];
 
     public static MainWindow Show(MainWindowViewModel main)
     {
         var window = new MainWindow { DataContext = main, Width = 1280, Height = 800 };
+        window.Closed += (_, _) => OpenWindows.Remove(window);
+        OpenWindows.Add(window);
         window.Show();
         return window;
     }

@@ -23,6 +23,11 @@ public sealed class DashboardController(DashboardService dashboard) : Controller
         [FromQuery] DateOnly? start, [FromQuery] DateOnly? end, [FromQuery] string? timeZone, CancellationToken ct) =>
         ApiResponse<ManagementDashboardResponse>.Ok(await dashboard.GetManagementAsync(start, end, timeZone, ct));
 
+    /// <summary>Open tasks past due and open milestones past their date; <c>mine=true</c> for the signed-in user's only.</summary>
+    [HttpGet("overdue")]
+    public async Task<ApiResponse<OverdueResponse>> Overdue([FromQuery] bool mine, CancellationToken ct) =>
+        ApiResponse<OverdueResponse>.Ok(await dashboard.GetOverdueAsync(mine, ct));
+
     /// <summary>Upcoming items for the next <paramref name="days"/> days (default 7); <paramref name="mine"/> limits to the user's.</summary>
     [HttpGet("upcoming")]
     public async Task<ApiResponse<CalendarRangeResponse>> Upcoming(

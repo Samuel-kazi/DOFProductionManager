@@ -12,6 +12,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `InitialBaseline` | 0 | Establishes the migration history. No tables. |
 | `AddIdentityAndPermissions` | 1 | Adds `users`, `roles`, `user_roles`, `permissions`, `role_permissions`, `refresh_tokens`. Additive only. |
 | `AddCalendarEvents` | 3 | Adds `calendar_events`, `calendar_event_assignments`. Additive only. |
+| `AddProjectsTasksAndActivity` | 4 | Adds `projects`, `project_members`, `project_milestones`, `tasks`, `task_assignments`, `activity_logs`, and the append-only trigger on `activity_logs`. Additive only. |
 
 ## Tables
 
@@ -72,3 +73,35 @@ Standalone events only. Dates owned by episodes, milestones, tasks and releases 
 ### calendar_event_assignments
 `calendar_event_id → calendar_events (cascade)`, `user_id → users (restrict)`, `assignment_type varchar(30)`
 (Organizer, Attendee); unique `(calendar_event_id, user_id)`; indexed on `user_id`.
+
+### projects
+`name varchar(200)`, `description text null`, `project_type varchar(50)` (Documentary, ShowProduction,
+Conference, Campaign, MusicProduction, Partnership, Other), `status varchar(40)` (Proposed, Approved,
+Planning, Active, OnHold, Completed, Archived; indexed), `priority varchar(20)`, `manager_id → users
+(restrict; indexed)`, `start_date` / `target_end_date date null`, `completed_at` / `archived_at
+timestamptz null`, `created_by` / `updated_by`, `version`.
+
+### project_members
+`project_id → projects (cascade)`, `user_id → users (restrict)`, `project_role varchar(60)`,
+`joined_at timestamptz`; unique `(project_id, user_id)`.
+
+### project_milestones
+`project_id → projects (restrict)`, `title varchar(200)`, `description text null`, `due_date date`
+(indexed), `status varchar(40)` (NotStarted, InProgress, AwaitingReview, Completed, Blocked, Cancelled),
+`priority varchar(20)`, `assigned_to → users null (restrict; indexed)`, `completed_at`, `created_by` /
+`updated_by`, `version`.
+
+### tasks
+`title varchar(200)`, `description text null`, `project_id → projects null (restrict; indexed)`,
+`due_at timestamptz null` (indexed), `priority varchar(20)`, `status varchar(40)` (as milestones;
+indexed), `completed_at`, `completed_by → users null`, `created_by` / `updated_by`, `version`.
+(`episode_id` arrives with episodes in Phase 5.)
+
+### task_assignments
+`task_id → tasks (cascade)`, `user_id → users (restrict; indexed)`, `assigned_at`, `is_primary boolean`;
+unique `(task_id, user_id)`. Exactly one primary per task (enforced by the domain).
+
+### activity_logs
+`user_id → users null (restrict)`, `entity_type varchar(40)`, `entity_id uuid`, `action varchar(40)`,
+`old_values` / `new_values jsonb null`, `created_at`. Index `(entity_type, entity_id, created_at)` and
+`(created_at)`. **Trigger `activity_logs_append_only`** rejects `UPDATE` and `DELETE`.

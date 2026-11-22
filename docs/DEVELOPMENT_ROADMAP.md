@@ -9,7 +9,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | 1 | Authentication and users | ✅ Complete (2026-11-22) |
 | 2 | Desktop foundation | ✅ Complete (2026-11-22) |
 | 3 | Dashboard and calendar | ✅ Complete (2026-11-22) |
-| 4 | Tasks and projects | Not started |
+| 4 | Tasks and projects | ✅ Complete (2026-11-22) |
 | 5 | Shows and episodes | Not started |
 | 6 | Release management | Not started |
 | 7 | Reminder engine | Not started |
@@ -94,6 +94,23 @@ Deferred / open:
 - Global search: still disabled; scheduled for when projects, episodes and tasks exist.
 - Category colours resolve when a page is built, so a theme change applies on the next visit to the page.
 - Milestones, tasks, episodes and releases plug into the calendar as `ICalendarSource`s in Phases 4–6.
+
+## Phase 4 — Tasks and projects ✅
+
+| Acceptance criterion | Evidence |
+|---|---|
+| Assigned tasks appear in personal dashboards | API test (`MyTasks`) and UI test (dashboard "My tasks", tick to complete) |
+| Milestones appear on the calendar | `MilestoneCalendarSource`; API test checks all-day placement, filters and moving without duplication; UI test opens and drags milestones and task deadlines |
+| Completed records preserve history | Completion stamps who/when; reopening clears them while history keeps every step (API and UI tests). The activity log is append-only, enforced by a database trigger (test proves UPDATE/DELETE are rejected) |
+
+Also delivered: project members and roles, project timelines, task lists for each view plus board,
+assignment rules, overdue lists, team workload, `/users/{id}/workload`, and history for calendar,
+user and role changes. 140 automated tests pass.
+
+Deferred / open:
+- Tasks linked to episodes (`episode_id`): Phase 5.
+- Overdue *notifications* and escalation: Phase 7 (background jobs). Overdue *lists* exist now.
+- Global search remains disabled.
 
 ## Supporting documents
 

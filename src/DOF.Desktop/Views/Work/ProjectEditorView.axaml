@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Work.ProjectEditorView"
+             x:DataType="work:ProjectEditorViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="20,16,12,8">
+      <TextBlock Classes="h2" Text="{Binding Heading}" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Classes="toolbar" Content="✕" ToolTip.Tip="Close without saving"
+              Command="{Binding $parent[pageViews:ProjectsView].((pages:ProjectsViewModel)DataContext).CloseSidePanelCommand}" />
+    </Grid>
+    <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,20" Spacing="10">
+      <Border Classes="banner error" IsVisible="{Binding HasError}"><TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" /></Border>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Classes="accent" Content="Save" IsDefault="True"
+                Command="{Binding $parent[pageViews:ProjectsView].((pages:ProjectsViewModel)DataContext).SaveProjectCommand}" CommandParameter="{Binding}" />
+        <Button Content="Discard" Command="{Binding $parent[pageViews:ProjectsView].((pages:ProjectsViewModel)DataContext).CloseSidePanelCommand}" />
+      </StackPanel>
+    </StackPanel>
+    <ScrollViewer>
+      <StackPanel Margin="20,0,20,8" Spacing="12">
+        <StackPanel Spacing="4"><TextBlock Text="Name" /><TextBox Text="{Binding Name}" PlaceholderText="e.g. Heritage documentary" /></StackPanel>
+        <Grid ColumnDefinitions="*,12,*">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Type" />
+            <ComboBox ItemsSource="{Binding ProjectTypes}" SelectedItem="{Binding ProjectType}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="4">
+            <TextBlock Text="Priority" />
+            <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding Priority}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Project manager" />
+          <ComboBox ItemsSource="{Binding Managers}" SelectedItem="{Binding SelectedManager}" HorizontalAlignment="Stretch" />
+        </StackPanel>
+        <Grid ColumnDefinitions="*,12,*">
+          <StackPanel Spacing="4"><TextBlock Text="Start" /><CalendarDatePicker SelectedDate="{Binding StartDate}" HorizontalAlignment="Stretch" /></StackPanel>
+          <StackPanel Grid.Column="2" Spacing="4"><TextBlock Text="Target end" /><CalendarDatePicker SelectedDate="{Binding TargetEndDate}" HorizontalAlignment="Stretch" /></StackPanel>
+        </Grid>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Description" />
+          <TextBox Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

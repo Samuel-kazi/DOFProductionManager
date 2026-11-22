@@ -1,5 +1,6 @@
 using DOF.Application.Common.Abstractions;
 using DOF.Application.Users;
+using DOF.Application.Work;
 using DOF.Contracts.Common;
 using DOF.Contracts.Requests;
 using DOF.Contracts.Responses;
@@ -11,7 +12,7 @@ namespace DOF.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/users")]
-public sealed class UsersController(UserService users, ICurrentUser currentUser) : ControllerBase
+public sealed class UsersController(UserService users, WorkloadService workload, ICurrentUser currentUser) : ControllerBase
 {
     /// <summary>Lists users (any signed-in user, e.g. for assignment pickers).</summary>
     [HttpGet]
@@ -23,6 +24,11 @@ public sealed class UsersController(UserService users, ICurrentUser currentUser)
     [HttpGet("{id:guid}")]
     public async Task<ApiResponse<UserResponse>> Get(Guid id, CancellationToken ct) =>
         ApiResponse<UserResponse>.Ok(await users.GetAsync(id, ct));
+
+    /// <summary>The person's open and overdue tasks and open milestones.</summary>
+    [HttpGet("{id:guid}/workload")]
+    public async Task<ApiResponse<WorkloadResponse>> Workload(Guid id, CancellationToken ct) =>
+        ApiResponse<WorkloadResponse>.Ok(await workload.ForUserAsync(id, ct));
 
     [HttpPost]
     [Authorize(Policy = Permissions.UsersManage)]

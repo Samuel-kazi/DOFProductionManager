@@ -1,0 +1,105 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:workViews="using:DOF.Desktop.Views.Work"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Pages.TasksView"
+             x:DataType="pages:TasksViewModel"
+             x:Name="Root">
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="work:TaskDetailsViewModel"><workViews:TaskDetailsView /></DataTemplate>
+    <DataTemplate DataType="work:TaskEditorViewModel"><workViews:TaskEditorView /></DataTemplate>
+  </UserControl.DataTemplates>
+
+  <Grid ColumnDefinitions="*,Auto">
+    <DockPanel Margin="24,16,24,12">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="0,0,0,12">
+        <ListBox ItemsSource="{Binding Views}" SelectedItem="{Binding SelectedView}" Background="Transparent">
+          <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="pages:TaskViewOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBox Grid.Column="2" Text="{Binding SearchText}" PlaceholderText="Search tasks" Width="200" Margin="0,0,8,0"
+                 IsVisible="{Binding !HasSidePanel}">
+          <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding SearchCommand}" /></TextBox.KeyBindings>
+        </TextBox>
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="0,0,8,0">
+          <ToggleButton Content="List" IsChecked="{Binding IsList, Mode=OneWay}" Command="{Binding ShowListCommand}" CornerRadius="6,0,0,6" />
+          <ToggleButton Content="Board" IsChecked="{Binding IsBoard, Mode=OneWay}" Command="{Binding ShowBoardCommand}" CornerRadius="0,6,6,0" />
+        </StackPanel>
+        <Button Grid.Column="4" Classes="accent" Content="New task" Command="{Binding NewTaskCommand}" CommandParameter="{x:Null}"
+                IsVisible="{Binding !HasSidePanel}" />
+      </Grid>
+
+      <Border DockPanel.Dock="Top" Classes="banner" Background="{DynamicResource Brush.AccentSoft}" Margin="0,0,0,10"
+              IsVisible="{Binding HasPersonFilter}">
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBlock Text="{Binding PersonFilterText}" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Content="Show everyone" Command="{Binding ClearPersonFilterCommand}" />
+        </Grid>
+      </Border>
+      <pageViews:PageStatus DockPanel.Dock="Top" Margin="0,0,0,8" />
+      <TextBlock DockPanel.Dock="Top" Classes="muted small" Text="{Binding SummaryText}" Margin="0,0,0,8" />
+
+      <Panel>
+        <TextBlock Classes="muted" Text="No tasks here." IsVisible="{Binding IsEmpty}" HorizontalAlignment="Center" Margin="0,40" />
+
+        <!-- List -->
+        <ScrollViewer IsVisible="{Binding IsList}">
+          <ItemsControl ItemsSource="{Binding Items}" Margin="0,0,14,0">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="work:TaskItemViewModel">
+                <workViews:TaskRow ToggleCommand="{Binding #Root.((pages:TasksViewModel)DataContext).ToggleCompleteCommand}"
+                                   OpenCommand="{Binding #Root.((pages:TasksViewModel)DataContext).OpenItemCommand}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Board -->
+        <!-- Columns share the width (no horizontal scrolling, which would let them grow without limit). -->
+        <ScrollViewer IsVisible="{Binding IsBoard}" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Columns}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="pages:BoardColumn">
+                <Border Background="{DynamicResource Brush.Sidebar}" CornerRadius="8" Padding="8" Margin="0,0,8,0" VerticalAlignment="Top" MinHeight="120">
+                  <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="2,0">
+                      <Border Classes="statusDot" Background="{Binding StatusBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                      <TextBlock Text="{Binding Header}" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Tasks}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="work:TaskItemViewModel">
+                          <Button Classes="toolbar" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0" Margin="0,0,0,6"
+                                  Command="{Binding #Root.((pages:TasksViewModel)DataContext).OpenItemCommand}" CommandParameter="{Binding}">
+                            <Border Classes="card" Padding="10">
+                              <StackPanel Spacing="4">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" Classes.done="{Binding IsCompleted}" />
+                                <TextBlock Classes="small" Text="{Binding DueText}" Classes.overdue="{Binding IsOverdue}" Classes.muted="{Binding !IsOverdue}" />
+                                <TextBlock Classes="muted small" Text="{Binding PrimaryName}" />
+                              </StackPanel>
+                            </Border>
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Panel>
+    </DockPanel>
+
+    <Border Grid.Column="1" Width="380" IsVisible="{Binding HasSidePanel}" Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,0,0,0">
+      <ContentControl Content="{Binding SidePanel}" />
+    </Border>
+  </Grid>
+</UserControl>

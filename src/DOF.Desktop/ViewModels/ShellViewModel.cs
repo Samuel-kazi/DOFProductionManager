@@ -20,6 +20,8 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
         TimeProvider clock,
         Func<DashboardViewModel> dashboard,
         Func<CalendarViewModel> calendar,
+        Func<ProjectsViewModel> projects,
+        Func<TasksViewModel> tasks,
         Func<TeamViewModel> team,
         Func<SettingsViewModel> settings)
     {
@@ -34,12 +36,10 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
         [
             new("Dashboard", "Icon.Dashboard", dashboard, $"{shortcutPrefix}1"),
             new("Calendar", "Icon.Calendar", calendar, $"{shortcutPrefix}2"),
-            new("Projects", "Icon.Projects", () => new PlaceholderPageViewModel("Projects", 4,
-                "Projects, members, milestones and timelines."), $"{shortcutPrefix}3"),
+            new("Projects", "Icon.Projects", projects, $"{shortcutPrefix}3"),
             new("Shows & Episodes", "Icon.Shows", () => new PlaceholderPageViewModel("Shows & Episodes", 5,
                 "Shows, seasons and episodes with recording schedules, crews and production deadlines."), $"{shortcutPrefix}4"),
-            new("Tasks", "Icon.Tasks", () => new PlaceholderPageViewModel("Tasks", 4,
-                "Personal and team tasks in list and board views."), $"{shortcutPrefix}5"),
+            new("Tasks", "Icon.Tasks", tasks, $"{shortcutPrefix}5"),
             new("Releases", "Icon.Releases", () => new PlaceholderPageViewModel("Releases", 6,
                 "Distribution across YouTube, Spotify, television and other channels, with publication confirmation."), $"{shortcutPrefix}6"),
             new("Reminders", "Icon.Reminders", () => new PlaceholderPageViewModel("Reminders", 7,
@@ -111,6 +111,10 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
     }
 
     private NavigationItem CalendarItem => PrimaryItems.Single(i => i.Title == "Calendar");
+    private NavigationItem ProjectsItem => PrimaryItems.Single(i => i.Title == "Projects");
+    private NavigationItem TasksItem => PrimaryItems.Single(i => i.Title == "Tasks");
+
+    public bool CanCreateProjects => _session.CurrentUser?.Permissions.Contains("projects.create") == true;
 
     /// <summary>Opens the original record behind a calendar or dashboard entry.</summary>
     public async Task OpenRecordAsync(string sourceType, Guid sourceId)
@@ -121,11 +125,42 @@ public sealed partial class ShellViewModel : ViewModelBase, IRecordNavigator
                 var calendar = (CalendarViewModel)await ShowAsync(CalendarItem, load: false);
                 await calendar.OpenEventAsync(sourceId);
                 break;
+            case "Project":
+                await ((ProjectsViewModel)await ShowAsync(ProjectsItem, load: false)).OpenProjectAsync(sourceId);
+                break;
+            case "Milestone":
+                await ((ProjectsViewModel)await ShowAsync(ProjectsItem, load: false)).OpenMilestoneByIdAsync(sourceId);
+                break;
+            case "Task":
+                var tasks = (TasksViewModel)await ShowAsync(TasksItem, load: true);
+                await tasks.OpenTaskAsync(sourceId);
+                break;
             default:
-                // Milestones, tasks, episodes and releases get their own screens in Phases 4–6.
+                // Episodes and releases get their own screens in Phases 5–6.
                 AppLog.Warning($"No screen yet for {sourceType} {sourceId}");
                 break;
         }
+    }
+
+    /// <summary>Quick create / project page: opens the Tasks page with a new task (optionally in a project).</summary>
+    [RelayCommand]
+    public async Task CreateTaskAsync(Guid? projectId = null)
+    {
+        var tasks = (TasksViewModel)await ShowAsync(TasksItem, load: true);
+        await tasks.NewTaskAsync(projectId);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCreateProjects))]
+    private async Task CreateProjectAsync()
+    {
+        var projects = (ProjectsViewModel)await ShowAsync(ProjectsItem, load: true);
+        await projects.NewProjectAsync();
+    }
+
+    public async Task ShowTasksForAsync(Guid userId, string fullName)
+    {
+        var tasks = (TasksViewModel)await ShowAsync(TasksItem, load: false);
+        await tasks.ShowPersonAsync(userId, fullName);
     }
 
     /// <summary>Quick create: opens the calendar with a new event.</summary>

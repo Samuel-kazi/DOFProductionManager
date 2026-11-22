@@ -22,6 +22,63 @@ namespace DOF.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("DOF.Domain.Entities.ActivityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("action");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<string>("NewValues")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("new_values");
+
+                    b.Property<string>("OldValues")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("old_values");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_activity_logs");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_activity_logs_created_at");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_activity_logs_user_id");
+
+                    b.HasIndex("EntityType", "EntityId", "CreatedAt")
+                        .HasDatabaseName("ix_activity_logs_entity_type_entity_id_created_at");
+
+                    b.ToTable("activity_logs", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -191,6 +248,230 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("permissions", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<Guid?>("ManagerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("manager_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<string>("ProjectType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("project_type");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<DateOnly?>("TargetEndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("target_end_date");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_projects");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_projects_created_by");
+
+                    b.HasIndex("ManagerId")
+                        .HasDatabaseName("ix_projects_manager_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_projects_status");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_projects_updated_by");
+
+                    b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.ProjectMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("ProjectRole")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("project_role");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_members");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_project_members_user_id");
+
+                    b.HasIndex("ProjectId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_project_members_project_id_user_id");
+
+                    b.ToTable("project_members", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.ProjectMilestone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AssignedTo")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_to");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_milestones");
+
+                    b.HasIndex("AssignedTo")
+                        .HasDatabaseName("ix_project_milestones_assigned_to");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_project_milestones_created_by");
+
+                    b.HasIndex("DueDate")
+                        .HasDatabaseName("ix_project_milestones_due_date");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_project_milestones_project_id");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_project_milestones_updated_by");
+
+                    b.ToTable("project_milestones", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -327,6 +608,49 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("role_permissions", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.TaskAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_primary");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("task_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_task_assignments");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_task_assignments_user_id");
+
+                    b.HasIndex("TaskId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_task_assignments_task_id_user_id");
+
+                    b.ToTable("task_assignments", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -418,6 +742,104 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("user_roles", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.WorkTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<Guid?>("CompletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("completed_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTimeOffset?>("DueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_at");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tasks");
+
+                    b.HasIndex("CompletedBy")
+                        .HasDatabaseName("ix_tasks_completed_by");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_tasks_created_by");
+
+                    b.HasIndex("DueAt")
+                        .HasDatabaseName("ix_tasks_due_at");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("ix_tasks_project_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_tasks_status");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_tasks_updated_by");
+
+                    b.ToTable("tasks", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.ActivityLog", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_activity_logs_users_user_id");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.User", null)
@@ -452,6 +874,76 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.Project", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_projects_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_projects_users_manager_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_projects_users_updated_by");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.ProjectMember", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.Project", null)
+                        .WithMany("Members")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_projects_project_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_users_user_id");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.ProjectMilestone", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedTo")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_milestones_users_assigned_to");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_milestones_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_milestones_projects_project_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_milestones_users_updated_by");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.User", null)
@@ -481,6 +973,25 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("Permission");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.TaskAssignment", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.WorkTask", null)
+                        .WithMany("Assignments")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_task_assignments_tasks_task_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_task_assignments_users_user_id");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.UserRole", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.Role", "Role")
@@ -500,9 +1011,43 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.WorkTask", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CompletedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tasks_users_completed_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tasks_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tasks_projects_project_id");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tasks_users_updated_by");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.CalendarEvent", b =>
                 {
                     b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.Project", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.Role", b =>
@@ -513,6 +1058,11 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.User", b =>
                 {
                     b.Navigation("Roles");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.WorkTask", b =>
+                {
+                    b.Navigation("Assignments");
                 });
 #pragma warning restore 612, 618
         }

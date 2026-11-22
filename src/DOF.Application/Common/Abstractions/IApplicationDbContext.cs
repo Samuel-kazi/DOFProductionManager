@@ -14,6 +14,12 @@ public interface IApplicationDbContext
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<CalendarEvent> CalendarEvents { get; }
     DbSet<CalendarEventAssignment> CalendarEventAssignments { get; }
+    DbSet<Project> Projects { get; }
+    DbSet<ProjectMember> ProjectMembers { get; }
+    DbSet<ProjectMilestone> ProjectMilestones { get; }
+    DbSet<WorkTask> Tasks { get; }
+    DbSet<TaskAssignment> TaskAssignments { get; }
+    DbSet<ActivityLog> ActivityLogs { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 
