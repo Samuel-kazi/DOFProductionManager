@@ -1,15 +1,39 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DOF.Desktop.ViewModels"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:views="using:DOF.Desktop.Views"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
              x:Class="DOF.Desktop.App"
-             xmlns:local="using:DOF.Desktop"
+             Name="DOF Production Manager"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
-    <Application.DataTemplates>
-        <local:ViewLocator />
-    </Application.DataTemplates>
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Themes/Tokens.axaml" />
+        <ResourceInclude Source="/Themes/Icons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
 
-    <Application.Styles>
-        <FluentTheme />
-    </Application.Styles>
+  <!-- Explicit view-model → view mapping (compile-time checked; no reflection-based view locator). -->
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:LoginViewModel"><views:LoginView /></DataTemplate>
+    <DataTemplate DataType="vm:ShellViewModel"><views:ShellView /></DataTemplate>
+    <DataTemplate DataType="pages:DashboardViewModel"><pageViews:DashboardView /></DataTemplate>
+    <DataTemplate DataType="pages:TeamViewModel"><pageViews:TeamView /></DataTemplate>
+    <DataTemplate DataType="pages:SettingsViewModel"><pageViews:SettingsView /></DataTemplate>
+    <DataTemplate DataType="pages:PlaceholderPageViewModel"><pageViews:PlaceholderPageView /></DataTemplate>
+  </Application.DataTemplates>
+
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#B45F0E" />
+        <ColorPaletteResources x:Key="Dark" Accent="#F0A24A" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="/Themes/Styles.axaml" />
+  </Application.Styles>
 </Application>

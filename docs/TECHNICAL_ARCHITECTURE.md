@@ -137,6 +137,49 @@ persisted, through `ISecureStore`:
 Known limitations, accepted for now: no account lockout beyond rate limiting; no per-user permission
 grants outside roles; access tokens are not revocable before expiry except through deactivation.
 
+## Desktop client (Phase 2)
+
+**Composition.** `Services/DesktopServices.Build` is the composition root (Microsoft.Extensions.DependencyInjection).
+It is also used by the tests, which pass an in-memory server handler instead of the network.
+
+**Talking to the API.** Three `HttpClient`s share one network handler:
+- `AuthSession` (anonymous): sign-in, refresh, logout, change password.
+- `ConnectionMonitor`: polls `GET /api/v1/system/info` every 15 s (8 s timeout).
+- `ApiClient`: every authenticated call. `AuthenticatedHttpHandler` adds the access token
+  (refreshing it first if it expires within a minute). `ApiClient` unwraps `ApiResponse<T>`, turns
+  ProblemDetails into `ApiException` (user-readable message plus field errors), turns network failures
+  into `ApiUnavailableException`, reports success/failure to the connection monitor, and raises
+  `SessionExpired` on 401, after which the app signs out locally and shows the sign-in screen.
+
+**Screens.** `MainWindowViewModel` shows a startup screen while it restores the stored session, then
+either the sign-in screen (`LoginViewModel`) or the shell (`ShellViewModel`). If the server is
+unreachable at startup, the stored session is kept and sign-in shows the offline state.
+
+**Shell.** Collapsible sidebar (Dashboard, Calendar, Projects, Shows & Episodes, Tasks, Releases,
+Reminders, Reports; Team, Settings and the user at the bottom). Top bar: page title, global search,
+quick create, notifications, current date in the user's timezone, connection status (click to
+re-check) and an account menu. Keyboard shortcuts: ⌘/Ctrl+1–8 sections, ⌘/Ctrl+B sidebar,
+⌘/Ctrl+, settings. Search, quick create and notifications are visibly disabled until the phases that
+give them data.
+
+**Pages.** Each page derives from `PageViewModel` (title, `IsLoading`, `ErrorMessage`, Retry).
+`RunAsync` turns expected API failures into a visible message; anything unexpected propagates to
+the global handler. Live pages: Dashboard (greeting and date), Team (`GET /users` with search and
+an include-deactivated filter) and Settings (profile, theme, change password, server). Sections
+scheduled for later phases show a "coming in Phase N" page, never sample data.
+
+**Views.** Compiled bindings everywhere. View models map to views through explicit `DataTemplate`s
+in `App.axaml` (no reflection-based view locator). Colours are theme tokens in `Themes/Tokens.axaml`
+with Light and Dark dictionaries; icons are original stroke geometries in `Themes/Icons.axaml`.
+
+**Local state.** `PreferencesStore` keeps theme, sidebar state and last email in
+`<LocalApplicationData>/DOFProductionManager/preferences.json` (non-sensitive only; a damaged file
+falls back to defaults). The refresh token lives only in the OS secure store (Phase 1).
+
+**Error handling and logs.** UI-thread exceptions, unobserved task exceptions and fatal errors are
+written to `<LocalApplicationData>/DOFProductionManager/logs/desktop-YYYYMMDD.log` (14 days kept).
+UI-thread errors are also shown in a dismissible banner. Nothing is swallowed silently.
+
 ## Testing
 
 | Project | Scope |
@@ -144,6 +187,14 @@ grants outside roles; access tokens are not revocable before expiry except throu
 | DOF.UnitTests | Pure logic, no I/O |
 | DOF.IntegrationTests | The real API via `WebApplicationFactory`, against a real PostgreSQL database (`dof_production_manager_test`, override with `DOF_TEST_DATABASE`). The schema is dropped and rebuilt from migrations once per run; the host then seeds roles and a test Administrator. Tests run sequentially because some change shared role permissions. Also covers the desktop `AuthSession` against the real API, and the real macOS Keychain. EF Core's in-memory provider is not used. |
 | DOF.ArchitectureTests | Layer dependency rules (above) |
+
+**Desktop UI tests** (`DOF.IntegrationTests/Desktop/DesktopUiTests`) run the real views and view models
+in a headless Avalonia window (Skia rendering) against the real API: sign-in, navigation to every
+section, keyboard shortcuts, session restore, offline start, deactivation, password change and theme.
+They save screenshots to `tests/DOF.IntegrationTests/bin/Debug/net10.0/ui-snapshots/` for visual
+review. Avalonia's xUnit integration targets xUnit v3.2, so the tests drive `Avalonia.Headless`
+directly. Note: they must call `HeadlessUnitTestSession.Dispatch` with a `Func<Task<T>>`; a plain
+async lambda binds to `Dispatch<Task>` and would not be awaited.
 
 Integration tests run in the `Testing` environment, so `appsettings.Development.json` is not loaded.
 

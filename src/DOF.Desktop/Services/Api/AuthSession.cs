@@ -122,6 +122,41 @@ public sealed class AuthSession(HttpClient http, ISecureStore store, TimeProvide
         }
     }
 
+    /// <summary>Changes the password. The server ends all other sessions and returns a new one, which is adopted here.</summary>
+    public async Task<AuthResult> ChangePasswordAsync(string currentPassword, string newPassword, CancellationToken ct = default)
+    {
+        var accessToken = await GetAccessTokenAsync(ct);
+        if (accessToken is null)
+        {
+            return AuthResult.Failure("Your session has ended. Please sign in again.");
+        }
+
+        await _gate.WaitAsync(ct);
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/auth/change-password")
+            {
+                Content = JsonContent.Create(new ChangePasswordRequest(currentPassword, newPassword)),
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            using var response = await http.SendAsync(request, ct);
+
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.BadRequest
+                or HttpStatusCode.TooManyRequests)
+            {
+                return AuthResult.Failure(await ReadProblemAsync(response, ct));
+            }
+
+            response.EnsureSuccessStatusCode();
+            await AcceptTokensAsync(response, ct);
+            return AuthResult.Success;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public void Dispose() => _gate.Dispose();
 
     private async Task<bool> RefreshCoreAsync(CancellationToken ct)
@@ -183,6 +218,18 @@ public sealed class AuthSession(HttpClient http, ISecureStore store, TimeProvide
             if (json.RootElement.TryGetProperty("detail", out var detail) && detail.GetString() is { } message)
             {
                 return message;
+            }
+
+            if (json.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object)
+            {
+                var messages = errors.EnumerateObject()
+                    .SelectMany(p => p.Value.EnumerateArray().Select(v => v.GetString()))
+                    .OfType<string>()
+                    .ToList();
+                if (messages.Count > 0)
+                {
+                    return string.Join(" ", messages);
+                }
             }
         }
         catch (JsonException)

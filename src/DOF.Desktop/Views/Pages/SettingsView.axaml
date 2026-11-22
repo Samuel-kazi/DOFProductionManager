@@ -1,0 +1,60 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             x:Class="DOF.Desktop.Views.Pages.SettingsView"
+             x:DataType="pages:SettingsViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="32,24" Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Profile" />
+          <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" >
+            <TextBlock Classes="muted" Text="Name" Grid.Row="0" Margin="0,4" />
+            <TextBlock Text="{Binding FullName}" Grid.Row="0" Grid.Column="1" Margin="0,4" />
+            <TextBlock Classes="muted" Text="Email" Grid.Row="1" Margin="0,4" />
+            <TextBlock Text="{Binding Email}" Grid.Row="1" Grid.Column="1" Margin="0,4" />
+            <TextBlock Classes="muted" Text="Timezone" Grid.Row="2" Margin="0,4" />
+            <TextBlock Text="{Binding TimeZone}" Grid.Row="2" Grid.Column="1" Margin="0,4" />
+            <TextBlock Classes="muted" Text="Roles" Grid.Row="3" Margin="0,4" />
+            <TextBlock Text="{Binding Roles}" Grid.Row="3" Grid.Column="1" Margin="0,4" />
+          </Grid>
+          <TextBlock Classes="muted small" Text="An administrator can change your name, email, timezone and roles." />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Appearance" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <TextBlock Text="Theme" VerticalAlignment="Center" Width="128" />
+            <ComboBox ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme}" MinWidth="160" />
+          </StackPanel>
+          <TextBlock Classes="muted small" Text="System follows your computer's light or dark setting." />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Change password" />
+          <TextBox Text="{Binding CurrentPassword}" PasswordChar="•" PlaceholderText="Current password" MaxWidth="360" HorizontalAlignment="Left" MinWidth="360" />
+          <TextBox Text="{Binding NewPassword}" PasswordChar="•" PlaceholderText="New password (at least 10 characters)" MinWidth="360" HorizontalAlignment="Left" />
+          <TextBox Text="{Binding ConfirmPassword}" PasswordChar="•" PlaceholderText="Confirm new password" MinWidth="360" HorizontalAlignment="Left" />
+          <Border Classes="banner error" IsVisible="{Binding PasswordMessage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                  Classes.success="{Binding PasswordChanged}">
+            <TextBlock Text="{Binding PasswordMessage}" TextWrapping="Wrap" />
+          </Border>
+          <Button Content="Change password" Command="{Binding ChangePasswordCommand}" HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="Server" />
+          <TextBlock Classes="muted" Text="{Binding ServerAddress, StringFormat='Address: {0}'}" />
+          <TextBlock Classes="muted" Text="{Binding ServerVersion, StringFormat='Version: {0}'}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

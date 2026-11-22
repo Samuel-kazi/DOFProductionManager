@@ -1,0 +1,16 @@
+<!-- Shared loading / error strip shown at the top of every data page. -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DOF.Desktop.ViewModels"
+             x:Class="DOF.Desktop.Views.Pages.PageStatus"
+             x:DataType="vm:PageViewModel">
+  <StackPanel Spacing="8">
+    <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+    <Border Classes="banner error" IsVisible="{Binding HasError}">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Try again" Margin="12,0,0,0" Command="{Binding RetryCommand}" />
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

@@ -8,14 +8,6 @@ namespace DOF.IntegrationTests.Desktop;
 /// <summary>The desktop client's session service, exercised against the real API.</summary>
 public class AuthSessionTests(DofApiFactory factory)
 {
-    private sealed class InMemorySecureStore : ISecureStore
-    {
-        public Dictionary<string, string> Items { get; } = [];
-        public string? Get(string key) => Items.GetValueOrDefault(key);
-        public void Set(string key, string value) => Items[key] = value;
-        public void Remove(string key) => Items.Remove(key);
-    }
-
     [Fact]
     public async Task Login_stores_only_the_refresh_token_and_restores_after_restart()
     {

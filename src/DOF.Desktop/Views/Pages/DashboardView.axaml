@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             x:Class="DOF.Desktop.Views.Pages.DashboardView"
+             x:DataType="pages:DashboardViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="32,28" Spacing="20" MaxWidth="1100" HorizontalAlignment="Stretch">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="h1" Text="{Binding Greeting}" />
+        <TextBlock Classes="muted" Text="{Binding TodayText}" />
+        <TextBlock Classes="muted small" Text="{Binding TimeZoneText}" />
+      </StackPanel>
+
+      <Border Classes="card">
+        <StackPanel Spacing="8">
+          <Border Classes="pill" HorizontalAlignment="Left">
+            <TextBlock Text="Arrives in Phase 3" Foreground="{DynamicResource Brush.Accent}" FontWeight="SemiBold" FontSize="12" />
+          </Border>
+          <TextBlock Classes="h2" Text="Today's schedule, your tasks and upcoming deadlines" />
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Your personal dashboard and the management overview will appear here once calendar, task and production records exist." />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
