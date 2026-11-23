@@ -18,6 +18,7 @@ public static class ActivityEntities
     public const string Episode = "Episode";
     public const string Release = "Release";
     public const string GoogleCalendar = "GoogleCalendar";
+    public const string SessionWeek = "SessionWeek";
 }
 
 /// <summary>Actions recorded in the activity log.</summary>

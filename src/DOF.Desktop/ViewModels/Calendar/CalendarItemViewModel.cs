@@ -49,7 +49,8 @@ public sealed class CalendarItemViewModel
 
     public string WhenText => $"{Start:ddd d MMM} · {TimeText}";
 
-    public string ToolTip => $"{Title}\n{WhenText}\n{AssigneeNames}" + (Location is null ? "" : $"\n{Location}");
+    public string ToolTip => $"{Title}\n{WhenText}" + (Item.Speaker is { } speaker ? $"\nSharing: {speaker}" : "")
+                             + (AssigneeNames.Length == 0 ? "" : $"\n{AssigneeNames}") + (Location is null ? "" : $"\n{Location}");
 
     public bool OccursOn(DateOnly day)
     {

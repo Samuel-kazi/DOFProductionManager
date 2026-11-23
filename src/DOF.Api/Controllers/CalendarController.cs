@@ -30,7 +30,8 @@ public sealed class CalendarFilters
 [ApiController]
 [Route("api/v1/calendar")]
 public sealed class CalendarController(
-    CalendarService calendar, CalendarEventService events, ScheduleExportService export, GoogleInviteService invites) : ControllerBase
+    CalendarService calendar, CalendarEventService events, ScheduleExportService export, GoogleInviteService invites,
+    SessionWeekService sessions) : ControllerBase
 {
     /// <summary>
     /// The aggregated calendar: every item overlapping [start, end), built from its original record
@@ -111,6 +112,32 @@ public sealed class CalendarController(
     [HttpGet("events/{id:guid}")]
     public async Task<ApiResponse<CalendarEventResponse>> GetEvent(Guid id, CancellationToken ct) =>
         ApiResponse<CalendarEventResponse>.Ok(await events.GetAsync(id, ct));
+
+    /// <summary>Earlier session weeks, newest first, optionally of one series (<paramref name="name"/>) and before a date.</summary>
+    [HttpGet("session-weeks")]
+    public async Task<ApiResponse<IReadOnlyList<SessionWeekSummaryResponse>>> ListSessionWeeks(
+        [FromQuery] string? name, [FromQuery] DateOnly? before, CancellationToken ct) =>
+        ApiResponse<IReadOnlyList<SessionWeekSummaryResponse>>.Ok(await sessions.ListAsync(name, before, ct));
+
+    [HttpGet("session-weeks/{id:guid}")]
+    public async Task<ApiResponse<SessionWeekResponse>> GetSessionWeek(Guid id, CancellationToken ct) =>
+        ApiResponse<SessionWeekResponse>.Ok(await sessions.GetAsync(id, ct));
+
+    /// <summary>Plans a week of sessions: one calendar event per day, with its theme and who is sharing.</summary>
+    [HttpPost("session-weeks")]
+    [Authorize(Policy = Permissions.CalendarManage)]
+    [ProducesResponseType<ApiResponse<SessionWeekResponse>>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<ApiResponse<SessionWeekResponse>>> CreateSessionWeek(SessionWeekRequest request, CancellationToken ct)
+    {
+        var created = await sessions.CreateAsync(request, ct);
+        return CreatedAtAction(nameof(GetSessionWeek), new { id = created.Id }, ApiResponse<SessionWeekResponse>.Ok(created));
+    }
+
+    /// <summary>Edits the whole week; days left out are cancelled (kept in history).</summary>
+    [HttpPut("session-weeks/{id:guid}")]
+    [Authorize(Policy = Permissions.CalendarManage)]
+    public async Task<ApiResponse<SessionWeekResponse>> UpdateSessionWeek(Guid id, SessionWeekRequest request, CancellationToken ct) =>
+        ApiResponse<SessionWeekResponse>.Ok(await sessions.UpdateAsync(id, request, ct));
 
     [HttpPost("events")]
     [Authorize(Policy = Permissions.CalendarManage)]

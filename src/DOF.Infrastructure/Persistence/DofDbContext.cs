@@ -31,6 +31,7 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<GoogleCalendarConnection> GoogleCalendarConnections => Set<GoogleCalendarConnection>();
+    public DbSet<SessionWeek> SessionWeeks => Set<SessionWeek>();
     public DbSet<GoogleCalendarInvite> GoogleCalendarInvites => Set<GoogleCalendarInvite>();
     public DbSet<GoogleCalendarInviteGuest> GoogleCalendarInviteGuests => Set<GoogleCalendarInviteGuest>();
 

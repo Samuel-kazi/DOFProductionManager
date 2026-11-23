@@ -123,7 +123,11 @@ public sealed class ScheduleExportService(
         var end = TimeZoneInfo.ConvertTime(item.EndAt ?? item.StartAt, zone);
         var startDay = DateOnly.FromDateTime(start.DateTime);
         var endDay = end > start ? DateOnly.FromDateTime(end.AddTicks(-1).DateTime) : startDay;
-        var people = string.Join(", ", item.AssignedUsers.Select(a => a.FullName).Distinct());
+        var assigned = string.Join(", ", item.AssignedUsers.Select(a => a.FullName).Distinct());
+        // Who is sharing comes first: in a devotion week it is the person readers look for.
+        var people = item.Speaker is { } speaker
+            ? (assigned.Length == 0 ? $"Sharing: {speaker}" : $"Sharing: {speaker} · {assigned}")
+            : assigned;
         var (kind, category) = Describe(item.EventType);
 
         for (var day = startDay < first ? first : startDay; day <= endDay && day <= last; day = day.AddDays(1))

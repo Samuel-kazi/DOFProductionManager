@@ -39,6 +39,9 @@
         <Button Classes="accent" Content="Edit" IsVisible="{Binding CanEdit}"
                 Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).EditEventCommand}"
                 CommandParameter="{Binding}" />
+        <Button Content="Edit whole week" IsVisible="{Binding CanEditWeek}" ToolTip.Tip="Themes and who is sharing for every day of this week"
+                Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).EditWeekCommand}"
+                CommandParameter="{Binding}" />
         <Button Content="Cancel event…" IsVisible="{Binding CanCancel}"
                 Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).AskCancelEventCommand}"
                 CommandParameter="{Binding}" />
@@ -53,6 +56,10 @@
           <TextBlock Classes="muted small" Text="{Binding PriorityText}" />
         </StackPanel>
 
+        <StackPanel Spacing="3" IsVisible="{Binding Speaker, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock Classes="muted small" Text="Sharing" />
+          <TextBlock Text="{Binding Speaker}" TextWrapping="Wrap" FontWeight="SemiBold" />
+        </StackPanel>
         <StackPanel Spacing="3" IsVisible="{Binding Location, Converter={x:Static ObjectConverters.IsNotNull}}">
           <TextBlock Classes="muted small" Text="Location" />
           <TextBlock Text="{Binding Location}" TextWrapping="Wrap" />

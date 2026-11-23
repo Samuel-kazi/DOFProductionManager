@@ -72,6 +72,10 @@ public sealed class GoogleInviteSync(
             : (new GoogleEventTime(null, e.StartAt, zone.Id), new GoogleEventTime(null, e.EndAt, zone.Id));
 
         var description = new StringBuilder();
+        if (e.Speaker is { } speaker)
+        {
+            description.AppendLine($"Sharing: {speaker}").AppendLine();
+        }
         if (e.Description is { } text)
         {
             description.AppendLine(text).AppendLine();

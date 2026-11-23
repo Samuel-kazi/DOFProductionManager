@@ -126,6 +126,15 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("priority");
 
+                    b.Property<Guid?>("SessionWeekId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_week_id");
+
+                    b.Property<string>("Speaker")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("speaker");
+
                     b.Property<DateTimeOffset>("StartAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_at");
@@ -135,6 +144,11 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("status");
+
+                    b.Property<string>("Theme")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("theme");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -160,6 +174,9 @@ namespace DOF.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedBy")
                         .HasDatabaseName("ix_calendar_events_created_by");
+
+                    b.HasIndex("SessionWeekId")
+                        .HasDatabaseName("ix_calendar_events_session_week_id");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_calendar_events_status");
@@ -1538,6 +1555,81 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("seasons", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.SessionWeek", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("location");
+
+                    b.Property<string>("MeetingUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("meeting_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Speaker")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("speaker");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<DateOnly>("WeekStart")
+                        .HasColumnType("date")
+                        .HasColumnName("week_start");
+
+                    b.HasKey("Id")
+                        .HasName("pk_session_weeks");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_session_weeks_created_by");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_session_weeks_updated_by");
+
+                    b.HasIndex("Name", "WeekStart")
+                        .HasDatabaseName("ix_session_weeks_name_week_start");
+
+                    b.ToTable("session_weeks", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_session_weeks_starts_monday", "EXTRACT(ISODOW FROM week_start) = 1");
+                        });
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Show", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1866,6 +1958,12 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_calendar_events_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.SessionWeek", null)
+                        .WithMany()
+                        .HasForeignKey("SessionWeekId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_calendar_events_session_weeks_session_week_id");
 
                     b.HasOne("DOF.Domain.Entities.User", null)
                         .WithMany()
@@ -2221,6 +2319,21 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_seasons_users_updated_by");
 
                     b.Navigation("Show");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.SessionWeek", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_session_weeks_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_session_weeks_users_updated_by");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.Show", b =>

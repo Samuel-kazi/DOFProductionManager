@@ -1,0 +1,109 @@
+using System.Net;
+using System.Net.Http.Json;
+using DOF.Contracts.Requests;
+using DOF.Contracts.Responses;
+using DOF.Domain.Rules;
+using static DOF.IntegrationTests.TestApi;
+
+namespace DOF.IntegrationTests;
+
+/// <summary>Weekly session series (devotions): a week planned at once, a theme per day and who is sharing.</summary>
+public class SessionWeekTests(DofApiFactory factory)
+{
+    private static readonly TimeZoneInfo Nairobi = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+    private static readonly DateOnly Monday = new(2035, 3, 5);
+
+    private static DateTimeOffset At(DateOnly day, int hour) =>
+        new(TimeZoneInfo.ConvertTimeToUtc(day.ToDateTime(new TimeOnly(hour, 0)), Nairobi), TimeSpan.Zero);
+
+    private static SessionDayRequest Day(DateOnly monday, int offset, string? theme, string? speaker = null, Guid? eventId = null) =>
+        new(At(monday.AddDays(offset), 6), At(monday.AddDays(offset), 7), theme, speaker, eventId);
+
+    private static SessionWeekRequest Week(string name, DateOnly monday, IReadOnlyList<SessionDayRequest> days, string? speaker = "Pastor John",
+        int? version = null) =>
+        new(name, monday, "MinistryEvent", "Chapel", "https://meet.example.org/devotion", speaker, days, version);
+
+    [Fact]
+    public async Task A_devotion_week_puts_each_day_on_the_calendar_with_its_theme_and_who_is_sharing()
+    {
+        var admin = await factory.AdminClientAsync();
+        var name = $"Morning Devotion {Guid.NewGuid():N}"[..24];
+        var response = await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks", Week(name, Monday,
+        [
+            Day(Monday, 0, "Walking in faith"), Day(Monday, 1, "The power of prayer"), Day(Monday, 2, "Grace that saves", "Rev. Mary"),
+            Day(Monday, 3, "Love your neighbour"), Day(Monday, 4, null),
+        ]), Ct);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var week = await response.DataAsync<SessionWeekResponse>();
+        Assert.Equal(5, week.Days.Count);
+        Assert.Equal($"{name}: Walking in faith", week.Days[0].Title);
+        Assert.Equal(name, week.Days[4].Title); // no theme yet
+        Assert.Null(week.Days[0].Speaker);       // same as the week
+        Assert.Equal("Rev. Mary", week.Days[2].Speaker);
+
+        // Each day is an ordinary event: on the calendar with who is sharing, and in the event details.
+        var items = await (await admin.GetAsync(
+                $"/api/v1/calendar?start={Uri.EscapeDataString(At(Monday, 0).ToString("O"))}&end={Uri.EscapeDataString(At(Monday.AddDays(7), 0).ToString("O"))}&sourceTypes=CalendarEvent", Ct))
+            .DataAsync<List<CalendarItemResponse>>();
+        var mine = items.Where(i => i.Title.StartsWith(name)).OrderBy(i => i.StartAt).ToList();
+        Assert.Equal(["Pastor John", "Pastor John", "Rev. Mary", "Pastor John", "Pastor John"], mine.Select(i => i.Speaker));
+        Assert.All(mine, i => Assert.Equal("Chapel", i.Location));
+        var wednesday = await (await admin.GetAsync($"/api/v1/calendar/events/{week.Days[2].EventId}", Ct)).DataAsync<CalendarEventResponse>();
+        Assert.Equal(("Rev. Mary", week.Id, "Grace that saves"), (wednesday.Speaker, wednesday.SessionWeekId, wednesday.Theme));
+
+        // Listed for copying next week.
+        var earlier = await (await admin.GetAsync($"/api/v1/calendar/session-weeks?name={Uri.EscapeDataString(name.ToUpperInvariant())}&before=2035-03-12", Ct))
+            .DataAsync<List<SessionWeekSummaryResponse>>();
+        Assert.Equal(week.Id, Assert.Single(earlier).Id);
+    }
+
+    [Fact]
+    public async Task Editing_the_week_changes_every_day_adds_new_ones_and_cancels_days_left_out()
+    {
+        var admin = await factory.AdminClientAsync();
+        var name = $"Evening Prayer {Guid.NewGuid():N}"[..22];
+        var monday = Monday.AddDays(14);
+        var week = await (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks",
+            Week(name, monday, [Day(monday, 0, "Hope"), Day(monday, 1, "Joy"), Day(monday, 2, "Peace")]), Ct)).DataAsync<SessionWeekResponse>();
+
+        // Someone else shares the whole week, Tuesday is dropped, Thursday is added and Monday's theme changes.
+        var edited = await admin.PutAsJsonAsync($"/api/v1/calendar/session-weeks/{week.Id}", Week(name, monday,
+        [
+            Day(monday, 0, "Living hope", eventId: week.Days[0].EventId), Day(monday, 2, "Peace", eventId: week.Days[2].EventId),
+            Day(monday, 3, "Faith"),
+        ], speaker: "Sister Ann", version: week.Version), Ct);
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var after = await edited.DataAsync<SessionWeekResponse>();
+        Assert.Equal([$"{name}: Living hope", $"{name}: Peace", $"{name}: Faith"], after.Days.Select(d => d.Title));
+        Assert.Equal(week.Days[0].EventId, after.Days[0].EventId); // the same event, not a copy
+
+        var tuesday = await (await admin.GetAsync($"/api/v1/calendar/events/{week.Days[1].EventId}", Ct)).DataAsync<CalendarEventResponse>();
+        Assert.Equal("Cancelled", tuesday.Status);
+        var monday1 = await (await admin.GetAsync($"/api/v1/calendar/events/{after.Days[0].EventId}", Ct)).DataAsync<CalendarEventResponse>();
+        Assert.Equal("Sister Ann", monday1.Speaker);
+
+        // A stale version is refused.
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/v1/calendar/session-weeks/{week.Id}",
+            Week(name, monday, [Day(monday, 0, "x", eventId: week.Days[0].EventId)], version: week.Version), Ct)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Weeks_are_checked_and_need_calendar_permission()
+    {
+        var admin = await factory.AdminClientAsync();
+        var (_, member) = await factory.UserClientAsync(SystemRoles.TeamMember);
+        var monday = Monday.AddDays(28);
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await member.PostAsJsonAsync("/api/v1/calendar/session-weeks",
+            Week("Devotion", monday, [Day(monday, 0, "Hope")]), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks",
+            Week("Devotion", monday.AddDays(1), [Day(monday, 1, "Hope")]), Ct)).StatusCode); // not a Monday
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks",
+            Week("Devotion", monday, []), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks",
+            Week("Devotion", monday, [Day(monday, 8, "Next week")]), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks",
+            Week("Devotion", monday, [Day(monday, 0, "A"), Day(monday, 0, "B")]), Ct)).StatusCode);
+    }
+}

@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarSource, ReleaseCalendarSource>();
         services.AddScoped<CalendarService>();
         services.AddScoped<CalendarEventService>();
+        services.AddScoped<SessionWeekService>();
         services.AddScoped<ScheduleExportService>();
         services.AddScoped<DashboardService>();
 

@@ -13,6 +13,7 @@
   <UserControl.DataTemplates>
     <DataTemplate DataType="cal:EventDetailsViewModel"><calViews:EventDetailsView /></DataTemplate>
     <DataTemplate DataType="cal:EventEditorViewModel"><calViews:EventEditorView /></DataTemplate>
+    <DataTemplate DataType="cal:SessionWeekEditorViewModel"><calViews:SessionWeekEditorView /></DataTemplate>
   </UserControl.DataTemplates>
 
   <UserControl.Styles>
@@ -119,13 +120,24 @@
           <ToggleButton Classes="segment" Content="Agenda" IsChecked="{Binding IsAgenda, Mode=OneWay}"
                         Command="{Binding SetModeCommand}" CommandParameter="{x:Static cal:CalendarMode.Agenda}" CornerRadius="0,6,6,0" />
         </StackPanel>
-        <Button Grid.Column="7" Classes="accent" Command="{Binding NewEventCommand}" CommandParameter="{x:Null}"
-                IsVisible="{Binding ShowNewEventButton}" ToolTip.Tip="Create a standalone event">
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <Path Classes="icon" Data="{StaticResource Icon.Plus}" Width="14" Height="14" Stroke="White" />
-            <TextBlock Text="New event" />
-          </StackPanel>
-        </Button>
+        <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="2" IsVisible="{Binding ShowNewEventButton}">
+          <Button Classes="accent" Command="{Binding NewEventCommand}" CommandParameter="{x:Null}" ToolTip.Tip="Create a standalone event"
+                  CornerRadius="6,0,0,6">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Classes="icon" Data="{StaticResource Icon.Plus}" Width="14" Height="14" Stroke="White" />
+              <TextBlock Text="New event" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NewEventMenuButton" Classes="accent" Padding="8,5" CornerRadius="0,6,6,0" ToolTip.Tip="More: plan a week of sessions">
+            <TextBlock Text="▾" FontSize="11" VerticalAlignment="Center" />
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem Header="New event" Command="{Binding NewEventCommand}" CommandParameter="{x:Null}" />
+                <MenuItem Header="Plan a week of sessions…" Command="{Binding PlanWeekCommand}" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
       </Grid>
 
       <!-- Result of the last PDF download -->
@@ -315,7 +327,8 @@
                                   <Border Width="3" HorizontalAlignment="Left"
                                           Background="{Binding Item.CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
                                   <StackPanel Margin="8,3,4,3" Spacing="1">
-                                    <TextBlock Classes="small" Text="{Binding Item.Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Classes="small" Text="{Binding Item.Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                               TextWrapping="Wrap" MaxLines="2" />
                                     <TextBlock Classes="small muted" Text="{Binding Item.TimeText}" TextTrimming="CharacterEllipsis" />
                                     <ItemsControl ItemsSource="{Binding Item.Initials}" Margin="0,2,0,0">
                                       <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>

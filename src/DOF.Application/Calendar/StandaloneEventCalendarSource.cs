@@ -55,7 +55,7 @@ public sealed class StandaloneEventCalendarSource(IApplicationDbContext db) : IC
             .OrderBy(e => e.StartAt)
             .Select(e => new
             {
-                e.Id, e.Title, e.EventType, e.StartAt, e.EndAt, e.IsAllDay, e.Status, e.Priority, e.Location,
+                e.Id, e.Title, e.EventType, e.StartAt, e.EndAt, e.IsAllDay, e.Status, e.Priority, e.Location, e.Speaker,
                 Assigned = e.Assignments
                     .Select(a => new { a.UserId, a.User.FullName, a.AssignmentType })
                     .ToList(),
@@ -77,7 +77,8 @@ public sealed class StandaloneEventCalendarSource(IApplicationDbContext db) : IC
                 e.Assigned
                     .OrderBy(a => a.AssignmentType).ThenBy(a => a.FullName, StringComparer.CurrentCultureIgnoreCase)
                     .Select(a => new AssignedUserResponse(a.UserId, a.FullName, a.AssignmentType.ToString())).ToList(),
-                canEdit))
+                canEdit,
+                e.Speaker))
             .ToList();
     }
 

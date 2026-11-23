@@ -37,6 +37,7 @@ public partial class CalendarView : UserControl
         if (ViewModel is { } vm)
         {
             vm.PropertyChanged += OnViewModelPropertyChanged;
+            vm.DayColumns.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(RevealEarlyItems, DispatcherPriority.Loaded);
         }
     }
 
@@ -54,8 +55,23 @@ public partial class CalendarView : UserControl
         }
     }
 
-    /// <summary>Week and day views open at 07:00 rather than midnight.</summary>
-    private void ScrollToWorkingDay() => TimeScroll.Offset = new Vector(0, 7 * HourHeight);
+    /// <summary>Week and day views open at 07:00 rather than midnight (earlier when something starts before then).</summary>
+    private void ScrollToWorkingDay() => TimeScroll.Offset = new Vector(0, Math.Min(7 * HourHeight, EarliestItemOffset() ?? double.MaxValue));
+
+    /// <summary>Scrolls up (never down) so an early session, such as a 06:00 devotion, is not hidden above the view.</summary>
+    private void RevealEarlyItems()
+    {
+        if (EarliestItemOffset() is { } top && top < TimeScroll.Offset.Y)
+        {
+            TimeScroll.Offset = new Vector(0, top);
+        }
+    }
+
+    private double? EarliestItemOffset()
+    {
+        var starts = ViewModel?.DayColumns.SelectMany(c => c.TimedItems).Select(t => t.StartMinute).ToList();
+        return starts is { Count: > 0 } ? Math.Max(0, Math.Floor(starts.Min() / 60) * HourHeight) : null;
+    }
 
     private void OnMonthCellDoubleTapped(object? sender, TappedEventArgs e)
     {

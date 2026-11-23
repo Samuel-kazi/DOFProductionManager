@@ -397,6 +397,16 @@ inside an AES-GCM–encrypted `state` (bound to the user, 10 minutes), exchanges
 secret and stores only the encrypted refresh token (`AesSecretProtector`). Scopes: `openid email
 calendar.events`.
 
+**Session weeks.** A weekly series (e.g. Morning Devotion, Monday–Friday) is planned in one form:
+`SessionWeekService` creates one standalone event per day, titled "‹name›: ‹theme›", with who is
+sharing in `calendar_events.speaker` (the week's speaker unless a day names someone else). The
+`session_weeks` row only holds what the days share and groups them for "Edit whole week"; the days stay
+ordinary events, so reminders, Google invites (the description starts with "Sharing: …"), PDFs (people
+column starts with "Sharing: …") and the calendar need nothing new. Editing updates the same events and
+cancels days left out. The desktop opens it from the calendar's New event ▾ menu, copies the last
+week of the same series (times, place, speakers; not themes), and the week view scrolls up to reveal
+sessions before 07:00.
+
 Invites exist for standalone events only. Their dates stay in `calendar_events`:
 `GoogleInviteSync.Build` rebuilds the Google event from the record on each push, and a SHA-256 of the
 payload (`synced_hash`) detects changes. The job runs every minute through `ReminderJobRunner`. It

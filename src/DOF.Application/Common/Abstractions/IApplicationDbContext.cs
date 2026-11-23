@@ -31,6 +31,7 @@ public interface IApplicationDbContext
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<NotificationPreference> NotificationPreferences { get; }
     DbSet<GoogleCalendarConnection> GoogleCalendarConnections { get; }
+    DbSet<SessionWeek> SessionWeeks { get; }
     DbSet<GoogleCalendarInvite> GoogleCalendarInvites { get; }
     DbSet<GoogleCalendarInviteGuest> GoogleCalendarInviteGuests { get; }
 

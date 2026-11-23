@@ -20,6 +20,9 @@ public sealed partial class EventDetailsViewModel(
     public string PriorityText => $"{Event.Priority} priority";
     public bool IsCancelled => Event.Status == Contracts.Common.CalendarValues.Cancelled;
     public string? Location => Event.Location;
+    public string? Speaker => Event.Speaker;
+    public bool IsSessionDay => Event.SessionWeekId is not null;
+    public bool CanEditWeek => IsSessionDay && Event.CanEdit;
     public string? MeetingUrl => Event.MeetingUrl;
     public string? Description => Event.Description;
     public bool CanEdit => Event.CanEdit;

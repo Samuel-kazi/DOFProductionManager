@@ -17,6 +17,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddReleases` | 6 | Adds `distribution_channels` and `releases`. Additive only. Channels are seeded at startup (not in the migration). |
 | `AddRemindersAndNotifications` | 7 | Adds `reminders`, `notifications`, `notification_outbox`, `notification_preferences`. Additive only. Hangfire creates and manages its own `hangfire` schema at startup. |
 | `GoogleCalendarInvites` | 9 | Adds `google_calendar_connections`, `google_calendar_invites`, `google_calendar_invite_guests`. Additive only. |
+| `SessionWeeks` | 9 | Adds `session_weeks`, and `session_week_id`, `theme`, `speaker` on `calendar_events`. Additive only. |
 | `ReleasesWithoutEpisode` | 9 | `releases.episode_id` becomes nullable; adds `releases.title` and the check `ck_releases_episode_or_title`. Additive only (existing rows keep their episode). |
 
 ## Tables
@@ -74,6 +75,16 @@ Standalone events only. Dates owned by episodes, milestones, tasks and releases 
 | status | varchar(40) | Scheduled, Completed, Cancelled (cancel instead of delete). Indexed |
 | created_by / updated_by | uuid null | → users (restrict); set automatically |
 | version | integer | optimistic concurrency |
+| session_week_id | uuid null | → session_weeks (restrict; indexed). Set for the days of a planned session week |
+| theme | varchar(200) null | A session day's theme; the title is "‹week name›: ‹theme›" |
+| speaker | varchar(200) null | Who is sharing, as typed (may be a guest who is not a user) |
+
+### session_weeks
+A week of a recurring session series such as a Monday-to-Friday devotion. Its days are ordinary
+`calendar_events` rows (the dates live there, not here). `name varchar(150)`, `week_start date` (check
+`ck_session_weeks_starts_monday`), `event_type varchar(40)`, `location varchar(500) null`, `meeting_url
+text null`, `speaker varchar(200) null` (who shares on days that name nobody else), `created_by` /
+`updated_by`, `version`. Index `(name, week_start)`.
 
 ### calendar_event_assignments
 `calendar_event_id → calendar_events (cascade)`, `user_id → users (restrict)`, `assignment_type varchar(30)`

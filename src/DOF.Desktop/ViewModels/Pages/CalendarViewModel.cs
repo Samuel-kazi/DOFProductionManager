@@ -400,6 +400,90 @@ public sealed partial class CalendarViewModel : PageViewModel
         }
     }
 
+    /// <summary>Opens the week planner for the week in view, starting from the most recent series name.</summary>
+    [RelayCommand(CanExecute = nameof(CanCreate))]
+    public async Task PlanWeekAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var earlier = await _api.GetAsync<List<SessionWeekSummaryResponse>>("api/v1/calendar/session-weeks");
+            SidePanel = new SessionWeekEditorViewModel(_clock, AnchorDate, KnownNames(earlier));
+        });
+    }
+
+    /// <summary>Opens the whole week an event belongs to.</summary>
+    [RelayCommand]
+    private async Task EditWeekAsync(EventDetailsViewModel details)
+    {
+        if (details.Event.SessionWeekId is not { } weekId)
+        {
+            return;
+        }
+        await RunAsync(async () =>
+        {
+            var week = await _api.GetAsync<SessionWeekResponse>($"api/v1/calendar/session-weeks/{weekId}");
+            var earlier = await _api.GetAsync<List<SessionWeekSummaryResponse>>("api/v1/calendar/session-weeks");
+            SidePanel = new SessionWeekEditorViewModel(_clock, AnchorDate, KnownNames(earlier), week);
+        });
+    }
+
+    /// <summary>Copies the time, place, speakers and days of the latest earlier week of the same series (not the themes).</summary>
+    [RelayCommand]
+    private async Task CopyLastWeekAsync(SessionWeekEditorViewModel editor)
+    {
+        editor.ErrorMessage = null;
+        editor.Message = null;
+        try
+        {
+            var earlier = await _api.GetAsync<List<SessionWeekSummaryResponse>>(
+                $"api/v1/calendar/session-weeks?name={Uri.EscapeDataString(editor.Name.Trim())}&before={editor.WeekMonday:yyyy-MM-dd}");
+            if (earlier.FirstOrDefault() is not { } last)
+            {
+                editor.Message = string.IsNullOrWhiteSpace(editor.Name)
+                    ? "Type the sessions' name first, then copy its last week."
+                    : $"No earlier week of {editor.Name.Trim()} to copy.";
+                return;
+            }
+            editor.Apply(await _api.GetAsync<SessionWeekResponse>($"api/v1/calendar/session-weeks/{last.Id}"), copyThemes: false);
+            editor.Message = $"Copied from the week of {last.WeekStart:d MMM yyyy}. Type this week's themes.";
+        }
+        catch (Exception ex) when (ex is ApiException or ApiUnavailableException)
+        {
+            editor.ErrorMessage = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveWeekAsync(SessionWeekEditorViewModel editor)
+    {
+        if (editor.BuildRequest() is not { } request)
+        {
+            return;
+        }
+        editor.IsSaving = true;
+        try
+        {
+            var saved = editor.Existing is { } existing
+                ? await _api.PutAsync<SessionWeekResponse>($"api/v1/calendar/session-weeks/{existing.Id}", request)
+                : await _api.PostAsync<SessionWeekResponse>("api/v1/calendar/session-weeks", request);
+            AppLog.Info($"Saved session week {saved.Id} with {saved.Days.Count} days");
+            SidePanel = null;
+            AnchorDate = saved.WeekStart;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ApiException or ApiUnavailableException)
+        {
+            editor.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            editor.IsSaving = false;
+        }
+    }
+
+    private static List<string> KnownNames(IEnumerable<SessionWeekSummaryResponse> weeks) =>
+        [.. weeks.Select(w => w.Name).Distinct(StringComparer.OrdinalIgnoreCase)];
+
     [RelayCommand]
     private async Task EditEventAsync(EventDetailsViewModel details)
     {

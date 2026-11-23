@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cal="using:DOF.Desktop.ViewModels.Calendar"
+             xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
+             xmlns:pageViews="using:DOF.Desktop.Views.Pages"
+             xmlns:conv="using:DOF.Desktop.Converters"
+             x:Class="DOF.Desktop.Views.Calendar.SessionWeekEditorView"
+             x:DataType="cal:SessionWeekEditorViewModel">
+  <DockPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="20,16,12,8">
+      <TextBlock Classes="h2" Text="{Binding Heading}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      <Button Grid.Column="1" Classes="toolbar" Content="✕" ToolTip.Tip="Close without saving"
+              Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).CloseSidePanelCommand}" />
+    </Grid>
+
+    <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,20" Spacing="10">
+      <Border Classes="banner error" IsVisible="{Binding HasError}">
+        <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" />
+      </Border>
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="SaveWeekButton" Classes="accent" Content="Save week" IsDefault="True" IsEnabled="{Binding !IsSaving}"
+                Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).SaveWeekCommand}"
+                CommandParameter="{Binding}" />
+        <Button Content="Discard"
+                Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).CloseSidePanelCommand}" />
+      </StackPanel>
+    </StackPanel>
+
+    <ScrollViewer>
+      <StackPanel Margin="20,0,20,8" Spacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Sessions" />
+          <AutoCompleteBox x:Name="SeriesName" Text="{Binding Name}" ItemsSource="{Binding KnownNames}" FilterMode="ContainsOrdinal"
+                           MinimumPrefixLength="0" Watermark="e.g. Morning Devotion" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Week" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CalendarDatePicker SelectedDate="{Binding WeekStart}" Width="150" />
+            <Button Content="Copy last week" IsVisible="{Binding IsNew}" ToolTip.Tip="Use the time, place and speakers of the last week of these sessions"
+                    Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).CopyLastWeekCommand}"
+                    CommandParameter="{Binding}" />
+          </StackPanel>
+          <TextBlock Classes="muted small" Text="{Binding WeekText}" />
+          <TextBlock Classes="muted small" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap"
+                     Foreground="{DynamicResource Brush.Accent}" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Time each day" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TimePicker SelectedTime="{Binding StartTime}" ClockIdentifier="24HourClock" MinuteIncrement="5" MinWidth="0" Width="150" />
+            <TextBlock Text="to" VerticalAlignment="Center" />
+            <TimePicker SelectedTime="{Binding EndTime}" ClockIdentifier="24HourClock" MinuteIncrement="5" MinWidth="0" Width="150" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Shared by (whole week)" />
+          <TextBox x:Name="WeekSpeaker" Text="{Binding Speaker}" PlaceholderText="e.g. Pastor John" MaxLength="200" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="Only fill in a day's 'Sharing' box below when someone else shares that day." />
+        </StackPanel>
+
+        <!-- Days -->
+        <Border Classes="card" Padding="10,8">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="118,*,8,*">
+              <TextBlock Classes="muted small" Text="Day" />
+              <TextBlock Grid.Column="1" Classes="muted small" Text="Theme" />
+              <TextBlock Grid.Column="3" Classes="muted small" Text="Sharing" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Days}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="cal:SessionDayRow">
+                  <Grid ColumnDefinitions="118,*,8,*" Margin="0,2">
+                    <CheckBox Content="{Binding DayText}" IsChecked="{Binding IsIncluded}" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Theme}" PlaceholderText="Theme" MaxLength="200" IsEnabled="{Binding IsIncluded}" />
+                    <TextBox Grid.Column="3" Text="{Binding Speaker}" PlaceholderText="{Binding SpeakerHint}" MaxLength="200"
+                             IsEnabled="{Binding IsIncluded}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <StackPanel Spacing="4">
+          <TextBlock Text="Type" />
+          <ComboBox ItemsSource="{Binding EventTypes}" SelectedItem="{Binding EventType}" Width="220">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="x:String">
+                <TextBlock Text="{Binding Converter={x:Static conv:HumanizeConverter.Instance}}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Location" />
+          <TextBox Text="{Binding Location}" PlaceholderText="Chapel, studio or address" />
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="Meeting link" />
+          <TextBox Text="{Binding MeetingUrl}" PlaceholderText="https://" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

@@ -26,6 +26,15 @@ public sealed class CalendarEvent : AuditableEntity, IVersioned
     public CalendarEventStatus Status { get; private set; }
     public int Version { get; private set; }
 
+    /// <summary>The session week this event is one day of, if any.</summary>
+    public Guid? SessionWeekId { get; private set; }
+
+    /// <summary>The day's theme in a session week (the title is built from the week's name and this).</summary>
+    public string? Theme { get; private set; }
+
+    /// <summary>Who is sharing or leading, typed as a name (may be a guest who is not a DOF user).</summary>
+    public string? Speaker { get; private set; }
+
     public IReadOnlyCollection<CalendarEventAssignment> Assignments => _assignments;
 
     public static CalendarEvent Create(
@@ -71,6 +80,14 @@ public sealed class CalendarEvent : AuditableEntity, IVersioned
         EnsureValidTimes(startAt, endAt);
         StartAt = startAt.ToUniversalTime();
         EndAt = endAt.ToUniversalTime();
+    }
+
+    /// <summary>Makes this event one day of <paramref name="week"/>, with its theme and who shares that day.</summary>
+    public void SetSessionDay(SessionWeek week, string? theme, string? speaker)
+    {
+        SessionWeekId = week.Id;
+        Theme = SessionWeek.Clean(theme) is { } t ? SessionWeek.Limit(t, SessionWeek.ThemeMaxLength, "theme") : null;
+        Speaker = SessionWeek.Clean(speaker) is { } s ? SessionWeek.Limit(s, SessionWeek.SpeakerMaxLength, "speaker") : null;
     }
 
     /// <summary>Operational records are cancelled rather than deleted, so their history is kept.</summary>

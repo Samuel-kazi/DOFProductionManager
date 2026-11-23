@@ -190,6 +190,10 @@ Escalation, each linked to its record (`sourceType`/`sourceId`).
 | Method | Endpoint | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/v1/calendar/export` | Signed in | `period` Day, Week (Mon–Sun), Month or Year containing `date` (default today), plus the calendar filters → `application/pdf`, file `dof-schedule-{period}-{first day}.pdf`. Unknown period → 422 |
+| GET | `/api/v1/calendar/session-weeks` | Signed in | Earlier session weeks, newest first (≤ 50): `name` (any case), `before` (date). Used for name suggestions and "Copy last week" |
+| GET | `/api/v1/calendar/session-weeks/{id}` | Signed in | The week with its live days: `eventId`, times, `theme`, `speaker` (only when it differs from the week's), `title` |
+| POST | `/api/v1/calendar/session-weeks` | `calendar.manage` | `{name, weekStart (Monday), eventType, location?, meetingUrl?, speaker?, days: [{startAt, endAt, theme?, speaker?}]}` (1–7 days, each in that week, one per date) → 201; one calendar event per day |
+| PUT | `/api/v1/calendar/session-weeks/{id}` | `calendar.manage` | Same body plus `version`; days with `eventId` are updated in place, new days are added, days left out are cancelled |
 | GET | `/api/v1/calendar/events/{id}/google-invites` | Signed in | The event's invites (`data` null when none were sent) |
 | PUT | `/api/v1/calendar/events/{id}/google-invites` | `calendar.manage` | `{userIds[], emails[]}` (≥ 1, ≤ 100 each): send or update invites; replaces the guest list. Pushed to Google at once; 409 when no Google account is connected, 422 when the event is cancelled or over |
 | DELETE | `/api/v1/calendar/events/{id}/google-invites` | `calendar.manage` | Take the event off every guest's calendar (Google tells them) |

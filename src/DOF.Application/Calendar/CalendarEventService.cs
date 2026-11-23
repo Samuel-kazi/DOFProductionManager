@@ -169,6 +169,7 @@ public sealed class CalendarEventService(
             r.Assigned
                     .OrderBy(a => a.AssignmentType).ThenBy(a => a.FullName, StringComparer.CurrentCultureIgnoreCase)
                     .Select(a => new AssignedUserResponse(a.UserId, a.FullName, a.AssignmentType.ToString())).ToList(),
-            r.Event.CreatedBy, r.CreatedByName, r.Event.CreatedAt, r.Event.UpdatedAt, r.Event.Version, canEdit));
+            r.Event.CreatedBy, r.CreatedByName, r.Event.CreatedAt, r.Event.UpdatedAt, r.Event.Version, canEdit,
+            r.Event.Speaker, r.Event.SessionWeekId, r.Event.Theme));
     }
 }

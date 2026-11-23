@@ -227,7 +227,16 @@ for singles, trailers or announcements. Such releases have channels, times, stat
 publication confirmation, reminders (to the assignee, else whoever created it), calendar items, search
 and reports like episode releases; they just have no episode status to update. Migration
 `ReleasesWithoutEpisode` (additive). Evidence: `ReleaseTests.A_release_without_an_episode_is_typed_in…`,
-`ReleaseUiTests.A_release_can_be_typed_in_without_an_episode`, `ReleaseDomainTests`. 250 automated tests pass.
+`ReleaseUiTests.A_release_can_be_typed_in_without_an_episode`, `ReleaseDomainTests`.
+
+Follow-up requested by DOF: weekly session series such as devotions. Calendar → New event ▾ → "Plan a
+week of sessions…": the series name, week, time, place and who shares that week, then each day's theme
+and (only when different) who shares that day. Saves one event per day; "Edit whole week" on any day
+reopens it, and "Copy last week" reuses the last week of the series. Who is sharing shows in event
+details, tooltips, Google invites and PDFs. Migration `SessionWeeks` (additive). Evidence:
+`SessionWeekTests` (API: planning, editing in place and cancelling dropped days, validation and
+permissions) and `SessionWeekUiTests` (snapshots 69–70). Series with seasons and episodes keep using
+Shows & Episodes (recording times and releases). 254 automated tests pass.
 
 Notes:
 - Invites cover standalone calendar events. Recordings, deadlines and releases are owned by episodes,
