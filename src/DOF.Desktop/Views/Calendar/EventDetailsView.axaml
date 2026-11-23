@@ -4,6 +4,7 @@
              xmlns:pages="using:DOF.Desktop.ViewModels.Pages"
              xmlns:pageViews="using:DOF.Desktop.Views.Pages"
              xmlns:conv="using:DOF.Desktop.Converters"
+             xmlns:work="using:DOF.Desktop.ViewModels.Work"
              x:Class="DOF.Desktop.Views.Calendar.EventDetailsView"
              x:DataType="cal:EventDetailsViewModel">
   <DockPanel>
@@ -69,6 +70,75 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </StackPanel>
+
+        <!-- Google Calendar invites -->
+        <Border Classes="card" Padding="12" IsVisible="{Binding HasInvites}" x:Name="GoogleInvites">
+          <StackPanel Spacing="8" DataContext="{Binding Invites}" x:DataType="cal:GoogleInvitesViewModel">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Classes="muted small" Text="Google Calendar" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Classes="toolbar" Content="↻" ToolTip.Tip="Refresh answers" Padding="6,0"
+                      Command="{Binding RefreshCommand}" IsVisible="{Binding IsActive}" />
+            </Grid>
+            <TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap" />
+            <Border Classes="banner error" IsVisible="{Binding HasProblem}">
+              <TextBlock Text="{Binding ProblemText}" TextWrapping="Wrap" />
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding Guests}" IsVisible="{Binding IsActive}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="cal:GuestItem">
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,2" ToolTip.Tip="{Binding Email}">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="1" Classes="small" Text="{Binding ResponseText}" Margin="8,0,0,0"
+                               Foreground="{Binding ResponseBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding ShowConnectHint}"
+                       Text="To send invites, connect a Google account in Settings → Google Calendar." />
+
+            <!-- Choosing guests -->
+            <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
+              <TextBlock Classes="small" Text="Team members" />
+              <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="6" MaxHeight="200">
+                <ScrollViewer>
+                  <ItemsControl ItemsSource="{Binding People}" Margin="8,4">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="work:PersonOption">
+                        <CheckBox Content="{Binding FullName}" IsChecked="{Binding IsSelected}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </Border>
+              <TextBlock Classes="small" Text="Other guests (e-mail addresses, separated by commas)" />
+              <TextBox Text="{Binding ExtraEmails}" PlaceholderText="name@example.com, …" TextWrapping="Wrap" AcceptsReturn="False" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="accent" Content="Send invites" Command="{Binding SendCommand}" />
+                <Button Content="Cancel" Command="{Binding CancelEditingCommand}" />
+              </StackPanel>
+            </StackPanel>
+
+            <Border Classes="banner error" IsVisible="{Binding IsConfirmingRemove}">
+              <StackPanel Spacing="8">
+                <TextBlock TextWrapping="Wrap" Text="Take this event off everyone's Google Calendar? Google will tell them it was cancelled. The event stays in DOF." />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Remove" Command="{Binding RemoveCommand}" />
+                  <Button Content="Keep" Command="{Binding KeepInvitesCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <WrapPanel IsVisible="{Binding !IsConfirmingRemove}">
+              <Button Content="{Binding SendButtonText}" Command="{Binding StartEditingCommand}" IsVisible="{Binding CanSend}" Margin="0,0,8,4" />
+              <Button Content="Edit guests…" Command="{Binding StartEditingCommand}" IsVisible="{Binding CanEditGuests}" Margin="0,0,8,4" />
+              <Button Content="Remove from Google Calendar…" Command="{Binding AskRemoveCommand}" IsVisible="{Binding CanRemove}" Margin="0,0,8,4" />
+            </WrapPanel>
+            <TextBlock Classes="muted small" Text="{Binding Message}" IsVisible="{Binding HasMessage}" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
 
         <StackPanel Spacing="3" IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}">
           <TextBlock Classes="muted small" Text="Notes" />

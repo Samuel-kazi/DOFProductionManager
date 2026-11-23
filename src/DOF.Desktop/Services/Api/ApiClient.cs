@@ -17,6 +17,10 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
     public Task<T> GetAsync<T>(string path, CancellationToken ct = default) =>
         SendAsync<T>(new HttpRequestMessage(HttpMethod.Get, path), ct);
 
+    /// <summary>A GET whose data may legitimately be null (for example "no invites sent yet").</summary>
+    public async Task<T?> GetOptionalAsync<T>(string path, CancellationToken ct = default) where T : class =>
+        await SendAsync<T?>(new HttpRequestMessage(HttpMethod.Get, path), ct, allowNull: true);
+
     public Task<T> PostAsync<T>(string path, object body, CancellationToken ct = default) =>
         SendAsync<T>(new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) }, ct);
 
@@ -42,7 +46,7 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
         {
             if (!response.IsSuccessStatusCode)
             {
-                throw new ApiException(response.StatusCode, $"The download failed ({(int)response.StatusCode}).");
+                throw await ApiException.FromResponseAsync(response, ct);
             }
             return await response.Content.ReadAsByteArrayAsync(ct);
         }
@@ -52,11 +56,15 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
     public async Task PatchNoContentAsync(string path, CancellationToken ct = default) =>
         await SendAsync<object?>(new HttpRequestMessage(HttpMethod.Patch, path), ct, expectBody: false);
 
+    /// <summary>A DELETE that answers with a body.</summary>
+    public Task<T> DeleteAsync<T>(string path, CancellationToken ct = default) =>
+        SendAsync<T>(new HttpRequestMessage(HttpMethod.Delete, path), ct);
+
     /// <summary>For endpoints that answer 204 No Content.</summary>
     public async Task DeleteAsync(string path, CancellationToken ct = default) =>
         await SendAsync<object?>(new HttpRequestMessage(HttpMethod.Delete, path), ct, expectBody: false);
 
-    private async Task<T> SendAsync<T>(HttpRequestMessage request, CancellationToken ct, bool expectBody = true)
+    private async Task<T> SendAsync<T>(HttpRequestMessage request, CancellationToken ct, bool expectBody = true, bool allowNull = false)
     {
         HttpResponseMessage response;
         try
@@ -94,6 +102,7 @@ public sealed class ApiClient(HttpClient http, ConnectionMonitor connection)
 
             var body = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(ct);
             return body is { Data: not null } ? body.Data
+                : allowNull && body is not null ? default!
                 : throw new ApiException(response.StatusCode, "The server returned an empty response.");
         }
     }

@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarSource, ReleaseCalendarSource>();
         services.AddScoped<CalendarService>();
         services.AddScoped<CalendarEventService>();
+        services.AddScoped<ScheduleExportService>();
         services.AddScoped<DashboardService>();
 
         services.AddScoped<ActivityRecorder>();
@@ -63,6 +64,10 @@ public static class DependencyInjection
 
         services.AddScoped<Reports.ReportService>();
         services.AddScoped<Reports.SearchService>();
+
+        services.AddScoped<GoogleCalendar.GoogleConnectionService>();
+        services.AddScoped<GoogleCalendar.GoogleInviteService>();
+        services.AddScoped<GoogleCalendar.GoogleInviteSync>();
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 

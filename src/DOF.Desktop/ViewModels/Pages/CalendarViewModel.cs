@@ -21,14 +21,16 @@ public sealed partial class CalendarViewModel : PageViewModel
     private readonly ApiClient _api;
     private readonly AuthSession _session;
     private readonly UserClock _clock;
+    private readonly DesktopSettings _settings;
     private IReadOnlyList<CalendarItemViewModel> _loaded = [];
     private List<AssigneeOption>? _people;
 
-    public CalendarViewModel(ApiClient api, AuthSession session, UserClock clock, PreferencesStore preferences)
+    public CalendarViewModel(ApiClient api, AuthSession session, UserClock clock, PreferencesStore preferences, DesktopSettings settings)
     {
         _api = api;
         _session = session;
         _clock = clock;
+        _settings = settings;
         Mode = Enum.TryParse<CalendarMode>(preferences.Current.DefaultCalendarView, out var preferred) ? preferred : CalendarMode.Month;
         AnchorDate = clock.Today;
         EventTypeFilters = [.. CalendarValues.EventTypes.Append(CalendarValues.MilestoneItem).Append(CalendarValues.TaskDeadlineItem)
@@ -52,7 +54,7 @@ public sealed partial class CalendarViewModel : PageViewModel
     public partial CalendarMode Mode { get; set; } = CalendarMode.Month;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RangeTitle))]
+    [NotifyPropertyChangedFor(nameof(RangeTitle), nameof(PdfDayLabel), nameof(PdfWeekLabel), nameof(PdfMonthLabel), nameof(PdfYearLabel))]
     public partial DateOnly AnchorDate { get; set; }
 
     public bool IsMonth => Mode == CalendarMode.Month;
@@ -125,7 +127,24 @@ public sealed partial class CalendarViewModel : PageViewModel
     public override async Task LoadAsync()
     {
         var (start, end) = VisibleRange();
-        var query = $"api/v1/calendar?start={Uri.EscapeDataString(start.ToString("O"))}&end={Uri.EscapeDataString(end.ToString("O"))}";
+        var query = $"api/v1/calendar?start={Uri.EscapeDataString(start.ToString("O"))}&end={Uri.EscapeDataString(end.ToString("O"))}"
+                    + FilterQuery();
+
+        ActiveFilterCount = EventTypeFilters.Count(f => f.IsSelected) + PriorityFilters.Count(f => f.IsSelected)
+                            + (OnlyMine ? 1 : 0) + (IncludeCancelled ? 1 : 0);
+
+        await RunAsync(async () =>
+        {
+            var items = await _api.GetAsync<List<CalendarItemResponse>>(query);
+            _loaded = [.. items.Select(i => new CalendarItemViewModel(i, _clock))];
+            Rebuild();
+        });
+    }
+
+    /// <summary>The active filters as query-string parameters (each starting with '&amp;').</summary>
+    private string FilterQuery()
+    {
+        var query = string.Empty;
         foreach (var type in EventTypeFilters.Where(f => f.IsSelected))
         {
             query += $"&eventTypes={type.Value}";
@@ -142,16 +161,71 @@ public sealed partial class CalendarViewModel : PageViewModel
         {
             query += "&includeCancelled=true";
         }
+        return query;
+    }
 
-        ActiveFilterCount = EventTypeFilters.Count(f => f.IsSelected) + PriorityFilters.Count(f => f.IsSelected)
-                            + (OnlyMine ? 1 : 0) + (IncludeCancelled ? 1 : 0);
+    // ---- schedule PDF ----
 
-        await RunAsync(async () =>
+    public string PdfDayLabel => $"Day · {AnchorDate:ddd d MMM yyyy}";
+    public string PdfWeekLabel => $"Week · {WeekTitle()}";
+    public string PdfMonthLabel => $"Month · {AnchorDate:MMMM yyyy}";
+    public string PdfYearLabel => $"Year · {AnchorDate.Year}";
+
+    /// <summary>Where the save dialog opens (ExportFolder in appsettings.json, or Documents).</summary>
+    public string ExportDirectory => _settings.ExportDirectory;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPdfMessage))]
+    public partial string? PdfMessage { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSavedPdf))]
+    public partial string? SavedPdfPath { get; private set; }
+
+    public bool HasPdfMessage => PdfMessage is not null;
+    public bool HasSavedPdf => SavedPdfPath is not null;
+
+    /// <summary>The export address for the period around the date in view, with the calendar's filters.</summary>
+    public string PdfPath(string period) => $"api/v1/calendar/export?period={period}&date={AnchorDate:yyyy-MM-dd}" + FilterQuery();
+
+    public string SuggestedPdfName(string period) => period switch
+    {
+        "Day" => $"DOF schedule - {AnchorDate:ddd d MMM yyyy}.pdf",
+        "Week" => $"DOF schedule - week of {Monday(AnchorDate):d MMM yyyy}.pdf",
+        "Month" => $"DOF schedule - {AnchorDate:MMMM yyyy}.pdf",
+        _ => $"DOF schedule - {AnchorDate.Year}.pdf",
+    };
+
+    /// <summary>Downloads the PDF into <paramref name="destination"/>; <paramref name="savedPath"/> lets the user open it afterwards.</summary>
+    public async Task DownloadPdfAsync(string period, Stream destination, string fileName, string? savedPath)
+    {
+        PdfMessage = null;
+        SavedPdfPath = null;
+        if (await RunAsync(async () =>
+            {
+                var bytes = await _api.GetBytesAsync(PdfPath(period));
+                await destination.WriteAsync(bytes);
+                await destination.FlushAsync();
+            }))
         {
-            var items = await _api.GetAsync<List<CalendarItemResponse>>(query);
-            _loaded = [.. items.Select(i => new CalendarItemViewModel(i, _clock))];
-            Rebuild();
-        });
+            PdfMessage = $"Saved \u201c{fileName}\u201d.";
+            SavedPdfPath = savedPath;
+            AppLog.Info($"Downloaded {period} schedule PDF");
+        }
+    }
+
+    public void ReportPdfFailure(string message)
+    {
+        AppLog.Warning($"Schedule PDF could not be saved: {message}");
+        SavedPdfPath = null;
+        PdfMessage = $"The PDF could not be saved: {message}";
+    }
+
+    [RelayCommand]
+    private void DismissPdfMessage()
+    {
+        PdfMessage = null;
+        SavedPdfPath = null;
     }
 
     /// <summary>Rebuilds the visible view from the loaded items (and the local text search).</summary>
@@ -297,14 +371,21 @@ public sealed partial class CalendarViewModel : PageViewModel
             {
                 AnchorDate = date;
             }
-            SidePanel = new EventDetailsViewModel(calendarEvent, _clock);
+            SidePanel = await DetailsAsync(calendarEvent);
         });
         await LoadAsync();
     }
 
     private async Task ShowEventAsync(Guid eventId) => await RunAsync(async () =>
-        SidePanel = new EventDetailsViewModel(
-            await _api.GetAsync<CalendarEventResponse>($"api/v1/calendar/events/{eventId}"), _clock));
+        SidePanel = await DetailsAsync(await _api.GetAsync<CalendarEventResponse>($"api/v1/calendar/events/{eventId}")));
+
+    /// <summary>An event's details with its Google Calendar invites section.</summary>
+    private async Task<EventDetailsViewModel> DetailsAsync(CalendarEventResponse calendarEvent)
+    {
+        var invites = new GoogleInvitesViewModel(_api, _clock, calendarEvent, CanCreate);
+        await invites.LoadAsync();
+        return new EventDetailsViewModel(calendarEvent, _clock, invites);
+    }
 
     [RelayCommand]
     private void CloseSidePanel() => SidePanel = null;
@@ -356,7 +437,7 @@ public sealed partial class CalendarViewModel : PageViewModel
                         editor.IsAllDay, editor.Location, editor.MeetingUrl, editor.Priority, editor.Assignments()));
             }
 
-            SidePanel = new EventDetailsViewModel(saved, _clock);
+            SidePanel = await DetailsAsync(saved);
             AppLog.Info($"Saved calendar event {saved.Id}");
             await LoadAsync();
         }
@@ -468,7 +549,7 @@ public sealed partial class CalendarViewModel : PageViewModel
                     current.Version));
             if (SidePanel is EventDetailsViewModel open && open.Event.Id == saved.Id)
             {
-                SidePanel = new EventDetailsViewModel(saved, _clock);
+                SidePanel = await DetailsAsync(saved);
             }
             AppLog.Info($"Rescheduled calendar event {saved.Id}");
         });

@@ -77,7 +77,7 @@
     <DockPanel Grid.Column="0" Margin="24,16,24,12">
 
       <!-- Toolbar -->
-      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,12">
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,12">
         <StackPanel Orientation="Horizontal" Spacing="4">
           <Button Content="Today" Command="{Binding TodayCommand}" />
           <Button Classes="toolbar" Content="‹" FontSize="18" Padding="10,2" Command="{Binding PreviousCommand}" ToolTip.Tip="Previous" />
@@ -85,7 +85,7 @@
         </StackPanel>
         <TextBlock Grid.Column="1" Classes="h2" Text="{Binding RangeTitle}" VerticalAlignment="Center" Margin="12,0" />
 
-        <TextBox Grid.Column="3" Text="{Binding SearchText}" PlaceholderText="Filter by title or place" Width="200" Margin="0,0,8,0"
+        <TextBox Grid.Column="3" Text="{Binding SearchText}" PlaceholderText="Filter by title" Width="150" Margin="0,0,8,0"
                  IsVisible="{Binding !HasSidePanel}" />
         <Button Grid.Column="4" Command="{Binding ToggleFiltersCommand}" Margin="0,0,8,0">
           <StackPanel Orientation="Horizontal" Spacing="6">
@@ -95,7 +95,21 @@
             </Border>
           </StackPanel>
         </Button>
-        <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="0,0,8,0">
+        <Button Grid.Column="5" x:Name="DownloadPdfButton" Margin="0,0,8,0" ToolTip.Tip="Download the schedule as a PDF">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="PDF" />
+            <TextBlock Text="▾" FontSize="10" VerticalAlignment="Center" />
+          </StackPanel>
+          <Button.Flyout>
+            <MenuFlyout Placement="BottomEdgeAlignedRight">
+              <MenuItem Header="{Binding PdfDayLabel}" Tag="Day" Click="OnDownloadPdf" />
+              <MenuItem Header="{Binding PdfWeekLabel}" Tag="Week" Click="OnDownloadPdf" />
+              <MenuItem Header="{Binding PdfMonthLabel}" Tag="Month" Click="OnDownloadPdf" />
+              <MenuItem Header="{Binding PdfYearLabel}" Tag="Year" Click="OnDownloadPdf" />
+            </MenuFlyout>
+          </Button.Flyout>
+        </Button>
+        <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="0,0,8,0">
           <ToggleButton Classes="segment" Content="Month" IsChecked="{Binding IsMonth, Mode=OneWay}"
                         Command="{Binding SetModeCommand}" CommandParameter="{x:Static cal:CalendarMode.Month}" CornerRadius="6,0,0,6" />
           <ToggleButton Classes="segment" Content="Week" IsChecked="{Binding IsWeek, Mode=OneWay}"
@@ -105,7 +119,7 @@
           <ToggleButton Classes="segment" Content="Agenda" IsChecked="{Binding IsAgenda, Mode=OneWay}"
                         Command="{Binding SetModeCommand}" CommandParameter="{x:Static cal:CalendarMode.Agenda}" CornerRadius="0,6,6,0" />
         </StackPanel>
-        <Button Grid.Column="6" Classes="accent" Command="{Binding NewEventCommand}" CommandParameter="{x:Null}"
+        <Button Grid.Column="7" Classes="accent" Command="{Binding NewEventCommand}" CommandParameter="{x:Null}"
                 IsVisible="{Binding ShowNewEventButton}" ToolTip.Tip="Create a standalone event">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Path Classes="icon" Data="{StaticResource Icon.Plus}" Width="14" Height="14" Stroke="White" />
@@ -113,6 +127,15 @@
           </StackPanel>
         </Button>
       </Grid>
+
+      <!-- Result of the last PDF download -->
+      <Border DockPanel.Dock="Top" Classes="banner" Classes.success="{Binding HasSavedPdf}" Margin="0,0,0,12" IsVisible="{Binding HasPdfMessage}" x:Name="PdfBanner">
+        <Grid ColumnDefinitions="*,Auto,Auto">
+          <TextBlock Text="{Binding PdfMessage}" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <Button Grid.Column="1" Content="Open" Margin="8,0,0,0" IsVisible="{Binding HasSavedPdf}" Click="OnOpenPdf" />
+          <Button Grid.Column="2" Classes="toolbar" Content="✕" ToolTip.Tip="Dismiss" Margin="4,0,0,0" Command="{Binding DismissPdfMessageCommand}" />
+        </Grid>
+      </Border>
 
       <!-- Filters -->
       <Border DockPanel.Dock="Top" Classes="card" Padding="16,12" Margin="0,0,0,12" IsVisible="{Binding ShowFilters}">

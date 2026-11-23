@@ -30,8 +30,9 @@ internal sealed class DesktopHarness : IDisposable
 
     static DesktopHarness() => AppLog.Directory = Path.Combine(Path.GetTempPath(), "dof-desktop-tests", "logs");
 
-    public DesktopHarness(DofApiFactory factory, InMemorySecureStore? store = null)
-        : this(store, "http://localhost/", factory.Server.CreateHandler())
+    public DesktopHarness(DofApiFactory factory, InMemorySecureStore? store = null, IBrowserLauncher? browser = null,
+        string? exportFolder = null)
+        : this(store, "http://localhost/", factory.Server.CreateHandler(), browser, exportFolder)
     {
     }
 
@@ -39,11 +40,13 @@ internal sealed class DesktopHarness : IDisposable
     public static DesktopHarness Offline(InMemorySecureStore store) =>
         new(store, "http://127.0.0.1:9/", new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(2) });
 
-    private DesktopHarness(InMemorySecureStore? store, string apiUrl, HttpMessageHandler handler)
+    private DesktopHarness(InMemorySecureStore? store, string apiUrl, HttpMessageHandler handler,
+        IBrowserLauncher? browser = null, string? exportFolder = null)
     {
         Store = store ?? new InMemorySecureStore();
         Preferences = new PreferencesStore(_preferencesDirectory);
-        Services = DesktopServices.Build(DesktopSettings.FromUrl(apiUrl), Store, Preferences, Theme, handler);
+        Services = DesktopServices.Build(DesktopSettings.FromUrl(apiUrl) with { ExportFolder = exportFolder }, Store, Preferences, Theme,
+            handler, browser);
     }
 
     public InMemorySecureStore Store { get; }

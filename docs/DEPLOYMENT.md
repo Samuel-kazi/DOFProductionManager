@@ -51,6 +51,8 @@ with `dotnet publish src/DOF.Api -c Release`), run under systemd behind the reve
 | `Reminders__*` | Delivery attempts (5), escalation after hours (24), date-only reminder hour (9), reconcile horizon (60 days), outbox retention (30 days) |
 | `Email__Host` / `__Port` / `__Username` / `__Password` / `__FromAddress` | SMTP. Without a host, e-mail is shown as unavailable |
 | `RateLimiting__AuthPermitLimitPerMinute` | Sign-in attempts per client per minute (10) |
+| `GoogleCalendar__ClientId` / `__ClientSecret` | Google OAuth client for calendar invites (see *Google Calendar* below) |
+| `GoogleCalendar__TokenEncryptionKey` | `openssl rand -base64 32`. Encrypts the stored Google refresh token. Changing it means connecting Google again |
 
 Secrets come only from the environment or a secret store, never from committed files.
 
@@ -103,6 +105,39 @@ Recommended schedule (cron on the server):
 4. Point `ConnectionStrings__Database` at the restored database (or rename databases), start the API,
    check `/health`, and sign in.
 5. Record the incident and the restore in the operations log.
+
+## Google Calendar
+
+DOF sends Google Calendar invites from one Google account that an administrator connects in
+**Settings → Google Calendar**. Setting this up once:
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a project (for example
+   "DOF Production Manager") and enable the **Google Calendar API** for it.
+2. Under **Google Auth Platform → Branding / Audience**, set up the consent screen: app name, support
+   e-mail, audience **External** (or **Internal** for a Google Workspace domain). Add the scope
+   `https://www.googleapis.com/auth/calendar.events`.
+3. While the app is in **Testing**, add the account that will send invites as a test user. Google
+   expires refresh tokens of Testing apps after 7 days, so **publish the app (In production)** once it
+   works. An unverified app shows a warning on the sign-in screen ("Google hasn't verified this app");
+   the administrator chooses *Advanced → Continue*. Only the connecting account sees this screen, and
+   guests never do.
+4. Under **Clients**, create an OAuth client of type **Desktop app**. Put its client ID and client
+   secret in `GoogleCalendar__ClientId` / `GoogleCalendar__ClientSecret`, generate
+   `GoogleCalendar__TokenEncryptionKey`, and restart the API.
+5. In the desktop app, open **Settings → Google Calendar → Connect Google account…**, sign in to the
+   sending account in the browser and allow access. Settings then shows "Invites are sent from …".
+
+Guests receive Google's normal invitation e-mail and the event appears in their Google Calendar.
+Editing the event in DOF updates their calendars within a minute, and cancelling it there removes it.
+Disconnecting stops updates; events already sent stay on guests' calendars.
+
+## Schedule PDFs
+
+The Calendar page's **PDF** menu downloads the day, week, month or year in view (with the active
+filters). The desktop's save dialog starts in `ExportFolder` from the desktop `appsettings.json`
+(default: the user's Documents folder). PDFs are drawn by QuestPDF under its Community licence, which
+is free for qualifying non-profit organisations and organisations with under USD 1M annual revenue.
+Check that DOF qualifies; otherwise a paid licence is needed.
 
 ## Desktop installation
 

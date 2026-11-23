@@ -27,5 +27,5 @@ public sealed class WorkAccess(ICurrentUser currentUser)
 
     /// <summary>Tasks: people who assign work, the task's creator and its assignees.</summary>
     public bool CanEditTask(Guid? createdBy, IEnumerable<Guid> assigneeIds) =>
-        CanAssignOthers || createdBy == currentUser.UserId || assigneeIds.Contains(currentUser.RequiredUserId);
+        CanAssignOthers || createdBy == currentUser.UserId || (currentUser.UserId is { } me && assigneeIds.Contains(me));
 }

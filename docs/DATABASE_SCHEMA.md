@@ -16,6 +16,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddShowsAndEpisodes` | 5 | Adds `shows`, `seasons`, `episodes`, `episode_assignments`, nullable `tasks.episode_id` with its index, foreign key and the `ck_tasks_project_or_episode` check. Additive only. |
 | `AddReleases` | 6 | Adds `distribution_channels` and `releases`. Additive only. Channels are seeded at startup (not in the migration). |
 | `AddRemindersAndNotifications` | 7 | Adds `reminders`, `notifications`, `notification_outbox`, `notification_preferences`. Additive only. Hangfire creates and manages its own `hangfire` schema at startup. |
+| `GoogleCalendarInvites` | 9 | Adds `google_calendar_connections`, `google_calendar_invites`, `google_calendar_invite_guests`. Additive only. |
 
 ## Tables
 
@@ -76,6 +77,41 @@ Standalone events only. Dates owned by episodes, milestones, tasks and releases 
 ### calendar_event_assignments
 `calendar_event_id → calendar_events (cascade)`, `user_id → users (restrict)`, `assignment_type varchar(30)`
 (Organizer, Attendee); unique `(calendar_event_id, user_id)`; indexed on `user_id`.
+
+### google_calendar_connections
+The organisation's Google account for calendar invites (Phase 9). One active row at most (partial unique
+index on `archived_at IS NULL`); disconnecting archives the row.
+
+| Column | Type | Notes |
+|---|---|---|
+| account_email | varchar(320) | The Google account invites are sent from |
+| encrypted_refresh_token | text | AES-256-GCM with `GoogleCalendar:TokenEncryptionKey`; never stored in plain text |
+| calendar_id | varchar(320) | `primary` |
+| connected_by | uuid | → users (restrict) |
+| archived_at | timestamptz null | Set when disconnected |
+| last_error / last_error_at | varchar(1000) null / timestamptz null | E.g. Google refused access; shown in Settings |
+
+### google_calendar_invites
+Google Calendar invites for one standalone event. The event's dates are not copied: the Google event is
+rebuilt from `calendar_events` on every push.
+
+| Column | Type | Notes |
+|---|---|---|
+| calendar_event_id | uuid | → calendar_events (restrict); unique |
+| connection_id | uuid | → google_calendar_connections (restrict): the account that owns the Google event |
+| google_event_id | varchar(100) | Chosen by DOF (`dof` + hex), so a retried insert can never duplicate the event |
+| status | varchar(20) | Pending, Synced, Removing, Removed, Failed. Index `(status, next_attempt_at)` |
+| synced_hash | varchar(64) null | SHA-256 of what Google last received; a different hash means the event changed |
+| created_in_google | boolean | Later pushes are updates |
+| last_synced_at / responses_checked_at | timestamptz null | |
+| retry_count / next_attempt_at / last_error | integer / timestamptz / varchar(1000) null | Retries 1, 5, 15, 60 min, 4 h; Failed after 6 attempts |
+| created_by / updated_by | uuid null | → users (restrict); set automatically |
+| version | integer | optimistic concurrency |
+
+### google_calendar_invite_guests
+`invite_id → google_calendar_invites (cascade)`, `email varchar(320)` (lower-case), `user_id → users (restrict)`
+(null for outside guests), `display_name varchar(200) null`, `response varchar(20)` (Pending, Accepted,
+Tentative, Declined, as reported by Google); unique `(invite_id, email)`.
 
 ### projects
 `name varchar(200)`, `description text null`, `project_type varchar(50)` (Documentary, ShowProduction,

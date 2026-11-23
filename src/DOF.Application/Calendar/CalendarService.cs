@@ -19,16 +19,22 @@ public sealed class CalendarService(
     public const int MaxRangeDays = 190;
     public const int MaxAgendaDays = 90;
 
-    public async Task<IReadOnlyList<CalendarItemResponse>> GetItemsAsync(CalendarQuery query, CancellationToken ct)
+    /// <summary>A whole year plus slack for timezone offsets: the longest range a schedule export covers.</summary>
+    public const int MaxExportRangeDays = 368;
+
+    public Task<IReadOnlyList<CalendarItemResponse>> GetItemsAsync(CalendarQuery query, CancellationToken ct) =>
+        GetItemsAsync(query, MaxRangeDays, ct);
+
+    internal async Task<IReadOnlyList<CalendarItemResponse>> GetItemsAsync(CalendarQuery query, int maxDays, CancellationToken ct)
     {
         if (query.End <= query.Start)
         {
             throw new DomainException("The calendar range must end after it starts.");
         }
 
-        if (query.End - query.Start > TimeSpan.FromDays(MaxRangeDays))
+        if (query.End - query.Start > TimeSpan.FromDays(maxDays))
         {
-            throw new DomainException($"The calendar range cannot exceed {MaxRangeDays} days.");
+            throw new DomainException($"The calendar range cannot exceed {maxDays} days.");
         }
 
         var items = new List<CalendarItemResponse>();

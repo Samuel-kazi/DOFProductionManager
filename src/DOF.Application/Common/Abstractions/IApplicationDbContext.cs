@@ -30,6 +30,9 @@ public interface IApplicationDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<NotificationPreference> NotificationPreferences { get; }
+    DbSet<GoogleCalendarConnection> GoogleCalendarConnections { get; }
+    DbSet<GoogleCalendarInvite> GoogleCalendarInvites { get; }
+    DbSet<GoogleCalendarInviteGuest> GoogleCalendarInviteGuests { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 

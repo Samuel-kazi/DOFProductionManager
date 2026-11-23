@@ -30,6 +30,9 @@ public sealed class DofDbContext(DbContextOptions<DofDbContext> options) : DbCon
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<GoogleCalendarConnection> GoogleCalendarConnections => Set<GoogleCalendarConnection>();
+    public DbSet<GoogleCalendarInvite> GoogleCalendarInvites => Set<GoogleCalendarInvite>();
+    public DbSet<GoogleCalendarInviteGuest> GoogleCalendarInviteGuests => Set<GoogleCalendarInviteGuest>();
 
     public void ClearTracked() => ChangeTracker.Clear();
 

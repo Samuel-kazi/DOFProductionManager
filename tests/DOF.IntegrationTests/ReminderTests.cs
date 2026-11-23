@@ -299,6 +299,6 @@ public class ReminderTests(DofApiFactory factory)
         var storage = hosted.Services.GetRequiredService<JobStorage>();
         using var connection = storage.GetConnection();
         var ids = connection.GetRecurringJobs().Select(j => j.Id).ToList();
-        Assert.Equal(["maintenance", "overdue-detection", "overdue-escalation", "reminders-dispatch"], ids.Order());
+        Assert.Equal(["google-invites-sync", "maintenance", "overdue-detection", "overdue-escalation", "reminders-dispatch"], ids.Order());
     }
 }

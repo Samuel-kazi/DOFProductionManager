@@ -5,9 +5,14 @@ using DOF.Desktop.Services;
 namespace DOF.Desktop.ViewModels.Calendar;
 
 /// <summary>Read-only view of a standalone event (the original record behind its calendar item).</summary>
-public sealed partial class EventDetailsViewModel(CalendarEventResponse calendarEvent, UserClock clock) : ObservableObject
+public sealed partial class EventDetailsViewModel(
+    CalendarEventResponse calendarEvent, UserClock clock, GoogleInvitesViewModel? invites = null) : ObservableObject
 {
     public CalendarEventResponse Event { get; } = calendarEvent;
+
+    /// <summary>The Google Calendar invites section (null where invites are not available, e.g. in previews).</summary>
+    public GoogleInvitesViewModel? Invites { get; } = invites;
+    public bool HasInvites => Invites is not null;
     public string Title => Event.Title;
     public string TypeText => CalendarLabels.Humanize(Event.EventType);
     public string CategoryBrushKey => $"Brush.Cat.{Event.EventType}";

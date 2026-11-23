@@ -1,4 +1,5 @@
 using DOF.Application.Calendar;
+using DOF.Application.GoogleCalendar;
 using DOF.Contracts.Common;
 using DOF.Contracts.Requests;
 using DOF.Contracts.Responses;
@@ -28,7 +29,8 @@ public sealed class CalendarFilters
 
 [ApiController]
 [Route("api/v1/calendar")]
-public sealed class CalendarController(CalendarService calendar, CalendarEventService events) : ControllerBase
+public sealed class CalendarController(
+    CalendarService calendar, CalendarEventService events, ScheduleExportService export, GoogleInviteService invites) : ControllerBase
 {
     /// <summary>
     /// The aggregated calendar: every item overlapping [start, end), built from its original record
@@ -63,6 +65,39 @@ public sealed class CalendarController(CalendarService calendar, CalendarEventSe
     public async Task<ApiResponse<CalendarRangeResponse>> Agenda(
         [FromQuery] DateOnly? start, [FromQuery] int? days, [FromQuery] CalendarFilters filters, CancellationToken ct) =>
         ApiResponse<CalendarRangeResponse>.Ok(await calendar.GetAgendaAsync(start, days, filters.TimeZone, filters.ToQuery(), ct));
+
+    /// <summary>
+    /// The schedule as a PDF: <c>period</c> Day, Week (Monday to Sunday), Month or Year containing
+    /// <c>date</c> (default today), with the same filters as the calendar.
+    /// </summary>
+    [HttpGet("export")]
+    [Produces("application/pdf")]
+    public async Task<IActionResult> Export(
+        [FromQuery] string? period, [FromQuery] DateOnly? date, [FromQuery] CalendarFilters filters, CancellationToken ct)
+    {
+        var (pdf, fileName) = await export.ExportAsync(period, date, filters.TimeZone, filters.ToQuery(), ct);
+        return File(pdf, "application/pdf", fileName);
+    }
+
+    /// <summary>The event's Google Calendar invites (data is null when none were sent).</summary>
+    [HttpGet("events/{id:guid}/google-invites")]
+    public async Task<ApiResponse<GoogleInviteResponse?>> GetGoogleInvites(Guid id, CancellationToken ct) =>
+        ApiResponse<GoogleInviteResponse?>.Ok(await invites.GetAsync(id, ct));
+
+    /// <summary>
+    /// Sends Google Calendar invites for the event to these people, replacing the previous guest list.
+    /// Google e-mails them; later changes to the event update their calendars automatically.
+    /// </summary>
+    [HttpPut("events/{id:guid}/google-invites")]
+    [Authorize(Policy = Permissions.CalendarManage)]
+    public async Task<ApiResponse<GoogleInviteResponse>> SendGoogleInvites(Guid id, SendGoogleInvitesRequest request, CancellationToken ct) =>
+        ApiResponse<GoogleInviteResponse>.Ok(await invites.SendAsync(id, request, ct));
+
+    /// <summary>Takes the event off every guest's Google Calendar (they are told it was cancelled).</summary>
+    [HttpDelete("events/{id:guid}/google-invites")]
+    [Authorize(Policy = Permissions.CalendarManage)]
+    public async Task<ApiResponse<GoogleInviteResponse>> RemoveGoogleInvites(Guid id, CancellationToken ct) =>
+        ApiResponse<GoogleInviteResponse>.Ok(await invites.RemoveAsync(id, ct));
 
     /// <summary>Standalone events (paged).</summary>
     [HttpGet("events")]

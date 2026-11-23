@@ -17,6 +17,7 @@ public static class ActivityEntities
     public const string Season = "Season";
     public const string Episode = "Episode";
     public const string Release = "Release";
+    public const string GoogleCalendar = "GoogleCalendar";
 }
 
 /// <summary>Actions recorded in the activity log.</summary>
@@ -36,6 +37,10 @@ public static class ActivityActions
     public const string Escalated = "Escalated";
     public const string RolesChanged = "RolesChanged";
     public const string PermissionsChanged = "PermissionsChanged";
+    public const string Connected = "Connected";
+    public const string Disconnected = "Disconnected";
+    public const string InvitesSent = "GoogleInvitesSent";
+    public const string InvitesRemoved = "GoogleInvitesRemoved";
 }
 
 /// <summary>

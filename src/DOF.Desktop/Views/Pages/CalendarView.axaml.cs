@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DOF.Desktop.Controls;
@@ -185,5 +186,44 @@ public partial class CalendarView : UserControl
         }
 
         return null;
+    }
+
+    /// <summary>Asks where to save (starting in the export folder) and downloads the chosen period's PDF.</summary>
+    private async void OnDownloadPdf(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } vm || sender is not MenuItem { Tag: string period }
+            || TopLevel.GetTopLevel(this)?.StorageProvider is not { } storage)
+        {
+            return;
+        }
+        var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Save schedule PDF",
+            SuggestedFileName = vm.SuggestedPdfName(period),
+            SuggestedStartLocation = await storage.TryGetFolderFromPathAsync(vm.ExportDirectory),
+            DefaultExtension = "pdf",
+            FileTypeChoices = [FilePickerFileTypes.Pdf],
+        });
+        if (file is null)
+        {
+            return;
+        }
+        try
+        {
+            await using var stream = await file.OpenWriteAsync();
+            await vm.DownloadPdfAsync(period, stream, file.Name, file.TryGetLocalPath());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            vm.ReportPdfFailure(ex.Message);
+        }
+    }
+
+    private async void OnOpenPdf(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.SavedPdfPath is { } path && TopLevel.GetTopLevel(this)?.Launcher is { } launcher)
+        {
+            await launcher.LaunchFileInfoAsync(new FileInfo(path));
+        }
     }
 }
