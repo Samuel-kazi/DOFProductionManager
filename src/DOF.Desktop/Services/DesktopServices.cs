@@ -15,7 +15,8 @@ public static class DesktopServices
         ISecureStore secureStore,
         PreferencesStore preferences,
         IThemeService? theme = null,
-        HttpMessageHandler? innerHandler = null)
+        HttpMessageHandler? innerHandler = null,
+        IBrowserLauncher? browser = null)
     {
         var network = innerHandler ?? new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(5) };
         HttpClient Client(HttpMessageHandler handler, TimeSpan timeout) =>
@@ -29,6 +30,8 @@ public static class DesktopServices
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<UserClock>();
         services.AddSingleton<Lookups>();
+        services.AddSingleton(browser ?? new SystemBrowserLauncher());
+        services.AddSingleton<GoogleSignIn>();
 
         services.AddSingleton(sp => new AuthSession(Client(network, TimeSpan.FromSeconds(20)), secureStore,
             sp.GetRequiredService<TimeProvider>()));

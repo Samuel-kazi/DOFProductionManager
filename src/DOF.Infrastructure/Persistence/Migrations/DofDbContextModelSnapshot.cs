@@ -457,6 +457,219 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("episode_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccountEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("account_email");
+
+                    b.Property<DateTimeOffset?>("ArchivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("archived_at");
+
+                    b.Property<string>("CalendarId")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("calendar_id");
+
+                    b.Property<Guid>("ConnectedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("connected_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EncryptedRefreshToken")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("encrypted_refresh_token");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("LastErrorAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_error_at");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_google_calendar_connections");
+
+                    b.HasIndex("ArchivedAt")
+                        .IsUnique()
+                        .HasDatabaseName("ix_google_calendar_connections_single_active")
+                        .HasFilter("archived_at IS NULL");
+
+                    b.HasIndex("ConnectedBy")
+                        .HasDatabaseName("ix_google_calendar_connections_connected_by");
+
+                    b.ToTable("google_calendar_connections", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CalendarEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("calendar_event_id");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("connection_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("CreatedInGoogle")
+                        .HasColumnType("boolean")
+                        .HasColumnName("created_in_google");
+
+                    b.Property<string>("GoogleEventId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("google_event_id");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTimeOffset?>("LastSyncedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_synced_at");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("next_attempt_at");
+
+                    b.Property<DateTimeOffset?>("ResponsesCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responses_checked_at");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("retry_count");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("SyncedHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("synced_hash");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_google_calendar_invites");
+
+                    b.HasIndex("CalendarEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_google_calendar_invites_calendar_event_id");
+
+                    b.HasIndex("ConnectionId")
+                        .HasDatabaseName("ix_google_calendar_invites_connection_id");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_google_calendar_invites_created_by");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_google_calendar_invites_updated_by");
+
+                    b.HasIndex("Status", "NextAttemptAt")
+                        .HasDatabaseName("ix_google_calendar_invites_status_next_attempt_at");
+
+                    b.ToTable("google_calendar_invites", (string)null);
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarInviteGuest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
+                    b.Property<Guid>("InviteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invite_id");
+
+                    b.Property<string>("Response")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("response");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_google_calendar_invite_guests");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_google_calendar_invite_guests_user_id");
+
+                    b.HasIndex("InviteId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_google_calendar_invite_guests_invite_id_email");
+
+                    b.ToTable("google_calendar_invite_guests", (string)null);
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1745,6 +1958,61 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarConnection", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_google_calendar_connections_users_connected_by");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarInvite", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.CalendarEvent", null)
+                        .WithMany()
+                        .HasForeignKey("CalendarEventId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_google_calendar_invites_calendar_events_calendar_event_id");
+
+                    b.HasOne("DOF.Domain.Entities.GoogleCalendarConnection", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_google_calendar_invites_google_calendar_connections_connect");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_google_calendar_invites_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_google_calendar_invites_users_updated_by");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarInviteGuest", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.GoogleCalendarInvite", null)
+                        .WithMany("Guests")
+                        .HasForeignKey("InviteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_google_calendar_invite_guests_google_calendar_invites_invit");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_google_calendar_invite_guests_users_user_id");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.Notification", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.User", null)
@@ -2053,6 +2321,11 @@ namespace DOF.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DOF.Domain.Entities.Episode", b =>
                 {
                     b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarInvite", b =>
+                {
+                    b.Navigation("Guests");
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.Project", b =>

@@ -14,6 +14,7 @@ A phase is complete only when it passes its acceptance criteria and the quality 
 | 6 | Release management | ✅ Complete (2026-11-22); reminder criterion verified in Phase 7 |
 | 7 | Reminder engine | ✅ Complete (2026-11-22) |
 | 8 | Reports and refinement | ✅ Complete (2026-11-22); UAT and server go-live are for DOF to run |
+| 9 | Schedule PDFs and Google Calendar invites (added after the specification) | ✅ Complete (2026-11-23); a live Google run needs DOF's Google OAuth client |
 
 ## Phase 0 — Project foundation ✅
 
@@ -196,6 +197,37 @@ Open for DOF:
 - Provision the server, build the container there, configure SMTP, TLS and off-site backup copies.
 - Sign and notarise the desktop packages for distribution.
 - OS notification-centre integration (pop-ups are in-app) and full-text search are possible future work.
+
+## Phase 9 — Schedule PDFs and Google Calendar invites ✅
+
+Requested by DOF after the specification was approved: download the schedule as a PDF for a day, week,
+month or year, and invite people to events through Google Calendar so their calendars update when the
+event changes. Not in spec Part 10, so these acceptance criteria were set for the phase:
+
+| Acceptance criterion | Evidence |
+|---|---|
+| The schedule downloads as a PDF for a day, week, month and year | `ScheduleExportTests.Each_period_downloads_as_a_pdf_named_after_its_range`; `SchedulePdfTests` render every period (and an empty one). The layouts were checked as images: day agenda, week board, month grid, year heat map, then details by day |
+| The PDF shows what the calendar shows | Built from the aggregated calendar with the same filters (`…respects_filters`). Multi-day items appear on each day; a year covers more than the 190-day calendar range (`A_year_covers_more_than_the_normal_calendar_range`) |
+| Invites reach people's Google Calendars | `Sending_invites_puts_the_event_on_the_guests_google_calendars_with_their_answers`: team members and outside guests, times in the organisation timezone, all-day events as dates, guests' answers shown |
+| Changing the event updates their calendars; cancelling removes it | `Changing_the_event_in_dof_updates_everyones_google_calendar_once` (one update, then nothing), `Cancelling_the_event_or_removing_invites_takes_it_off_google_calendars` |
+| Failures are recorded and retried | `When_google_is_unavailable_the_invite_is_retried_until_it_succeeds`, `Revoked_google_access_is_reported_on_the_connection` |
+| Credentials are never stored in plain text | The refresh token is AES-256-GCM encrypted (`An_administrator_connects…_stored_encrypted`, `Secrets_round_trip_only_with_the_same_key_and_purpose`). The sign-in state cannot be forged or used by another user (`The_sign_in_state_cannot_be_forged…`). Only loopback redirects are accepted |
+| Permissions are enforced on the server | Connecting needs `settings.manage`; sending and removing invites need `calendar.manage`; everyone signed in can see invites and download PDFs |
+| Google's API is used correctly | `GoogleCalendarClientTests`: request formats, `sendUpdates=all`, idempotent insert (409 → update that keeps answers), already-deleted events, token refresh, PKCE |
+| Desktop | `ScheduleAndGoogleUiTests`: PDF download from the Calendar page, sending and removing invites from event details, read-only view for team members, connecting Google in Settings through a simulated browser |
+
+Also delivered: migration `GoogleCalendarInvites` (additive), the `google-invites-sync` job, activity
+entries for invites and connections, `ExportFolder` in the desktop settings, and setup steps in
+[DEPLOYMENT.md](DEPLOYMENT.md#google-calendar). The calendar toolbar search box was narrowed so the
+toolbar still fits at 1280 px. 247 automated tests pass.
+
+Notes:
+- Invites cover standalone calendar events. Recordings, deadlines and releases are owned by episodes,
+  tasks and releases; inviting people to those is possible future work.
+- Google was replaced by a fake in tests. A live run needs DOF's Google Cloud project and OAuth client
+  (see DEPLOYMENT.md).
+- `DesktopUiTests.A_stored_session_is_restored_on_startup` failed once during a full run (a request still
+  in flight when the test disposed its services) and passed on re-runs. That test was not changed in this phase.
 
 ## Supporting documents
 

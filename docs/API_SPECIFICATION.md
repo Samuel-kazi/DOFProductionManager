@@ -185,6 +185,25 @@ Escalation, each linked to its record (`sourceType`/`sourceId`).
 | GET | `/api/v1/reports/publication-history` | `reports.view` | Published releases `from`–`to` (default 90 days, ≤ 400) with delay against the schedule |
 | GET | `/api/v1/search` | Signed in | `q` (≥ 2 characters): up to 6 each of projects, shows, episodes, tasks, events and releases |
 
+### Schedule PDFs and Google Calendar (Phase 9)
+
+| Method | Endpoint | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/calendar/export` | Signed in | `period` Day, Week (Mon–Sun), Month or Year containing `date` (default today), plus the calendar filters → `application/pdf`, file `dof-schedule-{period}-{first day}.pdf`. Unknown period → 422 |
+| GET | `/api/v1/calendar/events/{id}/google-invites` | Signed in | The event's invites (`data` null when none were sent) |
+| PUT | `/api/v1/calendar/events/{id}/google-invites` | `calendar.manage` | `{userIds[], emails[]}` (≥ 1, ≤ 100 each): send or update invites; replaces the guest list. Pushed to Google at once; 409 when no Google account is connected, 422 when the event is cancelled or over |
+| DELETE | `/api/v1/calendar/events/{id}/google-invites` | `calendar.manage` | Take the event off every guest's calendar (Google tells them) |
+| GET | `/api/v1/integrations/google-calendar` | Signed in | `{configured, connected, accountEmail, connectedAt, connectedByName, lastError, canManage}` |
+| POST | `/api/v1/integrations/google-calendar/authorize` | `settings.manage` | `{redirectUri}` (loopback `http://127.0.0.1:{port}/` only) → `{authorizationUrl}` with PKCE and an encrypted 10-minute `state` |
+| POST | `/api/v1/integrations/google-calendar/connect` | `settings.manage` | `{code, state}` from Google's redirect → status. The state must come from the same user and be unexpired |
+| DELETE | `/api/v1/integrations/google-calendar` | `settings.manage` | Disconnect and revoke DOF's Google access → 204 |
+
+**Invite:** `{calendarEventId, status (Pending|Synced|Removing|Removed|Failed), accountEmail,
+guests[{email, userId, displayName, response (Pending|Accepted|Tentative|Declined)}], lastSyncedAt,
+lastError, sentAt, sentByName}`. After the first send, the `google-invites-sync` job (every minute)
+pushes any change to the event or guest list to Google, removes the Google event when the event is
+cancelled, and refreshes answers every 10 minutes.
+
 Every report accepts `timeZone` (default: the caller's) and `format=csv`. JSON reports are
 `{key, title, description, period, timeZone, generatedAt, summary[{label, value}], columns[], rows[][],
 links[{sourceType, sourceId}|null]}`, with cells already formatted (`yyyy-MM-dd HH:mm`). CSV is

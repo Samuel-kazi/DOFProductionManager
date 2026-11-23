@@ -1,5 +1,7 @@
 using DOF.Application.Common.Abstractions;
 using DOF.Infrastructure.Authentication;
+using DOF.Infrastructure.Documents;
+using DOF.Infrastructure.GoogleCalendar;
 using DOF.Infrastructure.Persistence;
 using DOF.Application.Reminders;
 using DOF.Infrastructure.Persistence.Interceptors;
@@ -53,6 +55,11 @@ public static class DependencyInjection
         services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName));
         services.AddScoped<IJobStore, PostgresJobStore>();
         services.AddSingleton<IEmailSender, SmtpEmailSender>();
+
+        services.AddOptions<GoogleCalendarOptions>().Bind(configuration.GetSection(GoogleCalendarOptions.SectionName));
+        services.AddSingleton<ISecretProtector, AesSecretProtector>();
+        services.AddHttpClient<IGoogleCalendarApi, GoogleCalendarHttpApi>(client => client.Timeout = TimeSpan.FromSeconds(30));
+        services.AddSingleton<ISchedulePdfRenderer, QuestPdfScheduleRenderer>();
         services.AddBackgroundJobs(configuration, configuration.GetConnectionString(ConnectionStringName) ?? string.Empty);
 
         services.AddHealthChecks()

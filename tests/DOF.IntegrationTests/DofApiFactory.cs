@@ -37,12 +37,20 @@ public sealed class DofApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         builder.UseSetting("RateLimiting:AuthPermitLimitPerMinute", "10000");
         // Jobs run directly in tests (with chosen times); Hangfire itself is covered by one dedicated test.
         builder.UseSetting("BackgroundJobs:Enabled", "false");
+        // Google itself is replaced by FakeGoogleCalendarApi; the real token encryption is used.
+        builder.UseSetting("GoogleCalendar:TokenEncryptionKey", TokenEncryptionKey);
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton(Email);
             services.AddSingleton<IEmailSender>(Email);
+            services.AddSingleton<IGoogleCalendarApi>(Google);
         });
     }
+
+    public const string TokenEncryptionKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+
+    /// <summary>The Google Calendar stand-in every test host uses.</summary>
+    public FakeGoogleCalendarApi Google { get; } = new();
 
     /// <summary>The e-mail sender every test host uses.</summary>
     public TestEmailSender Email { get; } = new();

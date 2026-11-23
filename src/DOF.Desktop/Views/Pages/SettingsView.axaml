@@ -89,6 +89,40 @@
           <TextBlock Classes="muted" Text="{Binding ServerVersion, StringFormat='Version: {0}'}" />
         </StackPanel>
       </Border>
+      <Border Classes="card" IsVisible="{Binding CanManageChannels}" x:Name="GoogleCard">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="h2" Text="Google Calendar" />
+          <TextBlock Classes="muted small" TextWrapping="Wrap"
+                     Text="Connect the Google account that sends calendar invites. People you invite to an event get it in their Google Calendar, and it updates when the event changes in DOF." />
+          <TextBlock Text="{Binding GoogleStatusText}" TextWrapping="Wrap" />
+          <Border Classes="banner error" IsVisible="{Binding HasGoogleProblem}">
+            <TextBlock Text="{Binding GoogleProblem}" TextWrapping="Wrap" />
+          </Border>
+          <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding IsGoogleNotConfigured}"
+                     Text="The server needs a Google client ID, client secret and token encryption key (see DEPLOYMENT.md, Google Calendar)." />
+          <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding IsConnectingGoogle}"
+                     Text="Finish signing in to Google in your browser…" />
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsConfirmingGoogleDisconnect}">
+            <Button Classes="accent" Content="Connect Google account…" Command="{Binding ConnectGoogleCommand}"
+                    IsEnabled="{Binding CanConnectGoogle}" IsVisible="{Binding !IsGoogleConnected}" />
+            <Button Content="Connect a different account…" Command="{Binding ConnectGoogleCommand}"
+                    IsEnabled="{Binding CanConnectGoogle}" IsVisible="{Binding IsGoogleConnected}" />
+            <Button Content="Disconnect…" Command="{Binding AskDisconnectGoogleCommand}" IsVisible="{Binding IsGoogleConnected}" />
+          </StackPanel>
+          <Border Classes="banner error" IsVisible="{Binding IsConfirmingGoogleDisconnect}">
+            <StackPanel Spacing="8">
+              <TextBlock TextWrapping="Wrap"
+                         Text="Disconnect Google Calendar? Events already sent stay on people's calendars but stop updating, and new invites can't be sent until an account is connected." />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Disconnect" Command="{Binding DisconnectGoogleCommand}" />
+                <Button Content="Keep connected" Command="{Binding KeepGoogleCommand}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+          <TextBlock Classes="muted small" Text="{Binding GoogleMessage}" IsVisible="{Binding HasGoogleMessage}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
       <Border Classes="card" IsVisible="{Binding CanManageChannels}">
         <StackPanel Spacing="10">
           <TextBlock Classes="h2" Text="Distribution channels" />

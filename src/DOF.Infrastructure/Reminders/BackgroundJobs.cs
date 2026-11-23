@@ -1,3 +1,4 @@
+using DOF.Application.GoogleCalendar;
 using DOF.Application.Reminders;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -24,7 +25,7 @@ public sealed class BackgroundJobOptions
 [AutomaticRetry(Attempts = 0)]
 public sealed class ReminderJobRunner(
     ReminderDispatcher dispatcher, OutboxProcessor outbox, OverdueDetector overdue, EscalationJob escalation,
-    MaintenanceJob maintenance, TimeProvider clock)
+    MaintenanceJob maintenance, GoogleInviteSync googleInvites, TimeProvider clock)
 {
     [DisableConcurrentExecution(60)]
     public async Task DispatchAsync(CancellationToken ct)
@@ -42,6 +43,10 @@ public sealed class ReminderJobRunner(
 
     [DisableConcurrentExecution(3600)]
     public Task MaintainAsync(CancellationToken ct) => maintenance.RunAsync(clock.GetUtcNow(), ct);
+
+    /// <summary>Pushes new and changed events to guests' Google Calendars and reads their answers.</summary>
+    [DisableConcurrentExecution(120)]
+    public Task SyncGoogleInvitesAsync(CancellationToken ct) => googleInvites.RunAsync(clock.GetUtcNow(), ct);
 }
 
 public static class BackgroundJobSetup
@@ -52,6 +57,7 @@ public static class BackgroundJobSetup
         ["overdue-detection"] = "*/15 * * * *",
         ["overdue-escalation"] = "0 * * * *",
         ["maintenance"] = "30 3 * * *",
+        ["google-invites-sync"] = "* * * * *",
     };
 
     public static IServiceCollection AddBackgroundJobs(this IServiceCollection services, IConfiguration configuration, string connectionString)
@@ -89,5 +95,7 @@ public static class BackgroundJobSetup
         manager.AddOrUpdate<ReminderJobRunner>("overdue-detection", j => j.DetectOverdueAsync(CancellationToken.None), Schedules["overdue-detection"]);
         manager.AddOrUpdate<ReminderJobRunner>("overdue-escalation", j => j.EscalateAsync(CancellationToken.None), Schedules["overdue-escalation"]);
         manager.AddOrUpdate<ReminderJobRunner>("maintenance", j => j.MaintainAsync(CancellationToken.None), Schedules["maintenance"]);
+        manager.AddOrUpdate<ReminderJobRunner>("google-invites-sync", j => j.SyncGoogleInvitesAsync(CancellationToken.None),
+            Schedules["google-invites-sync"]);
     }
 }

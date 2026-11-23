@@ -15,7 +15,8 @@ public sealed partial class SettingsViewModel(
     IThemeService theme,
     ConnectionMonitor connection,
     DesktopSettings settings,
-    ApiClient api) : PageViewModel
+    ApiClient api,
+    GoogleSignIn googleSignIn) : PageViewModel
 {
     public override string Title => "Settings";
 
@@ -82,6 +83,7 @@ public sealed partial class SettingsViewModel(
         {
             return;
         }
+        await LoadGoogleAsync();
         await RunAsync(async () =>
         {
             var channels = await api.GetAsync<List<DistributionChannelResponse>>("api/v1/distribution-channels?includeInactive=true");
@@ -113,6 +115,113 @@ public sealed partial class SettingsViewModel(
                 new DistributionChannelRequest(channel.Name, channel.ChannelType, channel.Description, !channel.IsActive))))
         {
             await LoadAsync();
+        }
+    }
+
+    // ---- Google Calendar connection (settings.manage) ----
+
+    private const string GooglePath = "api/v1/integrations/google-calendar";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGoogleConnected), nameof(IsGoogleNotConfigured), nameof(CanConnectGoogle), nameof(GoogleStatusText),
+        nameof(GoogleProblem), nameof(HasGoogleProblem))]
+    public partial GoogleCalendarStatusResponse? GoogleStatus { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanConnectGoogle))]
+    public partial bool IsConnectingGoogle { get; private set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasGoogleMessage))]
+    public partial string? GoogleMessage { get; private set; }
+
+    [ObservableProperty] public partial bool IsConfirmingGoogleDisconnect { get; set; }
+
+    public bool HasGoogleMessage => GoogleMessage is not null;
+    public bool IsGoogleConnected => GoogleStatus?.Connected == true;
+    public bool IsGoogleNotConfigured => GoogleStatus is { Configured: false };
+    public bool CanConnectGoogle => GoogleStatus is { Configured: true } && !IsConnectingGoogle;
+    public string? GoogleProblem => GoogleStatus?.LastError;
+    public bool HasGoogleProblem => GoogleProblem is not null;
+
+    public string GoogleStatusText => GoogleStatus switch
+    {
+        null => "Checking…",
+        { Connected: true } s => $"Invites are sent from {s.AccountEmail}" +
+                                 (s.ConnectedByName is { } who ? $" (connected by {who}" : " (connected") +
+                                 (s.ConnectedAt is { } at ? $" on {at.ToLocalTime():d MMM yyyy})." : ")."),
+        { Configured: false } => "Google Calendar has not been set up on the server yet.",
+        _ => "No Google account is connected. Connect one to send calendar invites.",
+    };
+
+    private async Task LoadGoogleAsync()
+    {
+        try
+        {
+            GoogleStatus = await api.GetAsync<GoogleCalendarStatusResponse>(GooglePath);
+        }
+        catch (Exception ex) when (ex is ApiException or ApiUnavailableException)
+        {
+            GoogleMessage = ex.Message;
+        }
+    }
+
+    /// <summary>Opens Google's sign-in page in the browser and waits for it to come back to the app.</summary>
+    [RelayCommand]
+    private async Task ConnectGoogleAsync()
+    {
+        GoogleMessage = null;
+        IsConnectingGoogle = true;
+        try
+        {
+            var result = await googleSignIn.RunAsync(async redirectUri =>
+                (await api.PostAsync<GoogleAuthorizationResponse>($"{GooglePath}/authorize",
+                    new StartGoogleAuthorizationRequest(redirectUri))).AuthorizationUrl);
+            if (!result.Succeeded)
+            {
+                GoogleMessage = result.Error;
+                return;
+            }
+            GoogleStatus = await api.PostAsync<GoogleCalendarStatusResponse>($"{GooglePath}/connect",
+                new CompleteGoogleAuthorizationRequest(result.Code!, result.State!));
+            GoogleMessage = $"Connected. Invites will be sent from {GoogleStatus.AccountEmail}.";
+            AppLog.Info("Google Calendar connected");
+        }
+        catch (Exception ex) when (ex is ApiException or ApiUnavailableException)
+        {
+            GoogleMessage = ex.Message;
+        }
+        catch (System.Net.HttpListenerException ex)
+        {
+            AppLog.Warning($"Google sign-in listener failed: {ex.Message}");
+            GoogleMessage = "The app could not wait for Google to answer. Please try again.";
+        }
+        finally
+        {
+            IsConnectingGoogle = false;
+        }
+    }
+
+    [RelayCommand]
+    private void AskDisconnectGoogle() => IsConfirmingGoogleDisconnect = true;
+
+    [RelayCommand]
+    private void KeepGoogle() => IsConfirmingGoogleDisconnect = false;
+
+    [RelayCommand]
+    private async Task DisconnectGoogleAsync()
+    {
+        IsConfirmingGoogleDisconnect = false;
+        GoogleMessage = null;
+        try
+        {
+            await api.DeleteAsync(GooglePath);
+            GoogleMessage = "Disconnected. Events already sent stay on people's calendars but will no longer be updated.";
+            await LoadGoogleAsync();
+        }
+        catch (Exception ex) when (ex is ApiException or ApiUnavailableException)
+        {
+            GoogleMessage = ex.Message;
         }
     }
 

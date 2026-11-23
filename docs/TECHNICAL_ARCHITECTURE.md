@@ -74,6 +74,8 @@ Implemented in `DOF.Infrastructure/Persistence`:
 | `Jwt:Issuer`, `Jwt:Audience`, `Jwt:AccessTokenMinutes` (15), `Jwt:RefreshTokenDays` (14) | Token settings | `appsettings.json` |
 | `Bootstrap:AdminEmail`, `Bootstrap:AdminPassword` | First Administrator, created only when no users exist | **Secret.** user-secrets / env vars |
 | `RateLimiting:AuthPermitLimitPerMinute` (10) | Per-IP limit on login/refresh/logout/change-password | `appsettings.json` |
+| `GoogleCalendar:ClientId`, `GoogleCalendar:ClientSecret` | Google OAuth client ("Desktop app" type) for calendar invites | **Secret.** env vars / secret store. Without them Google Calendar shows as not set up |
+| `GoogleCalendar:TokenEncryptionKey` | Base64 of 32 bytes; encrypts stored Google refresh tokens and the sign-in state | **Secret.** env var / secret store. Changing it means reconnecting Google |
 | `Serilog` | Log levels | `appsettings.json` |
 
 A missing connection string or invalid timezone fails fast with a clear error.
@@ -374,6 +376,37 @@ instead of one per reminder).
 **Deployment** is described in [DEPLOYMENT.md](DEPLOYMENT.md): container image and compose file, an
 explicit migrations bundle, encrypted backups with retention and a scripted restore test, and
 self-contained desktop packages.
+
+## Schedule PDFs and Google Calendar invites (Phase 9)
+
+**Schedule PDFs.** `ScheduleExportService` (Application) builds a `ScheduleDocument` from the aggregated
+calendar, so a PDF shows exactly what the calendar shows, with the same filters. Items spanning several
+days appear on each day. A year needs a longer range than the calendar API allows (190 days), so the
+export uses `CalendarService.MaxExportRangeDays` (368). `ISchedulePdfRenderer` is implemented in
+Infrastructure with QuestPDF (`QuestPdfScheduleRenderer`): a day agenda (portrait), a seven-day board
+(landscape), a month grid (landscape) or a twelve-month heat map (portrait), each followed by the full
+list grouped by day, with a colour legend, totals, filters, timezone and page numbers. Lato is bundled
+with QuestPDF, so the server needs no fonts installed. The desktop saves the file through the system
+save dialog, starting in `ExportFolder` from its `appsettings.json` (default: Documents).
+
+**Google Calendar.** One organisation-wide Google account (`google_calendar_connections`) sends the
+invites. The desktop runs the browser sign-in for a desktop app (RFC 8252): `GoogleSignIn` listens on a
+random loopback port and opens Google's page. The server builds the address, keeps the PKCE verifier
+inside an AES-GCM–encrypted `state` (bound to the user, 10 minutes), exchanges the code with the client
+secret and stores only the encrypted refresh token (`AesSecretProtector`). Scopes: `openid email
+calendar.events`.
+
+Invites exist for standalone events only. Their dates stay in `calendar_events`:
+`GoogleInviteSync.Build` rebuilds the Google event from the record on each push, and a SHA-256 of the
+payload (`synced_hash`) detects changes. The job runs every minute through `ReminderJobRunner`. It
+pushes queued and changed invites, deletes the Google event when the DOF event is cancelled or invites
+are removed, and reads guests' answers every 10 minutes. Every change is sent with `sendUpdates=all`,
+so Google e-mails the guests and updates their calendars. Inserts use a DOF-chosen event id, so a
+retried insert becomes an update (409 → GET → PUT), and updates keep the answers guests already gave.
+Failures are recorded on the invite and retried (1, 5, 15, 60 min, 4 h; then Failed). Revoked access
+is shown on the connection. Reconnecting the same account keeps updating existing events; invites
+from another account fail with a message asking to send them again. `GoogleCalendarHttpApi` talks to
+Google over plain HTTP (no Google SDK); tests replace it with `FakeGoogleCalendarApi`.
 
 ## Desktop client (Phase 2)
 
