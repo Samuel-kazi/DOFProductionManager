@@ -271,9 +271,10 @@ episodes and *Awaiting publication*.
 
 ## Releases (Phase 6)
 
-**Records.** A release is one episode on one distribution channel, with its own time, status,
-assignee, link and notes (optionally linked to a project). An episode has at most one live release per
-channel. Channels are seeded, managed in Settings with `settings.manage`, and deactivated rather than
+**Records.** A release is one episode, or typed-in content named by its `title` (a single, trailer or
+announcement), on one distribution channel, with its own time, status, assignee, link and notes
+(optionally linked to a project). An episode has at most one live release per channel; releases without
+an episode have no episode status to drive. Channels are seeded, managed in Settings with `settings.manage`, and deactivated rather than
 deleted.
 
 **Rules** (in `Release`): ordinary edits set only workflow statuses (Draft, AwaitingApproval, Ready,

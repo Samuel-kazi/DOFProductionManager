@@ -145,7 +145,7 @@ public sealed partial class ReleasesViewModel(ApiClient api, AuthSession session
     [RelayCommand]
     private async Task EditReleaseAsync(ReleaseDetailsViewModel details) =>
         await RunAsync(async () => SidePanel = new ReleaseEditorViewModel(clock,
-            [new ChoiceOption(details.Release.Episode.Id, details.EpisodeText)],
+            [new ChoiceOption(details.Release.Episode?.Id, details.EpisodeText)],
             [details.Release.Channel], await PeopleAsync(), details.Release, null));
 
     [RelayCommand]
@@ -162,14 +162,20 @@ public sealed partial class ReleasesViewModel(ApiClient api, AuthSession session
             }
             else
             {
-                if (editor.SelectedEpisode?.Id is not { } episodeId || editor.SelectedChannel?.Id is not { } channelId)
+                var episodeId = editor.SelectedEpisode?.Id;
+                if (episodeId is null && string.IsNullOrWhiteSpace(editor.Title))
                 {
-                    editor.ErrorMessage = "Choose an episode and a channel.";
+                    editor.ErrorMessage = "Type what is being released, or choose an episode.";
+                    return;
+                }
+                if (editor.SelectedChannel?.Id is not { } channelId)
+                {
+                    editor.ErrorMessage = "Choose a channel.";
                     return;
                 }
                 saved = await api.PostAsync<ReleaseResponse>("api/v1/releases", new CreateReleaseRequest(
                     episodeId, channelId, editor.ScheduledAt, editor.HasTime ? editor.Status : NoTimeStatus(editor.Status),
-                    editor.SelectedPerson.Id, null, editor.ExternalUrl, editor.Notes));
+                    editor.SelectedPerson.Id, null, editor.ExternalUrl, editor.Notes, episodeId is null ? editor.Title?.Trim() : null));
             }
             AppLog.Info($"Saved release {saved.Id}");
             await LoadAsync();
@@ -237,7 +243,9 @@ public sealed partial class ReleasesViewModel(ApiClient api, AuthSession session
 
     [RelayCommand]
     private Task OpenEpisodeAsync(ReleaseDetailsViewModel details) =>
-        Navigator?.OpenRecordAsync("Episode", details.Release.Episode.Id) ?? Task.CompletedTask;
+        details.Release.Episode is { } episode && Navigator is { } navigator
+            ? navigator.OpenRecordAsync("Episode", episode.Id)
+            : Task.CompletedTask;
 
     private async Task<IEnumerable<ChoiceOption>> PeopleAsync() =>
         (await lookups.PeopleAsync()).Select(u => new ChoiceOption(u.Id, u.FullName));

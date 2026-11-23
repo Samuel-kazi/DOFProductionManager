@@ -211,7 +211,7 @@ public class ReportTests(DofApiFactory factory)
                     episodeId = episode.Id;
                     foreach (var channel in channels.Take(3))
                     {
-                        db.Releases.Add(Release.Create(episode, channel, null, start.AddDays(n + s + 7), ReleaseStatus.Scheduled, me.Id, null, null));
+                        db.Releases.Add(Release.Create(episode, null, channel, null, start.AddDays(n + s + 7), ReleaseStatus.Scheduled, me.Id, null, null));
                     }
                 }
             }

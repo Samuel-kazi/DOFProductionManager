@@ -221,7 +221,12 @@ public sealed class OverdueDetector(
             .Where(r => r.ScheduledAt < now && (r.Status == ReleaseStatus.Draft || r.Status == ReleaseStatus.AwaitingApproval
                                                 || r.Status == ReleaseStatus.Ready || r.Status == ReleaseStatus.Scheduled
                                                 || r.Status == ReleaseStatus.Postponed))
-            .Select(r => new { r.Id, r.ScheduledAt, Channel = r.Channel.Name, r.Episode.Title, User = r.AssignedTo ?? r.Episode.ProducerId })
+            .Select(r => new
+            {
+                r.Id, r.ScheduledAt, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title,
+                // Assignee, else the episode's producer, else (content without an episode) whoever created it.
+                User = r.AssignedTo ?? (r.Episode != null ? r.Episode.ProducerId : r.CreatedBy),
+            })
             .ToListAsync(ct);
         foreach (var r in releases.Where(r => r.User is not null))
         {

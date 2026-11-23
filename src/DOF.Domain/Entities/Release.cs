@@ -4,14 +4,21 @@ using DOF.Domain.Exceptions;
 namespace DOF.Domain.Entities;
 
 /// <summary>
-/// One episode on one distribution channel, with its own schedule and status. A release is published
+/// One episode, or a piece of content named by its <see cref="Title"/> (a single, trailer or announcement
+/// that is not an episode), on one distribution channel, with its own schedule and status. A release is published
 /// only by an explicit confirmation that records when it actually went out; the scheduled time is kept.
 /// </summary>
 public sealed class Release : AuditableEntity, IVersioned
 {
     private Release() { }
 
-    public Guid EpisodeId { get; private set; }
+    public const int TitleMaxLength = 200;
+
+    /// <summary>The episode released, or null for content that is not an episode (then <see cref="Title"/> names it).</summary>
+    public Guid? EpisodeId { get; private set; }
+
+    /// <summary>What is released when there is no episode. Null for episode releases, which take the episode's title.</summary>
+    public string? Title { get; private set; }
     public Guid? ProjectId { get; private set; }
     public Guid DistributionChannelId { get; private set; }
     public DateTimeOffset? ScheduledAt { get; private set; }
@@ -24,7 +31,7 @@ public sealed class Release : AuditableEntity, IVersioned
     public string? CancellationReason { get; private set; }
     public Guid? PublishedBy { get; private set; }
     public int Version { get; private set; }
-    public Episode Episode { get; private set; } = null!;
+    public Episode? Episode { get; private set; }
     public DistributionChannel Channel { get; private set; } = null!;
 
     /// <summary>Statuses that can be set through an ordinary edit. The others have their own actions.</summary>
@@ -41,20 +48,39 @@ public sealed class Release : AuditableEntity, IVersioned
     /// <summary>Past its scheduled time without a publication confirmation. Never stored.</summary>
     public bool IsOverdue(DateTimeOffset now) => IsOpen && ScheduledAt is { } at && at < now;
 
-    public static Release Create(Episode episode, DistributionChannel channel, Guid? projectId, DateTimeOffset? scheduledAt,
+    /// <summary>The name shown for the release: the episode's title, or the typed title.</summary>
+    public string DisplayTitle => Episode?.Title ?? Title ?? string.Empty;
+
+    /// <summary>Creates a release of an episode, or (with <paramref name="episode"/> null) of content named by <paramref name="title"/>.</summary>
+    public static Release Create(Episode? episode, string? title, DistributionChannel channel, Guid? projectId, DateTimeOffset? scheduledAt,
         ReleaseStatus status, Guid? assignedTo, string? externalUrl, string? notes)
     {
-        if (episode.IsCancelled)
+        if (episode is not null)
         {
-            throw new DomainException("This episode is cancelled. Restore it before scheduling releases.");
+            if (episode.IsCancelled)
+            {
+                throw new DomainException("This episode is cancelled. Restore it before scheduling releases.");
+            }
+            episode.Show.EnsureNotArchived();
         }
-        episode.Show.EnsureNotArchived();
+        else if (string.IsNullOrWhiteSpace(title))
+        {
+            throw new DomainException("Choose an episode or type what is being released.");
+        }
+        else if (title.Trim().Length > TitleMaxLength)
+        {
+            throw new DomainException($"The title can be at most {TitleMaxLength} characters.");
+        }
         if (!channel.IsActive)
         {
             throw new DomainException("That channel is no longer active.");
         }
 
-        var release = new Release { EpisodeId = episode.Id, Episode = episode, DistributionChannelId = channel.Id, Channel = channel };
+        var release = new Release
+        {
+            EpisodeId = episode?.Id, Episode = episode, Title = episode is null ? title!.Trim() : null,
+            DistributionChannelId = channel.Id, Channel = channel,
+        };
         release.ScheduledAt = scheduledAt?.ToUniversalTime();
         release.Update(projectId, status, assignedTo, externalUrl, notes);
         return release;

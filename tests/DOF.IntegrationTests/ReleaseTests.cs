@@ -52,6 +52,52 @@ public class ReleaseTests(DofApiFactory factory)
             .DataAsync<List<CalendarItemResponse>>();
 
     [Fact]
+    public async Task A_release_without_an_episode_is_typed_in_and_scheduled_like_any_other()
+    {
+        var admin = await factory.AdminClientAsync();
+        var channels = await ChannelsAsync(admin);
+        var title = $"Worship single {Guid.NewGuid():N}"[..23];
+        var at = At(Day(20), 18);
+
+        // Neither an episode nor a title: rejected by validation.
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/releases",
+            new CreateReleaseRequest(null, channels["Spotify"], at, "Scheduled", null), Ct)).StatusCode);
+
+        var created = await admin.PostAsJsonAsync("/api/v1/releases",
+            new CreateReleaseRequest(null, channels["Spotify"], at, "Scheduled", null, Title: $"  {title}  "), Ct);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var release = await created.DataAsync<ReleaseResponse>();
+        Assert.Null(release.Episode);
+        Assert.Equal(title, release.Title);
+        Assert.Equal("Scheduled", release.Status);
+
+        // A second channel for the same title is fine: only episodes are limited to one live release per channel.
+        var youtube = await ScheduleTitledAsync(admin, title, channels["YouTube"], at);
+        Assert.Equal(title, youtube.Title);
+
+        // On the calendar, in search and in the release list like any other release.
+        var items = await CalendarAsync(admin, Day(20), Day(21), "&sourceTypes=Release");
+        Assert.Contains(items, i => i.SourceId == release.Id && i.Title == $"Spotify · {title}");
+        var found = await (await admin.GetAsync($"/api/v1/releases?search={Uri.EscapeDataString(title)}", Ct))
+            .DataAsync<PagedResponse<ReleaseResponse>>();
+        Assert.Equal(2, found.Items.Count);
+        var search = await (await admin.GetAsync($"/api/v1/search?q={Uri.EscapeDataString(title)}", Ct)).DataAsync<List<SearchResultResponse>>();
+        Assert.Contains(search, r => r.Id == release.Id && r.Title == $"Spotify · {title}");
+
+        // Rescheduling and publishing work without an episode.
+        var moved = await (await admin.PatchAsJsonAsync($"/api/v1/releases/{release.Id}/schedule",
+            new RescheduleReleaseRequest(At(Day(21), 9)), Ct)).DataAsync<ReleaseResponse>();
+        Assert.Equal(At(Day(21), 9), moved.ScheduledAt);
+        var published = await PublishAsync(admin, youtube.Id, DateTimeOffset.UtcNow.AddMinutes(-5));
+        Assert.Equal(HttpStatusCode.OK, published.StatusCode);
+        Assert.Equal("Published", (await published.DataAsync<ReleaseResponse>()).Status);
+    }
+
+    private static async Task<ReleaseResponse> ScheduleTitledAsync(HttpClient client, string title, Guid channelId, DateTimeOffset at) =>
+        await (await client.PostAsJsonAsync("/api/v1/releases",
+            new CreateReleaseRequest(null, channelId, at, "Scheduled", null, Title: title), Ct)).DataAsync<ReleaseResponse>();
+
+    [Fact]
     public async Task The_specified_channels_are_seeded_and_managed_with_settings_permission()
     {
         var admin = await factory.AdminClientAsync();

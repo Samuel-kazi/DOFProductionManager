@@ -17,6 +17,7 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddReleases` | 6 | Adds `distribution_channels` and `releases`. Additive only. Channels are seeded at startup (not in the migration). |
 | `AddRemindersAndNotifications` | 7 | Adds `reminders`, `notifications`, `notification_outbox`, `notification_preferences`. Additive only. Hangfire creates and manages its own `hangfire` schema at startup. |
 | `GoogleCalendarInvites` | 9 | Adds `google_calendar_connections`, `google_calendar_invites`, `google_calendar_invite_guests`. Additive only. |
+| `ReleasesWithoutEpisode` | 9 | `releases.episode_id` becomes nullable; adds `releases.title` and the check `ck_releases_episode_or_title`. Additive only (existing rows keep their episode). |
 
 ## Tables
 
@@ -178,7 +179,8 @@ YouTube, Spotify, Facebook, Instagram, Television, Website and Other (added once
 are kept). Never deleted.
 
 ### releases
-`episode_id → episodes (restrict; indexed)`, `project_id → projects null (restrict; indexed)`,
+`episode_id → episodes null (restrict; indexed)`, `title varchar(200) null` (what is released when
+there is no episode, e.g. a single or trailer; null for episode releases), `project_id → projects null (restrict; indexed)`,
 `distribution_channel_id → distribution_channels (restrict)`, `scheduled_at timestamptz null` (indexed;
 kept after publication), `actual_published_at timestamptz null`, `status varchar(40)` (Draft,
 AwaitingApproval, Ready, Scheduled, Published, Postponed, Cancelled, Failed; indexed), `assigned_to →
@@ -186,7 +188,9 @@ users null (restrict; indexed)`, `external_url varchar(2000) null`, `notes text 
 `postponement_reason` / `cancellation_reason text null`, `published_by → users null`, `created_by` /
 `updated_by`, `version`. Unique `(episode_id, distribution_channel_id)` where `status <> 'Cancelled'`.
 Checks: `ck_releases_published_has_time` (Published needs `actual_published_at`) and
-`ck_releases_status_not_overdue` ("Overdue" is derived when reading and is never stored). `notes` and
+`ck_releases_status_not_overdue` ("Overdue" is derived when reading and is never stored) and
+`ck_releases_episode_or_title` (every release names an episode or a title). The unique index only limits
+episode releases; typed-in content may have several releases per channel. `notes` and
 `published_by` go beyond the specification's column list, to hold the screen's notes and who
 confirmed publication.
 

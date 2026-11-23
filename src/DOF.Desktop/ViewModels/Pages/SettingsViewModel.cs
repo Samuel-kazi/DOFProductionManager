@@ -179,6 +179,7 @@ public sealed partial class SettingsViewModel(
                     new StartGoogleAuthorizationRequest(redirectUri))).AuthorizationUrl);
             if (!result.Succeeded)
             {
+                AppLog.Warning($"Google sign-in did not complete: {result.Error}");
                 GoogleMessage = result.Error;
                 return;
             }
@@ -189,12 +190,13 @@ public sealed partial class SettingsViewModel(
         }
         catch (Exception ex) when (ex is ApiException or ApiUnavailableException)
         {
+            AppLog.Warning($"Google connect failed: {ex.Message}");
             GoogleMessage = ex.Message;
         }
-        catch (System.Net.HttpListenerException ex)
+        catch (Exception ex)
         {
-            AppLog.Warning($"Google sign-in listener failed: {ex.Message}");
-            GoogleMessage = "The app could not wait for Google to answer. Please try again.";
+            AppLog.Error("Google sign-in failed", ex);
+            GoogleMessage = "Google sign-in stopped unexpectedly. Please try again.";
         }
         finally
         {

@@ -175,4 +175,48 @@ public class ReleaseUiTests(DofApiFactory factory, HeadlessSession headless)
         Snapshot(window, "46-settings-channels");
         window.Close();
     });
+
+    [Fact]
+    public Task A_release_can_be_typed_in_without_an_episode() => Ui.Run(headless, async () =>
+    {
+        using var harness = new DesktopHarness(factory);
+        var main = harness.Get<MainWindowViewModel>();
+        var window = Show(main);
+        var shell = await SignInAsync(main);
+        var releases = await PageAsync<ReleasesViewModel>(shell, "Releases");
+
+        await releases.NewReleaseCommand.ExecuteAsync(null);
+        var editor = Assert.IsType<ReleaseEditorViewModel>(releases.SidePanel);
+        Assert.Same(ReleaseEditorViewModel.NoEpisode, editor.SelectedEpisode); // typed in unless started from an episode
+        Assert.True(editor.NeedsTitle);
+        Render(window);
+        Assert.Contains(Find<Avalonia.Controls.TextBox>(window), t => t.Name == "ReleaseTitle" && t.IsEffectivelyVisible);
+
+        // Saving without a title explains what is missing.
+        editor.SelectedChannel = editor.Channels.Single(c => c.Label == "Spotify");
+        await releases.SaveReleaseCommand.ExecuteAsync(editor);
+        Assert.Equal("Type what is being released, or choose an episode.", editor.ErrorMessage);
+
+        var title = $"New worship single {Guid.NewGuid():N}"[..26];
+        editor.Title = title;
+        editor.Date = Day(3).ToDateTime(TimeOnly.MinValue);
+        editor.Time = new TimeSpan(18, 0, 0);
+        Snapshot(window, "68-release-without-episode");
+        await releases.SaveReleaseCommand.ExecuteAsync(editor);
+
+        var details = Assert.IsType<ReleaseDetailsViewModel>(releases.SidePanel);
+        Assert.Null(details.Release.Episode);
+        Assert.False(details.HasEpisode);
+        Assert.Equal(title, details.EpisodeText);
+        Assert.Equal("Scheduled", details.Release.Status);
+        Assert.Contains(releases.Items, r => r.Id == details.Release.Id && r.EpisodeText == title);
+
+        // Choosing an episode hides the title box again.
+        if (editor.Episodes.Count > 1)
+        {
+            editor.SelectedEpisode = editor.Episodes[1];
+            Assert.False(editor.NeedsTitle);
+        }
+        window.Close();
+    });
 }

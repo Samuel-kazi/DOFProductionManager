@@ -36,7 +36,8 @@ public sealed class ReleaseCalendarSource(IApplicationDbContext db, ReleaseAcces
         }
         else if (!query.IncludeCancelled)
         {
-            releases = releases.Where(r => r.Status != ReleaseStatus.Cancelled && r.Episode.Show.Status != ShowStatus.Archived);
+            releases = releases.Where(r => r.Status != ReleaseStatus.Cancelled
+                                             && (r.Episode == null || r.Episode.Show.Status != ShowStatus.Archived));
         }
         if (query.AssignedUserId is { } assignee)
         {
@@ -48,12 +49,12 @@ public sealed class ReleaseCalendarSource(IApplicationDbContext db, ReleaseAcces
         }
         if (query.ShowId is { } show)
         {
-            releases = releases.Where(r => r.Episode.ShowId == show);
+            releases = releases.Where(r => r.Episode != null && r.Episode.ShowId == show);
         }
 
         var rows = await releases.Include(r => r.Channel)
-            .Include(r => r.Episode).ThenInclude(e => e.Show)
-            .Include(r => r.Episode).ThenInclude(e => e.Season)
+            .Include(r => r.Episode).ThenInclude(e => e!.Show)
+            .Include(r => r.Episode).ThenInclude(e => e!.Season)
             .ToListAsync(ct);
         var assigneeIds = rows.Select(r => r.AssignedTo).OfType<Guid>().Distinct().ToList();
         var names = await db.Users.AsNoTracking().Where(u => assigneeIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName, ct);
@@ -62,9 +63,9 @@ public sealed class ReleaseCalendarSource(IApplicationDbContext db, ReleaseAcces
         var items = rows.Select(r =>
         {
             var overdue = r.IsOverdue(now);
-            var code = Episode.Code(r.Episode.Season?.SeasonNumber, r.Episode.EpisodeNumber);
+            var code = r.Episode is { } e ? Episode.Code(e.Season?.SeasonNumber, e.EpisodeNumber) : null;
             return new CalendarItemResponse($"{SourceType}:{r.Id}",
-                $"{r.Channel.Name} · {$"{r.Episode.Show.Name} {code}".TrimEnd()}: {r.Episode.Title}", SourceType, r.Id,
+                ReleaseReaders.Label(r.Channel.Name, r.Episode?.Show.Name, code, r.DisplayTitle), SourceType, r.Id,
                 CalendarValues.ReleaseItem, r.ScheduledAt!.Value, null, false,
                 overdue ? ReleaseValues.Overdue : r.Status.ToString(), ReleasePriority, r.Channel.Name,
                 r.AssignedTo is { } a && names.TryGetValue(a, out var name) ? [new AssignedUserResponse(a, name, "Publishing")] : [],

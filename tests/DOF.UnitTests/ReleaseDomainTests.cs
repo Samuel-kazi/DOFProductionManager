@@ -16,7 +16,7 @@ public class ReleaseDomainTests
     }
 
     private static Release NewRelease(DateTimeOffset? at, ReleaseStatus status = ReleaseStatus.Scheduled) =>
-        Release.Create(NewEpisode(), DistributionChannel.Create("YouTube", ChannelType.Video, null), null, at, status, null, null, null);
+        Release.Create(NewEpisode(), null, DistributionChannel.Create("YouTube", ChannelType.Video, null), null, at, status, null, null, null);
 
     [Fact]
     public void Value_lists_match_the_domain_enums()
@@ -84,10 +84,27 @@ public class ReleaseDomainTests
         var episode = NewEpisode();
         episode.ChangeStatus(EpisodeStatus.Cancelled, Now);
         var channel = DistributionChannel.Create("YouTube", ChannelType.Video, null);
-        Assert.Throws<DomainException>(() => Release.Create(episode, channel, null, null, ReleaseStatus.Draft, null, null, null));
+        Assert.Throws<DomainException>(() => Release.Create(episode, null, channel, null, null, ReleaseStatus.Draft, null, null, null));
 
         channel.Update("YouTube", ChannelType.Video, null, isActive: false);
-        Assert.Throws<DomainException>(() => Release.Create(NewEpisode(), channel, null, null, ReleaseStatus.Draft, null, null, null));
+        Assert.Throws<DomainException>(() => Release.Create(NewEpisode(), null, channel, null, null, ReleaseStatus.Draft, null, null, null));
+    }
+
+    [Fact]
+    public void A_release_without_an_episode_is_named_by_its_title()
+    {
+        var channel = DistributionChannel.Create("Spotify", ChannelType.Audio, null);
+
+        var single = Release.Create(null, "  Worship single: Dawn  ", channel, null, null, ReleaseStatus.Draft, null, null, null);
+        Assert.Null(single.EpisodeId);
+        Assert.Equal("Worship single: Dawn", single.Title);
+        Assert.Equal("Worship single: Dawn", single.DisplayTitle);
+
+        var episodeRelease = Release.Create(NewEpisode(), "ignored", channel, null, null, ReleaseStatus.Draft, null, null, null);
+        Assert.Null(episodeRelease.Title);
+
+        Assert.Throws<DomainException>(() => Release.Create(null, " ", channel, null, null, ReleaseStatus.Draft, null, null, null));
+        Assert.Throws<DomainException>(() => Release.Create(null, new string('x', 201), channel, null, null, ReleaseStatus.Draft, null, null, null));
     }
 
     [Theory]

@@ -42,6 +42,7 @@ public sealed class GoogleSignIn(IBrowserLauncher browser)
         try
         {
             browser.Open(await authorizationUrl(redirectUri));
+            AppLog.Info($"Google sign-in: browser opened, waiting on {redirectUri}");
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(Timeout);
@@ -52,6 +53,8 @@ public sealed class GoogleSignIn(IBrowserLauncher browser)
                 var code = query["code"];
                 var state = query["state"];
                 var error = query["error"];
+                AppLog.Info($"Google sign-in: {context.Request.HttpMethod} {context.Request.Url?.AbsolutePath} " +
+                            $"(code: {code is not null}, state: {state is not null}, error: {error ?? "none"})");
                 if (code is null && error is null)
                 {
                     // Something else (such as a favicon request) reached the port: ignore it.
@@ -60,7 +63,15 @@ public sealed class GoogleSignIn(IBrowserLauncher browser)
                     continue;
                 }
 
-                await RespondAsync(context, error is null);
+                try
+                {
+                    await RespondAsync(context, error is null);
+                }
+                catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException)
+                {
+                    // The browser closed the tab before the reply arrived: the code is still good.
+                    AppLog.Warning($"Google sign-in: could not answer the browser: {ex.Message}");
+                }
                 return error is null
                     ? new GoogleSignInResult(code, state, null)
                     : new GoogleSignInResult(null, null, error == "access_denied" ? "Google sign-in was cancelled." : $"Google sign-in failed ({error}).");
@@ -68,6 +79,7 @@ public sealed class GoogleSignIn(IBrowserLauncher browser)
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            AppLog.Warning("Google sign-in: timed out waiting for the browser");
             return new GoogleSignInResult(null, null, "Google sign-in timed out. Please try again.");
         }
         finally

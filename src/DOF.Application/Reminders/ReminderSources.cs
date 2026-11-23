@@ -58,11 +58,11 @@ public sealed class ReminderSources(
         ReminderSourceType.Release => await db.Releases.AsNoTracking().Where(r => r.Id == id)
             .Select(r => new
             {
-                r.Id, Channel = r.Channel.Name, r.Episode.Title, ShowName = r.Episode.Show.Name, r.ScheduledAt, r.Status,
-                r.AssignedTo, r.Episode.ProducerId,
+                r.Id, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title, ShowName = r.Episode != null ? r.Episode.Show.Name : null,
+                r.ScheduledAt, r.Status, r.AssignedTo, ProducerId = r.Episode != null ? r.Episode.ProducerId : r.CreatedBy,
             })
             .SingleOrDefaultAsync(ct) is { } rel
-            ? new ReminderTarget(type, rel.Id, $"{rel.Channel} release · {rel.ShowName}: {rel.Title}", rel.ScheduledAt,
+            ? new ReminderTarget(type, rel.Id, ReleaseTitle(rel.Channel, rel.ShowName, rel.Title), rel.ScheduledAt,
                 rel.AssignedTo is { } a ? [a] : rel.ProducerId is { } p ? [p] : [],
                 rel.ScheduledAt != null && Release.IsOpenStatus(rel.Status), "Release")
             : null,
@@ -90,8 +90,12 @@ public sealed class ReminderSources(
                     .Select(e => new { e.Id, e.Title, Show = e.Show.Name, e.RecordingStart }).ToListAsync(ct))
                     .Select(e => (e.Id, $"{e.Show}: {e.Title}", e.RecordingStart)).ToList(),
                 ReminderSourceType.Release => (await db.Releases.AsNoTracking().Where(r => ids.Contains(r.Id))
-                    .Select(r => new { r.Id, Channel = r.Channel.Name, r.Episode.Title, Show = r.Episode.Show.Name, r.ScheduledAt }).ToListAsync(ct))
-                    .Select(r => (r.Id, $"{r.Channel} release · {r.Show}: {r.Title}", r.ScheduledAt)).ToList(),
+                    .Select(r => new
+                    {
+                        r.Id, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title,
+                        Show = r.Episode != null ? r.Episode.Show.Name : null, r.ScheduledAt,
+                    }).ToListAsync(ct))
+                    .Select(r => (r.Id, ReleaseTitle(r.Channel, r.Show, r.Title), r.ScheduledAt)).ToList(),
                 _ => [],
             };
             foreach (var (id, title, at) in rows)
@@ -138,7 +142,7 @@ public sealed class ReminderSources(
         var releases = await db.Releases.Where(r => r.ScheduledAt > now && r.ScheduledAt <= until
                                                     && r.Status != ReleaseStatus.Published && r.Status != ReleaseStatus.Cancelled
                                                     && (userId == null || r.AssignedTo == userId
-                                                        || (r.AssignedTo == null && r.Episode.ProducerId == userId)))
+                                                        || (r.AssignedTo == null && (r.Episode != null ? r.Episode.ProducerId : r.CreatedBy) == userId)))
             .Select(r => r.Id).ToListAsync(ct);
 
         return
@@ -150,4 +154,8 @@ public sealed class ReminderSources(
             .. releases.Select(id => (ReminderSourceType.Release, id)),
         ];
     }
+
+    /// <summary>"YouTube release · Show: Title", or "YouTube release · Title" for content without an episode.</summary>
+    private static string ReleaseTitle(string channel, string? show, string title) =>
+        show is null ? $"{channel} release · {title}" : $"{channel} release · {show}: {title}";
 }

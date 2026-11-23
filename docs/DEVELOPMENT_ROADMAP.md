@@ -219,7 +219,15 @@ event changes. Not in spec Part 10, so these acceptance criteria were set for th
 Also delivered: migration `GoogleCalendarInvites` (additive), the `google-invites-sync` job, activity
 entries for invites and connections, `ExportFolder` in the desktop settings, and setup steps in
 [DEPLOYMENT.md](DEPLOYMENT.md#google-calendar). The calendar toolbar search box was narrowed so the
-toolbar still fits at 1280 px. 247 automated tests pass.
+toolbar still fits at 1280 px.
+
+Follow-up requested by DOF: a release no longer has to be of an existing episode. The New release form
+offers "No episode" (the default unless started from an episode) and a "What is being released" title,
+for singles, trailers or announcements. Such releases have channels, times, statuses, overdue warnings,
+publication confirmation, reminders (to the assignee, else whoever created it), calendar items, search
+and reports like episode releases; they just have no episode status to update. Migration
+`ReleasesWithoutEpisode` (additive). Evidence: `ReleaseTests.A_release_without_an_episode_is_typed_in…`,
+`ReleaseUiTests.A_release_can_be_typed_in_without_an_episode`, `ReleaseDomainTests`. 250 automated tests pass.
 
 Notes:
 - Invites cover standalone calendar events. Recordings, deadlines and releases are owned by episodes,

@@ -25,9 +25,12 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
             t.HasCheckConstraint("ck_releases_published_has_time", "status <> 'Published' OR actual_published_at IS NOT NULL");
             // "Overdue" is derived when reading, never stored.
             t.HasCheckConstraint("ck_releases_status_not_overdue", "status <> 'Overdue'");
+            // A release is of an episode or of content named by its title.
+            t.HasCheckConstraint("ck_releases_episode_or_title", "episode_id IS NOT NULL OR title IS NOT NULL");
         });
         builder.Property(r => r.Status).HasConversion<string>().HasMaxLength(40);
         builder.Property(r => r.ExternalUrl).HasMaxLength(2000);
+        builder.Property(r => r.Title).HasMaxLength(Release.TitleMaxLength);
         builder.HasIndex(r => r.EpisodeId);
         builder.HasIndex(r => r.ScheduledAt);
         builder.HasIndex(r => r.Status);
@@ -35,12 +38,13 @@ internal sealed class ReleaseConfiguration : IEntityTypeConfiguration<Release>
         builder.HasIndex(r => r.ProjectId);
         // One live release per episode and channel; cancelled ones stay for history.
         builder.HasIndex(r => new { r.EpisodeId, r.DistributionChannelId }).IsUnique().HasFilter("status <> 'Cancelled'");
-        builder.HasOne(r => r.Episode).WithMany().HasForeignKey(r => r.EpisodeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(r => r.Episode).WithMany().HasForeignKey(r => r.EpisodeId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(r => r.Channel).WithMany().HasForeignKey(r => r.DistributionChannelId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Project>().WithMany().HasForeignKey(r => r.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<User>().WithMany().HasForeignKey(r => r.AssignedTo).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<User>().WithMany().HasForeignKey(r => r.PublishedBy).OnDelete(DeleteBehavior.Restrict);
         builder.Ignore(r => r.IsOpen);
         builder.Ignore(r => r.IsClosed);
+        builder.Ignore(r => r.DisplayTitle);
     }
 }

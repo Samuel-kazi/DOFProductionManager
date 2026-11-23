@@ -1,15 +1,19 @@
 namespace DOF.Contracts.Requests;
 
-/// <summary>A release of one episode on one channel. Without a time it starts as a draft; <c>Scheduled</c> needs a time.</summary>
+/// <summary>
+/// A release of one episode on one channel, or (without an episode) of content named by <see cref="Title"/>,
+/// such as a single, trailer or announcement. Without a time it starts as a draft; <c>Scheduled</c> needs a time.
+/// </summary>
 public sealed record CreateReleaseRequest(
-    Guid EpisodeId,
+    Guid? EpisodeId,
     Guid DistributionChannelId,
     DateTimeOffset? ScheduledAt,
     string Status,
     Guid? AssignedTo,
     Guid? ProjectId = null,
     string? ExternalUrl = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? Title = null);
 
 /// <summary>Details and workflow status (Draft, AwaitingApproval, Ready, Scheduled, Failed). Times change through /schedule or /postpone.</summary>
 public sealed record UpdateReleaseRequest(

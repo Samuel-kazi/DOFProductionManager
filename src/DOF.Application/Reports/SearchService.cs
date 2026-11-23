@@ -53,9 +53,10 @@ public sealed class SearchService(IApplicationDbContext db)
                 .Select(e => new { e.Id, e.Title, e.EventType }).ToListAsync(ct))
             .Select(e => new SearchResultResponse("CalendarEvent", e.Id, e.Title, $"Event · {e.EventType}")));
         results.AddRange((await db.Releases.AsNoTracking()
-                .Where(r => r.Episode.Title.ToLower().Contains(term) || r.Channel.Name.ToLower().Contains(term))
+                .Where(r => (r.Episode != null && r.Episode.Title.ToLower().Contains(term))
+                            || (r.Title != null && r.Title.ToLower().Contains(term)) || r.Channel.Name.ToLower().Contains(term))
                 .OrderBy(r => r.Status == ReleaseStatus.Published || r.Status == ReleaseStatus.Cancelled).ThenBy(r => r.ScheduledAt).Take(PerType)
-                .Select(r => new { r.Id, Channel = r.Channel.Name, r.Episode.Title, r.Status }).ToListAsync(ct))
+                .Select(r => new { r.Id, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title, r.Status }).ToListAsync(ct))
             .Select(r => new SearchResultResponse("Release", r.Id, $"{r.Channel} · {r.Title}", $"Release · {r.Status}")));
         return results;
     }

@@ -1207,7 +1207,7 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("distribution_channel_id");
 
-                    b.Property<Guid>("EpisodeId")
+                    b.Property<Guid?>("EpisodeId")
                         .HasColumnType("uuid")
                         .HasColumnName("episode_id");
 
@@ -1241,6 +1241,11 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)")
                         .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1292,6 +1297,8 @@ namespace DOF.Infrastructure.Persistence.Migrations
 
                     b.ToTable("releases", null, t =>
                         {
+                            t.HasCheckConstraint("ck_releases_episode_or_title", "episode_id IS NOT NULL OR title IS NOT NULL");
+
                             t.HasCheckConstraint("ck_releases_published_has_time", "status <> 'Published' OR actual_published_at IS NOT NULL");
 
                             t.HasCheckConstraint("ck_releases_status_not_overdue", "status <> 'Overdue'");
@@ -2138,7 +2145,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("EpisodeId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_releases_episodes_episode_id");
 
                     b.HasOne("DOF.Domain.Entities.Project", null)

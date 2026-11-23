@@ -113,7 +113,7 @@ in the history, with the optional `note` on status changes.
 | Method | Endpoint | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/v1/releases` | Signed in | Paged; `view` (All, Ready, Scheduled, Published, Postponed, Overdue, Cancelled), `episodeId`, `showId`, `channelId`, `assignedTo`, `mine`, `from`/`to`, `search` |
-| POST | `/api/v1/releases` | `releases.schedule` | `{episodeId, distributionChannelId, scheduledAt?, status, assignedTo?, projectId?, externalUrl?, notes?}` → 201; one live release per episode and channel (409) |
+| POST | `/api/v1/releases` | `releases.schedule` | `{episodeId?, distributionChannelId, scheduledAt?, status, assignedTo?, projectId?, externalUrl?, notes?, title?}` → 201. Without `episodeId`, `title` (≤ 200) names the content (single, trailer, announcement). One live release per episode and channel (409). Responses carry `episode` (null for typed-in content) and `title` (always the name to show) |
 | GET | `/api/v1/releases/{id}` | Signed in | Release with `status`, `displayStatus`, `isOverdue`, `canEdit`, `canConfirm` |
 | PUT | `/api/v1/releases/{id}` | `releases.schedule` | Details and workflow status (Draft, AwaitingApproval, Ready, Scheduled, Failed); requires `version` |
 | PATCH | `/api/v1/releases/{id}/schedule` | `releases.schedule` | `{scheduledAt, version?}`; a postponed or failed release becomes Scheduled |

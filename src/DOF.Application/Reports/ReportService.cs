@@ -86,12 +86,12 @@ public sealed class ReportService(
         var recorded = await db.Episodes.AsNoTracking().Where(e => e.RecordedAt >= from && e.RecordedAt < to)
             .Select(e => new { e.Id, e.Title, e.RecordedAt, Show = e.Show.Name, e.Status }).ToListAsync(ct);
         var published = await db.Releases.AsNoTracking().Where(r => r.ActualPublishedAt >= from && r.ActualPublishedAt < to)
-            .Select(r => new { r.Id, r.ActualPublishedAt, Channel = r.Channel.Name, r.Episode.Title, Show = r.Episode.Show.Name }).ToListAsync(ct);
+            .Select(r => new { r.Id, r.ActualPublishedAt, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title, Show = r.Episode != null ? r.Episode.Show.Name : null }).ToListAsync(ct);
         var missedReleases = await db.Releases.AsNoTracking()
             .Where(r => r.ScheduledAt >= from && r.ScheduledAt < to && r.ScheduledAt < c.Now
                         && (r.Status == ReleaseStatus.Draft || r.Status == ReleaseStatus.AwaitingApproval || r.Status == ReleaseStatus.Ready
                             || r.Status == ReleaseStatus.Scheduled || r.Status == ReleaseStatus.Postponed))
-            .Select(r => new { r.Id, r.ScheduledAt, Channel = r.Channel.Name, r.Episode.Title, Show = r.Episode.Show.Name }).ToListAsync(ct);
+            .Select(r => new { r.Id, r.ScheduledAt, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title, Show = r.Episode != null ? r.Episode.Show.Name : null }).ToListAsync(ct);
 
         var rows = new List<(DateTimeOffset At, IReadOnlyList<string> Row, ReportRowLink Link)>();
         rows.AddRange(tasksDone.Select(t => (t.CompletedAt!.Value,
@@ -103,9 +103,9 @@ public sealed class ReportService(
         rows.AddRange(recorded.Select(e => (e.RecordedAt!.Value,
             (IReadOnlyList<string>)["Episode recorded", $"{e.Show}: {e.Title}", c.Time(e.RecordedAt), e.Status.ToString(), ""], Link("Episode", e.Id))));
         rows.AddRange(published.Select(r => (r.ActualPublishedAt!.Value,
-            (IReadOnlyList<string>)["Release published", $"{r.Channel} · {r.Show}: {r.Title}", c.Time(r.ActualPublishedAt), "Published", ""], Link("Release", r.Id))));
+            (IReadOnlyList<string>)["Release published", Releases.ReleaseReaders.Label(r.Channel, r.Show, null, r.Title), c.Time(r.ActualPublishedAt), "Published", ""], Link("Release", r.Id))));
         rows.AddRange(missedReleases.Select(r => (r.ScheduledAt!.Value,
-            (IReadOnlyList<string>)["Release missed", $"{r.Channel} · {r.Show}: {r.Title}", c.Time(r.ScheduledAt), "Overdue", ""], Link("Release", r.Id))));
+            (IReadOnlyList<string>)["Release missed", Releases.ReleaseReaders.Label(r.Channel, r.Show, null, r.Title), c.Time(r.ScheduledAt), "Overdue", ""], Link("Release", r.Id))));
 
         ReportFigure[] summary =
         [
@@ -137,7 +137,7 @@ public sealed class ReportService(
             .OrderBy(r => r.ScheduledAt)
             .Select(r => new
             {
-                r.Id, r.ScheduledAt, r.Status, Channel = r.Channel.Name, r.Episode.Title, Show = r.Episode.Show.Name,
+                r.Id, r.ScheduledAt, r.Status, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title, Show = r.Episode != null ? r.Episode.Show.Name : null,
                 Assignee = db.Users.Where(u => u.Id == r.AssignedTo).Select(u => u.FullName).FirstOrDefault(),
             })
             .ToListAsync(ct);
@@ -145,7 +145,7 @@ public sealed class ReportService(
             [new("Releases", releases.Count.ToString()), new("Channels", releases.Select(r => r.Channel).Distinct().Count().ToString()),
              new("Without an assignee", releases.Count(r => r.Assignee is null).ToString())],
             ["Scheduled", "Channel", "Show", "Episode", "Status", "Assigned to"],
-            releases.Select(r => ((IReadOnlyList<string>)[c.Time(r.ScheduledAt), r.Channel, r.Show, r.Title, r.Status.ToString(), r.Assignee ?? ""],
+            releases.Select(r => ((IReadOnlyList<string>)[c.Time(r.ScheduledAt), r.Channel, r.Show ?? "", r.Title, r.Status.ToString(), r.Assignee ?? ""],
                 (ReportRowLink?)Link("Release", r.Id))));
     }
 
@@ -192,7 +192,7 @@ public sealed class ReportService(
             .OrderByDescending(r => r.ActualPublishedAt)
             .Select(r => new
             {
-                r.Id, r.ScheduledAt, r.ActualPublishedAt, r.ExternalUrl, Channel = r.Channel.Name, r.Episode.Title, Show = r.Episode.Show.Name,
+                r.Id, r.ScheduledAt, r.ActualPublishedAt, r.ExternalUrl, Channel = r.Channel.Name, Title = r.Title ?? r.Episode!.Title, Show = r.Episode != null ? r.Episode.Show.Name : null,
                 ConfirmedBy = db.Users.Where(u => u.Id == r.PublishedBy).Select(u => u.FullName).FirstOrDefault(),
             })
             .ToListAsync(ct);
@@ -208,7 +208,7 @@ public sealed class ReportService(
              new("Average delay (min)", delays.Count == 0 ? "–" : Math.Round(delays.Average()).ToString())],
             ["Published", "Scheduled", "Delay (min)", "Channel", "Show", "Episode", "Confirmed by", "Link"],
             releases.Select(r => ((IReadOnlyList<string>)[c.Time(r.ActualPublishedAt), c.Time(r.ScheduledAt),
-                Delay(r.ScheduledAt, r.ActualPublishedAt)?.ToString() ?? "", r.Channel, r.Show, r.Title, r.ConfirmedBy ?? "", r.ExternalUrl ?? ""],
+                Delay(r.ScheduledAt, r.ActualPublishedAt)?.ToString() ?? "", r.Channel, r.Show ?? "", r.Title, r.ConfirmedBy ?? "", r.ExternalUrl ?? ""],
                 (ReportRowLink?)Link("Release", r.Id))));
     }
 
