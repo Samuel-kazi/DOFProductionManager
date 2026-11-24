@@ -21,6 +21,8 @@ public sealed partial class EventDetailsViewModel(
     public bool IsCancelled => Event.Status == Contracts.Common.CalendarValues.Cancelled;
     public string? Location => Event.Location;
     public string? Speaker => Event.Speaker;
+    public string? RepeatText => Event.RepeatText;
+    public bool IsInSeries => Event.SeriesId is not null;
     public bool IsSessionDay => Event.SessionWeekId is not null;
     public bool CanEditWeek => IsSessionDay && Event.CanEdit;
     public string? MeetingUrl => Event.MeetingUrl;

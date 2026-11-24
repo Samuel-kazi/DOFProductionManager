@@ -33,10 +33,10 @@ access token as `Authorization: Bearer <token>`.
 | GET | `/api/v1/calendar/month` | Signed in | `year`, `month` (default current) |
 | GET | `/api/v1/calendar/agenda` | Signed in | `start` (default today), `days` (1–90, default 14) |
 | GET | `/api/v1/calendar/events` | Signed in | Standalone events, paged; `search`, `from`, `to`, `includeCancelled` |
-| POST | `/api/v1/calendar/events` | `calendar.manage` | Create → 201 |
+| POST | `/api/v1/calendar/events` | `calendar.manage` | Create → 201. Optional `repeat: {frequency (Daily, Weekly, Monthly), interval (1–12), weekdays[]?, until? \| count? (2–200)}` creates every occurrence (≤ 2 years) as its own event in one series; the response has `seriesId` and `repeatText` |
 | GET | `/api/v1/calendar/events/{id}` | Signed in | Event with assignments, creator, `version`, `canEdit` |
-| PUT | `/api/v1/calendar/events/{id}` | `calendar.manage` | Update or reschedule; requires current `version` |
-| DELETE | `/api/v1/calendar/events/{id}` | `calendar.manage` | Cancel (kept, leaves the calendar) → 204 |
+| PUT | `/api/v1/calendar/events/{id}` | `calendar.manage` | Update or reschedule; requires current `version`. `applyToFollowing: true` applies the details, people and time shift to the later occurrences of its series |
+| DELETE | `/api/v1/calendar/events/{id}` | `calendar.manage` | Cancel (kept, leaves the calendar) → 204. `?following=true` also cancels the later occurrences of its series |
 | GET | `/api/v1/dashboard/personal` | Signed in | Today's schedule and next 7 days assigned to me |
 | GET | `/api/v1/dashboard/management` | `reports.view` | Upcoming activities and unassigned ones; optional `start`/`end` dates (≤ 60 days) |
 | GET | `/api/v1/dashboard/upcoming` | Signed in | Next `days` (1–60, default 7); `mine=true` for mine only |
@@ -194,6 +194,9 @@ Escalation, each linked to its record (`sourceType`/`sourceId`).
 | GET | `/api/v1/calendar/session-weeks/{id}` | Signed in | The week with its live days: `eventId`, times, `theme`, `speaker` (only when it differs from the week's), `title` |
 | POST | `/api/v1/calendar/session-weeks` | `calendar.manage` | `{name, weekStart (Monday), eventType, location?, meetingUrl?, speaker?, days: [{startAt, endAt, theme?, speaker?}]}` (1–7 days, each in that week, one per date) → 201; one calendar event per day |
 | PUT | `/api/v1/calendar/session-weeks/{id}` | `calendar.manage` | Same body plus `version`; days with `eventId` are updated in place, new days are added, days left out are cancelled |
+| GET | `/api/v1/calendar/session-weeks/{id}/google-invites` | Signed in | The week's single invite (`data` null when none was sent); `sessionWeekId` set, `calendarEventId` null |
+| PUT | `/api/v1/calendar/session-weeks/{id}/google-invites` | `calendar.manage` | `{userIds[], emails[]}`: one Google invite for every live day of the week (a repeating event; each day keeps its own title, speaker and time). 422 when every day is cancelled or the week is over |
+| DELETE | `/api/v1/calendar/session-weeks/{id}/google-invites` | `calendar.manage` | Takes the whole week off guests' calendars |
 | GET | `/api/v1/calendar/events/{id}/google-invites` | Signed in | The event's invites (`data` null when none were sent) |
 | PUT | `/api/v1/calendar/events/{id}/google-invites` | `calendar.manage` | `{userIds[], emails[]}` (≥ 1, ≤ 100 each): send or update invites; replaces the guest list. Pushed to Google at once; 409 when no Google account is connected, 422 when the event is cancelled or over |
 | DELETE | `/api/v1/calendar/events/{id}/google-invites` | `calendar.manage` | Take the event off every guest's calendar (Google tells them) |

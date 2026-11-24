@@ -76,6 +76,37 @@ public sealed class GoogleCalendarHttpApi(HttpClient http, IOptions<GoogleCalend
     public async Task<IReadOnlyList<GoogleAttendeeResponse>> UpsertEventAsync(
         string refreshToken, string calendarId, GoogleEventData data, bool exists, CancellationToken ct)
     {
+        var answers = await UpsertSeriesAsync(refreshToken, calendarId, data, exists, ct);
+        foreach (var instance in data.Instances ?? [])
+        {
+            // Each day of a repeating event gets its own title, speaker and time. Guests were already told
+            // about the series, so these per-day details are not e-mailed again.
+            using var patch = await SendAsync(refreshToken, HttpMethod.Patch,
+                $"{EventsPath(calendarId)}/{Uri.EscapeDataString(InstanceId(data.Id, instance.OriginalStart))}?sendUpdates=none",
+                InstanceBody(instance), ct);
+            if (patch.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.Gone))
+            {
+                await EnsureSuccessAsync(patch, ct);
+            }
+        }
+        return answers;
+    }
+
+    /// <summary>Google's id for one occurrence of a repeating timed event: "‹event id›_‹original start in UTC›".</summary>
+    public static string InstanceId(string eventId, DateTimeOffset originalStart) =>
+        $"{eventId}_{originalStart.ToUniversalTime():yyyyMMdd'T'HHmmss'Z'}";
+
+    public static JsonObject InstanceBody(GoogleEventInstance instance) => new()
+    {
+        ["summary"] = instance.Summary,
+        ["description"] = instance.Description,
+        ["start"] = Time(instance.Start),
+        ["end"] = Time(instance.End),
+    };
+
+    private async Task<IReadOnlyList<GoogleAttendeeResponse>> UpsertSeriesAsync(
+        string refreshToken, string calendarId, GoogleEventData data, bool exists, CancellationToken ct)
+    {
         if (!exists)
         {
             using var insert = await SendAsync(refreshToken, HttpMethod.Post, $"{EventsPath(calendarId)}?sendUpdates=all",
@@ -136,7 +167,17 @@ public sealed class GoogleCalendarHttpApi(HttpClient http, IOptions<GoogleCalend
     }
 
     /// <summary>The JSON Google receives. Exposed for tests.</summary>
-    public static JsonObject EventBody(GoogleEventData data, IReadOnlyDictionary<string, string> answers) => new()
+    public static JsonObject EventBody(GoogleEventData data, IReadOnlyDictionary<string, string> answers)
+    {
+        var body = SingleEventBody(data, answers);
+        if (data.Recurrence is { Count: > 0 } rules)
+        {
+            body["recurrence"] = new JsonArray([.. rules.Select(r => (JsonNode)JsonValue.Create(r)!)]);
+        }
+        return body;
+    }
+
+    private static JsonObject SingleEventBody(GoogleEventData data, IReadOnlyDictionary<string, string> answers) => new()
     {
         ["id"] = data.Id,
         ["status"] = "confirmed",

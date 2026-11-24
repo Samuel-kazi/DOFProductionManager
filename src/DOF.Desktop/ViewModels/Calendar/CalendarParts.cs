@@ -10,7 +10,12 @@ public enum CalendarMode
     Agenda,
 }
 
-public sealed class MonthDayCell(DateOnly date, bool isCurrentMonth, bool isToday, IReadOnlyList<CalendarItemViewModel> items)
+/// <summary>
+/// A day of the month view. <paramref name="items"/> are the day's own items (bars across several days are
+/// drawn by the week row); <paramref name="barSpace"/> leaves room for those bars under the day number.
+/// </summary>
+public sealed class MonthDayCell(DateOnly date, bool isCurrentMonth, bool isToday, IReadOnlyList<CalendarItemViewModel> items,
+    double barSpace = 0, int barLanes = 0)
 {
     public const int VisibleItems = 3;
 
@@ -18,13 +23,18 @@ public sealed class MonthDayCell(DateOnly date, bool isCurrentMonth, bool isToda
     public string DayNumber => Date.Day == 1 ? Date.ToString("d MMM") : Date.Day.ToString();
     public bool IsCurrentMonth { get; } = isCurrentMonth;
     public bool IsToday { get; } = isToday;
-    public IReadOnlyList<CalendarItemViewModel> Items { get; } = items.Take(VisibleItems).ToList();
-    public int HiddenCount { get; } = Math.Max(0, items.Count - VisibleItems);
+    public double BarSpace { get; } = barSpace;
+    public IReadOnlyList<CalendarItemViewModel> Items { get; } = items.Take(Math.Max(1, VisibleItems - barLanes)).ToList();
+    public int HiddenCount { get; } = Math.Max(0, items.Count - Math.Max(1, VisibleItems - barLanes));
     public string? MoreText => HiddenCount > 0 ? $"+{HiddenCount} more" : null;
 }
 
-public sealed class DayColumn(DateOnly date, bool isToday, IReadOnlyList<CalendarItemViewModel> allDay, IReadOnlyList<TimedItemViewModel> timed)
+public sealed class DayColumn(DateOnly date, bool isToday, IReadOnlyList<CalendarItemViewModel> allDay, IReadOnlyList<TimedItemViewModel> timed,
+    double barSpace = 0)
 {
+    /// <summary>Room left at the top of the all-day cell for bars of events lasting several days.</summary>
+    public double BarSpace { get; } = barSpace;
+
     public DateOnly Date { get; } = date;
     public string Header => Date.ToString("ddd d");
     public bool IsToday { get; } = isToday;

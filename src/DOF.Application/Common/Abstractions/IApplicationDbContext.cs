@@ -32,6 +32,7 @@ public interface IApplicationDbContext
     DbSet<NotificationPreference> NotificationPreferences { get; }
     DbSet<GoogleCalendarConnection> GoogleCalendarConnections { get; }
     DbSet<SessionWeek> SessionWeeks { get; }
+    DbSet<EventSeries> EventSeries { get; }
     DbSet<GoogleCalendarInvite> GoogleCalendarInvites { get; }
     DbSet<GoogleCalendarInviteGuest> GoogleCalendarInviteGuests { get; }
 

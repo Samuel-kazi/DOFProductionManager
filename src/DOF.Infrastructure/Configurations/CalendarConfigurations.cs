@@ -16,6 +16,8 @@ internal sealed class CalendarEventConfiguration : IEntityTypeConfiguration<Cale
         builder.Property(e => e.Theme).HasMaxLength(SessionWeek.ThemeMaxLength);
         builder.Property(e => e.Speaker).HasMaxLength(SessionWeek.SpeakerMaxLength);
         builder.HasIndex(e => e.SessionWeekId);
+        builder.HasIndex(e => e.SeriesId);
+        builder.HasOne<EventSeries>().WithMany().HasForeignKey(e => e.SeriesId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<SessionWeek>().WithMany().HasForeignKey(e => e.SessionWeekId).OnDelete(DeleteBehavior.Restrict);
 
         // Range queries filter on start_at < end AND end_at > start.
@@ -57,5 +59,21 @@ internal sealed class SessionWeekConfiguration : IEntityTypeConfiguration<Sessio
         builder.Property(w => w.Location).HasMaxLength(500);
         builder.Property(w => w.Speaker).HasMaxLength(SessionWeek.SpeakerMaxLength);
         builder.HasIndex(w => new { w.Name, w.WeekStart });
+    }
+}
+
+internal sealed class EventSeriesConfiguration : IEntityTypeConfiguration<EventSeries>
+{
+    public void Configure(EntityTypeBuilder<EventSeries> builder)
+    {
+        builder.ToTable("event_series", t =>
+        {
+            t.HasCheckConstraint("ck_event_series_interval", "interval BETWEEN 1 AND 12");
+            // Ends on a date or after a number of times, never both or neither.
+            t.HasCheckConstraint("ck_event_series_one_end", "(until IS NULL) <> (count IS NULL)");
+        });
+        builder.Property(s => s.Frequency).HasConversion<string>().HasMaxLength(20);
+        builder.Property(s => s.Weekdays).HasMaxLength(80);
+        builder.Ignore(s => s.Days);
     }
 }

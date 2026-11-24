@@ -55,7 +55,8 @@ public sealed class StandaloneEventCalendarSource(IApplicationDbContext db) : IC
             .OrderBy(e => e.StartAt)
             .Select(e => new
             {
-                e.Id, e.Title, e.EventType, e.StartAt, e.EndAt, e.IsAllDay, e.Status, e.Priority, e.Location, e.Speaker,
+                e.Id, e.Title, e.EventType, e.StartAt, e.EndAt, e.IsAllDay, e.Status, e.Priority, e.Location, e.Speaker, e.SessionWeekId, e.SeriesId,
+                SessionName = db.SessionWeeks.Where(w => w.Id == e.SessionWeekId).Select(w => w.Name).FirstOrDefault(),
                 Assigned = e.Assignments
                     .Select(a => new { a.UserId, a.User.FullName, a.AssignmentType })
                     .ToList(),
@@ -78,7 +79,10 @@ public sealed class StandaloneEventCalendarSource(IApplicationDbContext db) : IC
                     .OrderBy(a => a.AssignmentType).ThenBy(a => a.FullName, StringComparer.CurrentCultureIgnoreCase)
                     .Select(a => new AssignedUserResponse(a.UserId, a.FullName, a.AssignmentType.ToString())).ToList(),
                 canEdit,
-                e.Speaker))
+                e.Speaker,
+                e.SessionWeekId,
+                e.SessionName,
+                e.SeriesId != null))
             .ToList();
     }
 

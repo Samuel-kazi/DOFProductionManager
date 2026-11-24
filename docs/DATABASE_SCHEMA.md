@@ -17,6 +17,8 @@ Every table has `id uuid` (UUIDv7) primary key and `created_at` / `updated_at ti
 | `AddReleases` | 6 | Adds `distribution_channels` and `releases`. Additive only. Channels are seeded at startup (not in the migration). |
 | `AddRemindersAndNotifications` | 7 | Adds `reminders`, `notifications`, `notification_outbox`, `notification_preferences`. Additive only. Hangfire creates and manages its own `hangfire` schema at startup. |
 | `GoogleCalendarInvites` | 9 | Adds `google_calendar_connections`, `google_calendar_invites`, `google_calendar_invite_guests`. Additive only. |
+| `RepeatingEvents` | 9 | Adds `event_series` and `calendar_events.series_id`. Additive only. |
+| `WeekGoogleInvites` | 9 | `google_calendar_invites.calendar_event_id` becomes nullable; adds `session_week_id` (unique, → session_weeks) and the check `ck_google_calendar_invites_one_target`. Additive only. |
 | `SessionWeeks` | 9 | Adds `session_weeks`, and `session_week_id`, `theme`, `speaker` on `calendar_events`. Additive only. |
 | `ReleasesWithoutEpisode` | 9 | `releases.episode_id` becomes nullable; adds `releases.title` and the check `ck_releases_episode_or_title`. Additive only (existing rows keep their episode). |
 
@@ -76,8 +78,15 @@ Standalone events only. Dates owned by episodes, milestones, tasks and releases 
 | created_by / updated_by | uuid null | → users (restrict); set automatically |
 | version | integer | optimistic concurrency |
 | session_week_id | uuid null | → session_weeks (restrict; indexed). Set for the days of a planned session week |
+| series_id | uuid null | → event_series (restrict; indexed). Set for the occurrences of a repeating event |
 | theme | varchar(200) null | A session day's theme; the title is "‹week name›: ‹theme›" |
 | speaker | varchar(200) null | Who is sharing, as typed (may be a guest who is not a user) |
+
+### event_series
+How a repeating event repeats. Its occurrences are ordinary `calendar_events` rows (each owns its date).
+`frequency varchar(20)` (Daily, Weekly, Monthly), `interval int` (check 1–12), `weekdays varchar(80) null`
+(day names for weekly series), `until date null` / `count int null` (exactly one: `ck_event_series_one_end`),
+`created_by` / `updated_by`, `version`.
 
 ### session_weeks
 A week of a recurring session series such as a Monday-to-Friday devotion. Its days are ordinary
@@ -104,12 +113,15 @@ index on `archived_at IS NULL`); disconnecting archives the row.
 | last_error / last_error_at | varchar(1000) null / timestamptz null | E.g. Google refused access; shown in Settings |
 
 ### google_calendar_invites
-Google Calendar invites for one standalone event. The event's dates are not copied: the Google event is
+Google Calendar invites for one standalone event, or for a whole session week (`session_week_id`; one
+repeating Google event for all its days). Exactly one of `calendar_event_id` / `session_week_id` is set
+(`ck_google_calendar_invites_one_target`); each is unique. The dates are not copied: the Google event is
 rebuilt from `calendar_events` on every push.
 
 | Column | Type | Notes |
 |---|---|---|
-| calendar_event_id | uuid | → calendar_events (restrict); unique |
+| calendar_event_id | uuid null | → calendar_events (restrict); unique. Null for a session-week invite |
+| session_week_id | uuid null | → session_weeks (restrict); unique. Set for a whole-week invite |
 | connection_id | uuid | → google_calendar_connections (restrict): the account that owns the Google event |
 | google_event_id | varchar(100) | Chosen by DOF (`dof` + hex), so a retried insert can never duplicate the event |
 | status | varchar(20) | Pending, Synced, Removing, Removed, Failed. Index `(status, next_attempt_at)` |

@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace DOF.Application.GoogleCalendar;
 
 /// <summary>
-/// Google Calendar invites for standalone events (calendar.manage, checked by the controller). Sending
+/// Google Calendar invites for standalone events and whole session weeks (calendar.manage, checked by the controller). Sending
 /// saves the guest list and pushes it to Google straight away; later changes to the event reach the
 /// guests through <see cref="GoogleInviteSync"/>.
 /// </summary>
@@ -27,6 +27,14 @@ public sealed class GoogleInviteService(
 {
     public const int MaxGuests = 100;
 
+    /// <summary>What an invite is for: one standalone event, or every day of a session week.</summary>
+    private sealed record Target(Guid? EventId, Guid? WeekId)
+    {
+        public Guid Id => EventId ?? WeekId!.Value;
+        public string Entity => WeekId is null ? ActivityEntities.CalendarEvent : ActivityEntities.SessionWeek;
+        public string What => WeekId is null ? "event" : "session week";
+    }
+
     /// <summary>The event's invites, or null when none were ever sent.</summary>
     public async Task<GoogleInviteResponse?> GetAsync(Guid eventId, CancellationToken ct)
     {
@@ -34,9 +42,70 @@ public sealed class GoogleInviteService(
         {
             throw new NotFoundException("Event", eventId);
         }
+        return await ReadAsync(new Target(eventId, null), ct);
+    }
 
-        var row = await db.GoogleCalendarInvites.AsNoTracking()
-            .Where(i => i.CalendarEventId == eventId)
+    /// <summary>The whole week's invites, or null when none were ever sent.</summary>
+    public async Task<GoogleInviteResponse?> GetWeekAsync(Guid weekId, CancellationToken ct)
+    {
+        if (!await db.SessionWeeks.AnyAsync(w => w.Id == weekId, ct))
+        {
+            throw new NotFoundException("Session week", weekId);
+        }
+        return await ReadAsync(new Target(null, weekId), ct);
+    }
+
+    public async Task<GoogleInviteResponse> SendAsync(Guid eventId, SendGoogleInvitesRequest request, CancellationToken ct)
+    {
+        var calendarEvent = await db.CalendarEvents.AsNoTracking().SingleOrDefaultAsync(e => e.Id == eventId, ct)
+                            ?? throw new NotFoundException("Event", eventId);
+        if (calendarEvent.Status == CalendarEventStatus.Cancelled)
+        {
+            throw new DomainException("This event is cancelled. Reinstate it before sending invites.");
+        }
+        if (calendarEvent.EndAt <= clock.GetUtcNow())
+        {
+            throw new DomainException("This event has already ended.");
+        }
+        return await SendToAsync(new Target(eventId, null), request, ct);
+    }
+
+    /// <summary>
+    /// Invites people to every day of a session week with one Google invite: a repeating event on the
+    /// week's days, each day showing its own theme and who is sharing.
+    /// </summary>
+    public async Task<GoogleInviteResponse> SendWeekAsync(Guid weekId, SendGoogleInvitesRequest request, CancellationToken ct)
+    {
+        if (!await db.SessionWeeks.AnyAsync(w => w.Id == weekId, ct))
+        {
+            throw new NotFoundException("Session week", weekId);
+        }
+        var lastEnd = await db.CalendarEvents.Where(e => e.SessionWeekId == weekId && e.Status != CalendarEventStatus.Cancelled)
+            .MaxAsync(e => (DateTimeOffset?)e.EndAt, ct);
+        if (lastEnd is null)
+        {
+            throw new DomainException("Every day of this week is cancelled.");
+        }
+        if (lastEnd <= clock.GetUtcNow())
+        {
+            throw new DomainException("This week's sessions have already ended.");
+        }
+        return await SendToAsync(new Target(null, weekId), request, ct);
+    }
+
+    /// <summary>Takes the event off every guest's Google Calendar (Google tells them it was cancelled).</summary>
+    public Task<GoogleInviteResponse> RemoveAsync(Guid eventId, CancellationToken ct) => RemoveFromAsync(new Target(eventId, null), ct);
+
+    /// <summary>Takes the whole week off every guest's Google Calendar.</summary>
+    public Task<GoogleInviteResponse> RemoveWeekAsync(Guid weekId, CancellationToken ct) => RemoveFromAsync(new Target(null, weekId), ct);
+
+    private IQueryable<GoogleCalendarInvite> InvitesFor(Target target) => target.WeekId is { } week
+        ? db.GoogleCalendarInvites.Where(i => i.SessionWeekId == week)
+        : db.GoogleCalendarInvites.Where(i => i.CalendarEventId == target.EventId);
+
+    private async Task<GoogleInviteResponse?> ReadAsync(Target target, CancellationToken ct)
+    {
+        var row = await InvitesFor(target).AsNoTracking()
             .Select(i => new
             {
                 Invite = i,
@@ -57,23 +126,13 @@ public sealed class GoogleInviteService(
                 g.UserId is { } id && names.TryGetValue(id, out var name) ? name : g.DisplayName, g.Response.ToString()))
             .OrderBy(g => g.DisplayName ?? g.Email, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
-        return new GoogleInviteResponse(eventId, row.Invite.Status.ToString(), row.Account, guests, row.Invite.LastSyncedAt,
-            row.Invite.LastError, row.Invite.CreatedAt, row.SentBy);
+        return new GoogleInviteResponse(target.EventId, row.Invite.Status.ToString(), row.Account, guests, row.Invite.LastSyncedAt,
+            row.Invite.LastError, row.Invite.CreatedAt, row.SentBy, target.WeekId);
     }
 
-    public async Task<GoogleInviteResponse> SendAsync(Guid eventId, SendGoogleInvitesRequest request, CancellationToken ct)
+    private async Task<GoogleInviteResponse> SendToAsync(Target target, SendGoogleInvitesRequest request, CancellationToken ct)
     {
-        var calendarEvent = await db.CalendarEvents.AsNoTracking().SingleOrDefaultAsync(e => e.Id == eventId, ct)
-                            ?? throw new NotFoundException("Event", eventId);
         var now = clock.GetUtcNow();
-        if (calendarEvent.Status == CalendarEventStatus.Cancelled)
-        {
-            throw new DomainException("This event is cancelled. Reinstate it before sending invites.");
-        }
-        if (calendarEvent.EndAt <= now)
-        {
-            throw new DomainException("This event has already ended.");
-        }
         var connection = await connections.ActiveAsync(ct)
                          ?? throw new ConflictException("Connect a Google account in Settings before sending invites.");
 
@@ -93,11 +152,13 @@ public sealed class GoogleInviteService(
             throw new DomainException($"An event can have at most {MaxGuests} guests.");
         }
 
-        var invite = await db.GoogleCalendarInvites.Include(i => i.Guests).SingleOrDefaultAsync(i => i.CalendarEventId == eventId, ct);
+        var invite = await InvitesFor(target).Include(i => i.Guests).SingleOrDefaultAsync(ct);
         var before = invite?.Status == GoogleInviteStatus.Removed ? [] : invite?.Guests.Select(g => g.Email).ToList() ?? [];
         if (invite is null)
         {
-            invite = new GoogleCalendarInvite(eventId, connection.Id, now);
+            invite = target.WeekId is { } week
+                ? GoogleCalendarInvite.ForWeek(week, connection.Id, now)
+                : new GoogleCalendarInvite(target.EventId!.Value, connection.Id, now);
             db.GoogleCalendarInvites.Add(invite);
         }
         else if (invite.ConnectionId != connection.Id
@@ -109,30 +170,29 @@ public sealed class GoogleInviteService(
         invite.SetGuests(guests, connection.Id, now);
 
         var after = invite.Guests.Select(g => g.Email).ToList();
-        activity.Record(ActivityEntities.CalendarEvent, eventId, ActivityActions.InvitesSent,
+        activity.Record(target.Entity, target.Id, ActivityActions.InvitesSent,
             before.Count == 0 ? null : new { Guests = before.Order().ToList() },
             new { Guests = after.Order().ToList(), Account = connection.AccountEmail });
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Google invites for event {EventId} queued for {Count} guests", eventId, after.Count);
+        logger.LogInformation("Google invites for {What} {Id} queued for {Count} guests", target.What, target.Id, after.Count);
 
         await sync.SyncOneAsync(invite.Id, now, ct);
-        return (await GetAsync(eventId, ct))!;
+        return (await ReadAsync(target, ct))!;
     }
 
-    /// <summary>Takes the event off every guest's Google Calendar (Google tells them it was cancelled).</summary>
-    public async Task<GoogleInviteResponse> RemoveAsync(Guid eventId, CancellationToken ct)
+    private async Task<GoogleInviteResponse> RemoveFromAsync(Target target, CancellationToken ct)
     {
-        var invite = await db.GoogleCalendarInvites.SingleOrDefaultAsync(i => i.CalendarEventId == eventId, ct)
-                     ?? throw new NotFoundException("Google Calendar invite for event", eventId);
+        var invite = await InvitesFor(target).SingleOrDefaultAsync(ct)
+                     ?? throw new NotFoundException($"Google Calendar invite for {target.What}", target.Id);
         var now = clock.GetUtcNow();
         if (invite.Status != GoogleInviteStatus.Removed)
         {
             invite.RequestRemoval(now);
-            activity.Record(ActivityEntities.CalendarEvent, eventId, ActivityActions.InvitesRemoved);
+            activity.Record(target.Entity, target.Id, ActivityActions.InvitesRemoved);
             await db.SaveChangesAsync(ct);
             await sync.SyncOneAsync(invite.Id, now, ct);
         }
-        return (await GetAsync(eventId, ct))!;
+        return (await ReadAsync(target, ct))!;
     }
 }
 

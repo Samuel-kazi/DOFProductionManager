@@ -93,6 +93,40 @@ public class GoogleCalendarClientTests
     }
 
     [Fact]
+    public async Task A_repeating_week_is_sent_with_its_rule_then_each_day_gets_its_own_title_quietly()
+    {
+        var mondayStart = new DateTimeOffset(2035, 6, 4, 6, 0, 0, TimeSpan.FromHours(3));
+        var week = Timed("dofweek1") with
+        {
+            Recurrence = ["RRULE:FREQ=WEEKLY;BYDAY=MO,TU;UNTIL=20350605T030000Z"],
+            Instances =
+            [
+                new GoogleEventInstance(mondayStart, "Devotion: Hope", "Sharing: John",
+                    new GoogleEventTime(null, mondayStart, "Africa/Nairobi"), new GoogleEventTime(null, mondayStart.AddHours(1), "Africa/Nairobi")),
+                new GoogleEventInstance(mondayStart.AddDays(1), "Devotion: Joy", "Sharing: Mary",
+                    new GoogleEventTime(null, mondayStart.AddDays(1).AddHours(1), "Africa/Nairobi"),
+                    new GoogleEventTime(null, mondayStart.AddDays(1).AddHours(2), "Africa/Nairobi")),
+            ],
+        };
+        // The second day's override is unknown to Google (404): it is skipped, not treated as a failure.
+        var handler = new FakeGoogle((request, _) => request.RequestUri!.AbsolutePath.EndsWith("_20350605T030000Z")
+            ? new HttpResponseMessage(HttpStatusCode.NotFound)
+            : Json(HttpStatusCode.OK, new JsonObject { ["attendees"] = new JsonArray() }));
+
+        await Api(handler).UpsertEventAsync("refresh", "primary", week, exists: false, Ct);
+
+        var calendar = handler.Requests.Where(r => r.Url.Contains("/events")).ToList();
+        Assert.Equal([HttpMethod.Post, HttpMethod.Patch, HttpMethod.Patch], calendar.Select(r => r.Method));
+        var series = JsonNode.Parse(calendar[0].Body!)!;
+        Assert.Equal("RRULE:FREQ=WEEKLY;BYDAY=MO,TU;UNTIL=20350605T030000Z", series["recurrence"]![0]!.GetValue<string>());
+        Assert.Equal("https://www.googleapis.com/calendar/v3/calendars/primary/events/dofweek1_20350604T030000Z?sendUpdates=none", calendar[1].Url);
+        var monday = JsonNode.Parse(calendar[1].Body!)!;
+        Assert.Equal("Devotion: Hope", monday["summary"]!.GetValue<string>());
+        Assert.Equal("2035-06-04T03:00:00Z", monday["start"]!["dateTime"]!.GetValue<string>());
+        Assert.Null(JsonNode.Parse(GoogleCalendarHttpApi.EventBody(Timed(), new Dictionary<string, string>()).ToJsonString())!["recurrence"]);
+    }
+
+    [Fact]
     public async Task An_insert_that_already_happened_becomes_an_update_that_keeps_answers()
     {
         var handler = new FakeGoogle((request, _) => request.Method == HttpMethod.Post

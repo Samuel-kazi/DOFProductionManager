@@ -69,10 +69,44 @@ public sealed class CalendarEventService(
         db.CalendarEvents.Add(calendarEvent);
         activity.Record(ActivityEntities.CalendarEvent, calendarEvent.Id, ActivityActions.Created, null,
             new { calendarEvent.Title, calendarEvent.StartAt, calendarEvent.EndAt });
+        if (request.Repeat is { } repeat)
+        {
+            await AddRepeatsAsync(calendarEvent, request, repeat, ct);
+        }
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Calendar event {EventId} created by {UserId}", calendarEvent.Id, currentUser.UserId);
         return await GetAsync(calendarEvent.Id, ct);
+    }
+
+    /// <summary>
+    /// Makes <paramref name="first"/> the first of a repeating series and adds every later occurrence as its
+    /// own event (same local time and length, same details and people).
+    /// </summary>
+    private async Task AddRepeatsAsync(CalendarEvent first, CreateCalendarEventRequest request, RepeatRequest repeat, CancellationToken ct)
+    {
+        var zone = ZonedTime.Find(organisation.Value.DefaultTimeZone);
+        var localStart = TimeZoneInfo.ConvertTime(first.StartAt, zone).DateTime;
+        var length = first.EndAt - first.StartAt;
+        var firstDate = DateOnly.FromDateTime(localStart);
+        var series = EventSeries.Create(CalendarEventMapping.Parse<RepeatFrequency>(repeat.Frequency, "repeat"), repeat.Interval,
+            repeat.Weekdays?.Select(d => Enum.Parse<DayOfWeek>(d, true)), repeat.Until, repeat.Count, firstDate);
+        db.EventSeries.Add(series);
+        first.JoinSeries(series);
+
+        var dates = series.Dates(firstDate);
+        foreach (var date in dates.Skip(1))
+        {
+            var start = new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(date.ToDateTime(TimeOnly.FromDateTime(localStart)), zone), TimeSpan.Zero);
+            var occurrence = CalendarEvent.Create(first.Title, first.Description, first.EventType, start, start + length, first.IsAllDay,
+                first.Location, first.MeetingUrl, first.Priority);
+            occurrence.JoinSeries(series);
+            await ApplyAssignmentsAsync(occurrence, request.Assignments, ct);
+            db.CalendarEvents.Add(occurrence);
+        }
+        activity.Record(ActivityEntities.CalendarEvent, first.Id, ActivityActions.Created, null,
+            new { Repeats = series.Describe(), Occurrences = dates.Count });
+        logger.LogInformation("Repeating series {SeriesId} with {Count} events created", series.Id, dates.Count);
     }
 
     public async Task<CalendarEventResponse> UpdateAsync(Guid id, UpdateCalendarEventRequest request, CancellationToken ct)
@@ -80,6 +114,10 @@ public sealed class CalendarEventService(
         var calendarEvent = await LoadForUpdateAsync(id, request.Version, ct);
         var (start, end) = Times(request.StartAt, request.EndAt, request.IsAllDay);
         var previous = new { calendarEvent.StartAt, calendarEvent.EndAt, Status = calendarEvent.Status.ToString() };
+        if (request.ApplyToFollowing && calendarEvent.SeriesId is { } seriesId)
+        {
+            await UpdateFollowingAsync(calendarEvent, seriesId, request, start - calendarEvent.StartAt, end - start, ct);
+        }
 
         calendarEvent.Update(
             request.Title, request.Description, CalendarEventMapping.Parse<CalendarEventType>(request.EventType, "event type"),
@@ -103,13 +141,53 @@ public sealed class CalendarEventService(
         return await GetAsync(id, ct);
     }
 
+    /// <summary>
+    /// Applies an edit to the later occurrences of the series too: the same details and people, moved by
+    /// the same amount (<paramref name="shift"/>) and given the same length. Each keeps its own status.
+    /// </summary>
+    private async Task UpdateFollowingAsync(CalendarEvent current, Guid seriesId, UpdateCalendarEventRequest request, TimeSpan shift,
+        TimeSpan length, CancellationToken ct)
+    {
+        var following = await db.CalendarEvents.Include(e => e.Assignments)
+            .Where(e => e.SeriesId == seriesId && e.Id != current.Id && e.StartAt > current.StartAt && e.Status != CalendarEventStatus.Cancelled)
+            .ToListAsync(ct);
+        foreach (var other in following)
+        {
+            var start = other.StartAt + shift;
+            other.Update(request.Title, request.Description, CalendarEventMapping.Parse<CalendarEventType>(request.EventType, "event type"),
+                start, start + length, request.IsAllDay, request.Location, request.MeetingUrl,
+                CalendarEventMapping.Parse<Priority>(request.Priority, "priority"), other.Status);
+            await ApplyAssignmentsAsync(other, request.Assignments, ct);
+        }
+        if (following.Count > 0)
+        {
+            activity.Record(ActivityEntities.CalendarEvent, current.Id, ActivityActions.Updated, null,
+                new { AppliedToFollowing = following.Count });
+        }
+    }
+
     /// <summary>Marks the event cancelled. It stays in the database (and in history) but leaves the calendar.</summary>
-    public async Task CancelAsync(Guid id, CancellationToken ct)
+    public async Task CancelAsync(Guid id, CancellationToken ct) => await CancelAsync(id, following: false, ct);
+
+    /// <summary>Cancels the event and, with <paramref name="following"/>, every later occurrence of its series.</summary>
+    public async Task CancelAsync(Guid id, bool following, CancellationToken ct)
     {
         var calendarEvent = await db.CalendarEvents.SingleOrDefaultAsync(e => e.Id == id, ct)
                             ?? throw new NotFoundException("Event", id);
+        if (following && calendarEvent.SeriesId is { } seriesId)
+        {
+            var later = await db.CalendarEvents
+                .Where(e => e.SeriesId == seriesId && e.Id != id && e.StartAt > calendarEvent.StartAt && e.Status != CalendarEventStatus.Cancelled)
+                .ToListAsync(ct);
+            foreach (var other in later)
+            {
+                other.Cancel();
+                activity.Record(ActivityEntities.CalendarEvent, other.Id, ActivityActions.Cancelled, null, new { Reason = "Series stopped" });
+            }
+        }
         if (calendarEvent.Status == CalendarEventStatus.Cancelled)
         {
+            await db.SaveChangesAsync(ct);
             return;
         }
 
@@ -156,6 +234,7 @@ public sealed class CalendarEventService(
             .Select(e => new
             {
                 Event = e,
+                Series = db.EventSeries.FirstOrDefault(x => x.Id == e.SeriesId),
                 CreatedByName = db.Users.Where(u => u.Id == e.CreatedBy).Select(u => u.FullName).FirstOrDefault(),
                 Assigned = e.Assignments
                     .Select(a => new { a.UserId, a.User.FullName, a.AssignmentType })
@@ -170,6 +249,6 @@ public sealed class CalendarEventService(
                     .OrderBy(a => a.AssignmentType).ThenBy(a => a.FullName, StringComparer.CurrentCultureIgnoreCase)
                     .Select(a => new AssignedUserResponse(a.UserId, a.FullName, a.AssignmentType.ToString())).ToList(),
             r.Event.CreatedBy, r.CreatedByName, r.Event.CreatedAt, r.Event.UpdatedAt, r.Event.Version, canEdit,
-            r.Event.Speaker, r.Event.SessionWeekId, r.Event.Theme));
+            r.Event.Speaker, r.Event.SessionWeekId, r.Event.Theme, r.Event.SeriesId, r.Series?.Describe()));
     }
 }

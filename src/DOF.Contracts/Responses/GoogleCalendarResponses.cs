@@ -22,12 +22,14 @@ public sealed record GoogleInviteGuestResponse(string Email, Guid? UserId, strin
 /// An event's Google Calendar invites. Status: Pending (being sent), Synced (guests have the latest
 /// version), Removing, Removed, or Failed (see <see cref="LastError"/>).
 /// </summary>
+/// <summary>Invites for one event (<see cref="CalendarEventId"/>) or for a whole session week (<see cref="SessionWeekId"/>).</summary>
 public sealed record GoogleInviteResponse(
-    Guid CalendarEventId,
+    Guid? CalendarEventId,
     string Status,
     string? AccountEmail,
     IReadOnlyList<GoogleInviteGuestResponse> Guests,
     DateTimeOffset? LastSyncedAt,
     string? LastError,
     DateTimeOffset SentAt,
-    string? SentByName);
+    string? SentByName,
+    Guid? SessionWeekId = null);

@@ -21,7 +21,10 @@ public sealed record CalendarItemResponse(
     string? Location,
     IReadOnlyList<AssignedUserResponse> AssignedUsers,
     bool CanEdit,
-    string? Speaker = null);
+    string? Speaker = null,
+    Guid? SessionWeekId = null,
+    string? SessionName = null,
+    bool IsRepeating = false);
 
 public sealed record CalendarRangeResponse(
     DateTimeOffset Start,
@@ -50,7 +53,9 @@ public sealed record CalendarEventResponse(
     bool CanEdit,
     string? Speaker = null,
     Guid? SessionWeekId = null,
-    string? Theme = null);
+    string? Theme = null,
+    Guid? SeriesId = null,
+    string? RepeatText = null);
 
 /// <summary>
 /// The signed-in user's day: today's calendar, upcoming items assigned to them, their open tasks,

@@ -32,11 +32,30 @@ internal static class CalendarRules
     }
 }
 
+public sealed class RepeatRequestValidator : AbstractValidator<RepeatRequest>
+{
+    public RepeatRequestValidator()
+    {
+        RuleFor(r => r.Frequency).Must(f => CalendarValues.RepeatFrequencies.Contains(f))
+            .WithMessage($"Repeat must be one of: {string.Join(", ", CalendarValues.RepeatFrequencies)}.");
+        RuleFor(r => r.Interval).InclusiveBetween(1, Domain.Entities.EventSeries.MaxInterval);
+        RuleForEach(r => r.Weekdays ?? Array.Empty<string>()).Must(d => Enum.TryParse<DayOfWeek>(d, true, out _))
+            .WithMessage("'{PropertyValue}' is not a day of the week.").OverridePropertyName("Weekdays");
+        RuleFor(r => r).Must(r => r.Until is null != r.Count is null)
+            .WithMessage("Say when the repeating stops: an end date or a number of times.").OverridePropertyName("Until");
+        RuleFor(r => r.Count).InclusiveBetween(2, Domain.Entities.EventSeries.MaxOccurrences).When(r => r.Count is not null);
+    }
+}
+
 public sealed class CreateCalendarEventRequestValidator : AbstractValidator<CreateCalendarEventRequest>
 {
-    public CreateCalendarEventRequestValidator() => CalendarRules.Apply(this,
-        r => r.Title, r => r.Description, r => r.EventType, r => r.StartAt, r => r.EndAt, r => r.IsAllDay,
-        r => r.Location, r => r.MeetingUrl, r => r.Priority, r => r.Assignments);
+    public CreateCalendarEventRequestValidator()
+    {
+        CalendarRules.Apply(this,
+            r => r.Title, r => r.Description, r => r.EventType, r => r.StartAt, r => r.EndAt, r => r.IsAllDay,
+            r => r.Location, r => r.MeetingUrl, r => r.Priority, r => r.Assignments);
+        RuleFor(r => r.Repeat!).SetValidator(new RepeatRequestValidator()).When(r => r.Repeat is not null);
+    }
 }
 
 public sealed class UpdateCalendarEventRequestValidator : AbstractValidator<UpdateCalendarEventRequest>

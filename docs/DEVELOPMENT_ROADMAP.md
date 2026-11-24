@@ -236,7 +236,21 @@ reopens it, and "Copy last week" reuses the last week of the series. Who is shar
 details, tooltips, Google invites and PDFs. Migration `SessionWeeks` (additive). Evidence:
 `SessionWeekTests` (API: planning, editing in place and cancelling dropped days, validation and
 permissions) and `SessionWeekUiTests` (snapshots 69–70). Series with seasons and episodes keep using
-Shows & Episodes (recording times and releases). 254 automated tests pass.
+Shows & Episodes (recording times and releases).
+
+Follow-up: a planned week is sent to Google Calendar as one invite (a repeating event on its days, each
+day with its own theme, speaker and time), from the Google card of any of its days. Editing the week or
+a day updates guests' calendars; dropping a day removes it from the series. Migration
+`WeekGoogleInvites` (additive). Evidence: `SessionWeekTests.One_google_invite_covers_the_whole_week…`,
+`GoogleCalendarClientTests.A_repeating_week_is_sent_with_its_rule…`,
+`SessionWeekUiTests.A_day_of_a_planned_week_invites_people_to_the_whole_week` (snapshot 71). Not yet
+exercised against live Google: the per-day overrides rely on Google's occurrence ids.
+
+Follow-ups: (1) multi-day events and planned weeks are drawn as one continuous bar in the month view
+(and multi-day events in the week view's all-day row); evidence `SessionWeekUiTests.Weeks_and_events_over_several_days_are_drawn_as_one_bar`
+(snapshots 72–73). (2) Repeating events (every day, weekday, week on chosen days, 2 weeks, month; until
+a date), editable from one occurrence on and stoppable; migration `RepeatingEvents` (additive); evidence
+`EventSeriesTests`, `RepeatingEventTests`, `RepeatingEventUiTests` (snapshot 74).
 
 Notes:
 - Invites cover standalone calendar events. Recordings, deadlines and releases are owned by episodes,

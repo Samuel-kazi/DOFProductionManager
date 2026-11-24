@@ -100,6 +100,25 @@ public sealed class CalendarController(
     public async Task<ApiResponse<GoogleInviteResponse>> RemoveGoogleInvites(Guid id, CancellationToken ct) =>
         ApiResponse<GoogleInviteResponse>.Ok(await invites.RemoveAsync(id, ct));
 
+    /// <summary>The session week's Google Calendar invite (one repeating event for all its days; data is null when none was sent).</summary>
+    [HttpGet("session-weeks/{id:guid}/google-invites")]
+    public async Task<ApiResponse<GoogleInviteResponse?>> GetWeekGoogleInvites(Guid id, CancellationToken ct) =>
+        ApiResponse<GoogleInviteResponse?>.Ok(await invites.GetWeekAsync(id, ct));
+
+    /// <summary>
+    /// Invites these people to the whole week with one Google invite: a repeating event on the week's days,
+    /// each day showing its theme and who is sharing. Editing the week updates their calendars.
+    /// </summary>
+    [HttpPut("session-weeks/{id:guid}/google-invites")]
+    [Authorize(Policy = Permissions.CalendarManage)]
+    public async Task<ApiResponse<GoogleInviteResponse>> SendWeekGoogleInvites(Guid id, SendGoogleInvitesRequest request, CancellationToken ct) =>
+        ApiResponse<GoogleInviteResponse>.Ok(await invites.SendWeekAsync(id, request, ct));
+
+    [HttpDelete("session-weeks/{id:guid}/google-invites")]
+    [Authorize(Policy = Permissions.CalendarManage)]
+    public async Task<ApiResponse<GoogleInviteResponse>> RemoveWeekGoogleInvites(Guid id, CancellationToken ct) =>
+        ApiResponse<GoogleInviteResponse>.Ok(await invites.RemoveWeekAsync(id, ct));
+
     /// <summary>Standalone events (paged).</summary>
     [HttpGet("events")]
     public async Task<ApiResponse<PagedResponse<CalendarEventResponse>>> ListEvents(
@@ -156,13 +175,13 @@ public sealed class CalendarController(
         Guid id, UpdateCalendarEventRequest request, CancellationToken ct) =>
         ApiResponse<CalendarEventResponse>.Ok(await events.UpdateAsync(id, request, ct));
 
-    /// <summary>Cancels (archives) an event. It is kept for history and removed from the calendar.</summary>
+    /// <summary>Cancels (archives) an event, and with ?following=true the rest of its repeating series. Kept for history, removed from the calendar.</summary>
     [HttpDelete("events/{id:guid}")]
     [Authorize(Policy = Permissions.CalendarManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> CancelEvent(Guid id, CancellationToken ct)
+    public async Task<IActionResult> CancelEvent(Guid id, [FromQuery] bool following, CancellationToken ct)
     {
-        await events.CancelAsync(id, ct);
+        await events.CancelAsync(id, following, ct);
         return NoContent();
     }
 }

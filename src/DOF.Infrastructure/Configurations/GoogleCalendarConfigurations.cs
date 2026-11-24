@@ -25,14 +25,18 @@ internal sealed class GoogleCalendarInviteConfiguration : IEntityTypeConfigurati
 {
     public void Configure(EntityTypeBuilder<GoogleCalendarInvite> builder)
     {
-        builder.ToTable("google_calendar_invites");
+        builder.ToTable("google_calendar_invites", t =>
+            // An invite is for exactly one event or one session week.
+            t.HasCheckConstraint("ck_google_calendar_invites_one_target", "(calendar_event_id IS NULL) <> (session_week_id IS NULL)"));
         builder.Property(i => i.GoogleEventId).HasMaxLength(100).IsRequired();
         builder.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
         builder.Property(i => i.SyncedHash).HasMaxLength(64);
         builder.Property(i => i.LastError).HasMaxLength(1000);
         builder.HasIndex(i => i.CalendarEventId).IsUnique();
+        builder.HasIndex(i => i.SessionWeekId).IsUnique();
+        builder.HasOne<SessionWeek>().WithMany().HasForeignKey(i => i.SessionWeekId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(i => new { i.Status, i.NextAttemptAt });
-        builder.HasOne<CalendarEvent>().WithMany().HasForeignKey(i => i.CalendarEventId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<CalendarEvent>().WithMany().HasForeignKey(i => i.CalendarEventId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<GoogleCalendarConnection>().WithMany().HasForeignKey(i => i.ConnectionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(i => i.Guests).WithOne().HasForeignKey(g => g.InviteId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(i => i.Guests).UsePropertyAccessMode(PropertyAccessMode.Field);

@@ -27,6 +27,18 @@ public sealed partial class AssigneeOption(Guid userId, string fullName) : Obser
     }
 }
 
+/// <summary>A choice in the editor's Repeat list.</summary>
+public sealed record RepeatChoice(string Label, string? Frequency, int Interval = 1, bool PicksDays = false, bool Weekdays = false);
+
+/// <summary>A day toggle for weekly repeats.</summary>
+public sealed partial class WeekdayOption(DayOfWeek day) : ObservableObject
+{
+    public DayOfWeek Day { get; } = day;
+    public string Label => System.Globalization.CultureInfo.GetCultureInfo("en-GB").DateTimeFormat.GetAbbreviatedDayName(Day);
+
+    [ObservableProperty] public partial bool IsSelected { get; set; }
+}
+
 /// <summary>Create or edit a standalone event. Times are entered in the user's timezone.</summary>
 public sealed partial class EventEditorViewModel : ObservableObject
 {
@@ -88,6 +100,73 @@ public sealed partial class EventEditorViewModel : ObservableObject
 
     public CalendarEventResponse? Existing { get; }
     public bool IsNew => Existing is null;
+
+    // ---- repeating ----
+
+    public static readonly IReadOnlyList<RepeatChoice> RepeatChoices =
+    [
+        new("Does not repeat", null),
+        new("Every day", "Daily"),
+        new("Every weekday (Mon–Fri)", "Weekly", Weekdays: true),
+        new("Every week", "Weekly", PicksDays: true),
+        new("Every 2 weeks", "Weekly", 2, PicksDays: true),
+        new("Every month", "Monthly"),
+    ];
+
+    public IReadOnlyList<RepeatChoice> RepeatOptions => RepeatChoices;
+
+    public IReadOnlyList<WeekdayOption> WeekdayOptions { get; } =
+        [.. new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday }
+            .Select(d => new WeekdayOption(d))];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Repeats), nameof(ShowRepeatDays))]
+    public partial RepeatChoice SelectedRepeat { get; set; } = RepeatChoices[0];
+
+    [ObservableProperty] public partial DateTime? RepeatUntil { get; set; }
+
+    /// <summary>For an event of a series: apply the edit to this and the later events too.</summary>
+    [ObservableProperty] public partial bool ApplyToFollowing { get; set; }
+
+    public bool Repeats => IsNew && SelectedRepeat.Frequency is not null;
+    public bool ShowRepeatDays => Repeats && SelectedRepeat.PicksDays;
+    public bool IsInSeries => Existing?.SeriesId is not null;
+    public string? RepeatText => Existing?.RepeatText;
+
+    partial void OnSelectedRepeatChanged(RepeatChoice value)
+    {
+        if (value.PicksDays && WeekdayOptions.All(o => !o.IsSelected) && StartDate is { } start)
+        {
+            WeekdayOptions.Single(o => o.Day == start.DayOfWeek).IsSelected = true;
+        }
+        RepeatUntil ??= (StartDate ?? DateTime.Today).AddMonths(3);
+    }
+
+    /// <summary>The repeat rule for a new event, or null (with <see cref="ErrorMessage"/> set when it is incomplete).</summary>
+    public RepeatRequest? BuildRepeat(out bool valid)
+    {
+        valid = true;
+        if (!Repeats)
+        {
+            return null;
+        }
+        if (RepeatUntil is not { } until || StartDate is not { } start || until.Date <= start.Date)
+        {
+            ErrorMessage = "Choose when the repeating ends (after the first event).";
+            valid = false;
+            return null;
+        }
+        IReadOnlyList<string>? days = SelectedRepeat.Weekdays
+            ? ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+            : SelectedRepeat.PicksDays ? [.. WeekdayOptions.Where(o => o.IsSelected).Select(o => o.Day.ToString())] : null;
+        if (SelectedRepeat.PicksDays && days!.Count == 0)
+        {
+            ErrorMessage = "Tick the days the event repeats on.";
+            valid = false;
+            return null;
+        }
+        return new RepeatRequest(SelectedRepeat.Frequency!, SelectedRepeat.Interval, days, DateOnly.FromDateTime(until));
+    }
     public string Heading => IsNew ? "New event" : "Edit event";
 
     public IReadOnlyList<string> EventTypes => CalendarValues.EventTypes;

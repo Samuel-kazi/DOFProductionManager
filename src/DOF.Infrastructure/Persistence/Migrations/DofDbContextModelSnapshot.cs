@@ -126,6 +126,10 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("priority");
 
+                    b.Property<Guid?>("SeriesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("series_id");
+
                     b.Property<Guid?>("SessionWeekId")
                         .HasColumnType("uuid")
                         .HasColumnName("session_week_id");
@@ -174,6 +178,9 @@ namespace DOF.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedBy")
                         .HasDatabaseName("ix_calendar_events_created_by");
+
+                    b.HasIndex("SeriesId")
+                        .HasDatabaseName("ix_calendar_events_series_id");
 
                     b.HasIndex("SessionWeekId")
                         .HasDatabaseName("ix_calendar_events_session_week_id");
@@ -474,6 +481,73 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.ToTable("episode_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.EventSeries", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("frequency");
+
+                    b.Property<int>("Interval")
+                        .HasColumnType("integer")
+                        .HasColumnName("interval");
+
+                    b.Property<DateOnly?>("Until")
+                        .HasColumnType("date")
+                        .HasColumnName("until");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.Property<string>("Weekdays")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("weekdays");
+
+                    b.HasKey("Id")
+                        .HasName("pk_event_series");
+
+                    b.HasIndex("CreatedBy")
+                        .HasDatabaseName("ix_event_series_created_by");
+
+                    b.HasIndex("UpdatedBy")
+                        .HasDatabaseName("ix_event_series_updated_by");
+
+                    b.ToTable("event_series", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_event_series_interval", "interval BETWEEN 1 AND 12");
+
+                            t.HasCheckConstraint("ck_event_series_one_end", "(until IS NULL) <> (count IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -542,7 +616,7 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid>("CalendarEventId")
+                    b.Property<Guid?>("CalendarEventId")
                         .HasColumnType("uuid")
                         .HasColumnName("calendar_event_id");
 
@@ -589,6 +663,10 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("retry_count");
 
+                    b.Property<Guid?>("SessionWeekId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_week_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -626,13 +704,20 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedBy")
                         .HasDatabaseName("ix_google_calendar_invites_created_by");
 
+                    b.HasIndex("SessionWeekId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_google_calendar_invites_session_week_id");
+
                     b.HasIndex("UpdatedBy")
                         .HasDatabaseName("ix_google_calendar_invites_updated_by");
 
                     b.HasIndex("Status", "NextAttemptAt")
                         .HasDatabaseName("ix_google_calendar_invites_status_next_attempt_at");
 
-                    b.ToTable("google_calendar_invites", (string)null);
+                    b.ToTable("google_calendar_invites", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_google_calendar_invites_one_target", "(calendar_event_id IS NULL) <> (session_week_id IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarInviteGuest", b =>
@@ -1959,6 +2044,12 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_calendar_events_users_created_by");
 
+                    b.HasOne("DOF.Domain.Entities.EventSeries", null)
+                        .WithMany()
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_calendar_events_event_series_series_id");
+
                     b.HasOne("DOF.Domain.Entities.SessionWeek", null)
                         .WithMany()
                         .HasForeignKey("SessionWeekId")
@@ -2063,6 +2154,21 @@ namespace DOF.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DOF.Domain.Entities.EventSeries", b =>
+                {
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_series_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_event_series_users_updated_by");
+                });
+
             modelBuilder.Entity("DOF.Domain.Entities.GoogleCalendarConnection", b =>
                 {
                     b.HasOne("DOF.Domain.Entities.User", null)
@@ -2079,7 +2185,6 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("CalendarEventId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_google_calendar_invites_calendar_events_calendar_event_id");
 
                     b.HasOne("DOF.Domain.Entities.GoogleCalendarConnection", null)
@@ -2094,6 +2199,12 @@ namespace DOF.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CreatedBy")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_google_calendar_invites_users_created_by");
+
+                    b.HasOne("DOF.Domain.Entities.SessionWeek", null)
+                        .WithMany()
+                        .HasForeignKey("SessionWeekId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_google_calendar_invites_session_weeks_session_week_id");
 
                     b.HasOne("DOF.Domain.Entities.User", null)
                         .WithMany()

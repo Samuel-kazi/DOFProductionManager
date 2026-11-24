@@ -47,7 +47,8 @@ public sealed class GoogleCalendarConnection : Entity, IArchivable
 }
 
 /// <summary>
-/// Google Calendar invites for one standalone calendar event. The event stays the only owner of its
+/// Google Calendar invites for one standalone calendar event, or for a whole session week (one repeating
+/// Google event covering its days; <see cref="SessionWeekId"/> set). The event stays the only owner of its
 /// dates: the Google copy is rebuilt from it by the sync job whenever the event or the guest list
 /// changes, and Google e-mails the guests each time. <see cref="GoogleEventId"/> is chosen here so a
 /// retried insert can never create a second Google event.
@@ -61,15 +62,29 @@ public sealed class GoogleCalendarInvite : AuditableEntity, IVersioned
     private GoogleCalendarInvite() { }
 
     public GoogleCalendarInvite(Guid calendarEventId, Guid connectionId, DateTimeOffset now)
+        : this((Guid?)calendarEventId, null, connectionId, now)
+    {
+    }
+
+    private GoogleCalendarInvite(Guid? calendarEventId, Guid? sessionWeekId, Guid connectionId, DateTimeOffset now)
     {
         CalendarEventId = calendarEventId;
+        SessionWeekId = sessionWeekId;
         ConnectionId = connectionId;
         GoogleEventId = $"dof{Id:N}";
         Status = GoogleInviteStatus.Pending;
         NextAttemptAt = now;
     }
 
-    public Guid CalendarEventId { get; private set; }
+    /// <summary>One invite for every day of a session week, sent as a single repeating Google event.</summary>
+    public static GoogleCalendarInvite ForWeek(Guid sessionWeekId, Guid connectionId, DateTimeOffset now) =>
+        new(null, sessionWeekId, connectionId, now);
+
+    /// <summary>The standalone event invited to; null for a session-week invite.</summary>
+    public Guid? CalendarEventId { get; private set; }
+
+    /// <summary>The session week invited to; null for a single event.</summary>
+    public Guid? SessionWeekId { get; private set; }
     public Guid ConnectionId { get; private set; }
     public string GoogleEventId { get; private set; } = null!;
     public GoogleInviteStatus Status { get; private set; }

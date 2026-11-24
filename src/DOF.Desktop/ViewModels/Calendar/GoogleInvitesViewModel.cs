@@ -31,12 +31,20 @@ public sealed record GuestItem(string Name, string Email, string Response)
 
 /// <summary>
 /// The "Google Calendar" section of an event: who has been invited, their answers, and sending or
-/// removing invites. The server sends the invites and keeps them in step with the event.
+/// removing invites. The server sends the invites and keeps them in step with the event. For a day of a
+/// planned session week the invite covers the whole week: one Google invite for all its days.
 /// </summary>
 public sealed partial class GoogleInvitesViewModel(
     ApiClient api, UserClock clock, CalendarEventResponse calendarEvent, bool canManage) : ObservableObject
 {
-    private string Path => $"api/v1/calendar/events/{calendarEvent.Id}/google-invites";
+    private string Path => calendarEvent.SessionWeekId is { } week
+        ? $"api/v1/calendar/session-weeks/{week}/google-invites"
+        : $"api/v1/calendar/events/{calendarEvent.Id}/google-invites";
+
+    /// <summary>The invite is for every day of this event's session week.</summary>
+    public bool IsWeek => calendarEvent.SessionWeekId is not null;
+
+    public string HeadingText => IsWeek ? "Google Calendar · whole week" : "Google Calendar";
 
     public bool CanManage { get; } = canManage;
 
@@ -77,7 +85,13 @@ public sealed partial class GoogleInvitesViewModel(
     public bool CanSend => CanManage && IsConnected && EventIsOpen && !IsActive && !IsEditing && !IsBusy;
     public bool CanEditGuests => CanManage && IsConnected && EventIsOpen && IsActive && !IsEditing && !IsBusy;
     public bool CanRemove => CanManage && IsActive && !IsEditing && !IsBusy;
-    public string SendButtonText => Invite?.Status == "Removed" ? "Send Google invites again…" : "Send Google invites…";
+    public string SendButtonText => (Invite?.Status == "Removed", IsWeek) switch
+    {
+        (true, true) => "Invite to the whole week again…",
+        (false, true) => "Invite to the whole week…",
+        (true, false) => "Send Google invites again…",
+        _ => "Send Google invites…",
+    };
 
     public string? ProblemText => Invite is { Status: "Failed" or "Pending" or "Removing", LastError: { } error } ? error : null;
     public bool HasProblem => ProblemText is not null;
@@ -88,13 +102,13 @@ public sealed partial class GoogleInvitesViewModel(
         {
             if (Invite is not { } invite)
             {
-                return "Not sent to Google Calendar.";
+                return IsWeek ? "This week has not been sent to Google Calendar." : "Not sent to Google Calendar.";
             }
             var people = invite.Guests.Count == 1 ? "1 person" : $"{invite.Guests.Count} people";
             var updated = invite.LastSyncedAt is { } at ? $" · updated {clock.ToLocal(at):d MMM HH:mm}" : string.Empty;
             return invite.Status switch
             {
-                "Synced" => $"On {people}'s Google Calendar{updated}",
+                "Synced" => IsWeek ? $"The whole week is on {people}'s Google Calendar{updated}" : $"On {people}'s Google Calendar{updated}",
                 "Pending" => $"Sending to {people}…",
                 "Removing" => "Removing from guests' Google Calendars…",
                 "Removed" => $"Removed from guests' Google Calendars{updated}",
@@ -155,10 +169,14 @@ public sealed partial class GoogleInvitesViewModel(
         if (await RunAsync(async () => Show(await api.PutAsync<GoogleInviteResponse>(Path, new SendGoogleInvitesRequest(userIds, emails)))))
         {
             IsEditing = false;
-            Message = Invite?.Status == "Synced"
-                ? "Invites sent. Google has e-mailed everyone, and the event will update on their calendars when you change it here."
-                : "Saved. DOF will keep trying to reach Google Calendar.";
-            AppLog.Info($"Google invites sent for event {calendarEvent.Id}");
+            Message = (Invite?.Status == "Synced", IsWeek) switch
+            {
+                (true, true) => "One invite for the whole week has been sent. Each day shows its theme and who is sharing, "
+                                + "and their calendars update when you edit the week here.",
+                (true, false) => "Invites sent. Google has e-mailed everyone, and the event will update on their calendars when you change it here.",
+                _ => "Saved. DOF will keep trying to reach Google Calendar.",
+            };
+            AppLog.Info($"Google invites sent for {(IsWeek ? $"session week {calendarEvent.SessionWeekId}" : $"event {calendarEvent.Id}")}");
         }
     }
 
@@ -174,7 +192,9 @@ public sealed partial class GoogleInvitesViewModel(
         IsConfirmingRemove = false;
         if (await RunAsync(async () => Show(await api.DeleteAsync<GoogleInviteResponse>(Path))))
         {
-            Message = "The event has been taken off everyone's Google Calendar. Google has let them know.";
+            Message = IsWeek
+                ? "The whole week has been taken off everyone's Google Calendar. Google has let them know."
+                : "The event has been taken off everyone's Google Calendar. Google has let them know.";
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -41,7 +42,8 @@ public sealed class GoogleInviteSync(
         var recentlyEnded = now.AddDays(-1);
         var synced = await db.GoogleCalendarInvites
             .Where(i => i.Status == GoogleInviteStatus.Synced
-                        && db.CalendarEvents.Any(e => e.Id == i.CalendarEventId && e.EndAt >= recentlyEnded))
+                        && db.CalendarEvents.Any(e => (e.Id == i.CalendarEventId || (i.SessionWeekId != null && e.SessionWeekId == i.SessionWeekId))
+                                                      && e.EndAt >= recentlyEnded))
             .Select(i => i.Id).ToListAsync(ct);
 
         var pushed = 0;
@@ -90,6 +92,57 @@ public sealed class GoogleInviteSync(
             [.. invite.Guests.OrderBy(g => g.Email, StringComparer.Ordinal).Select(g => new GoogleAttendee(g.Email, g.DisplayName))]);
     }
 
+    /// <summary>
+    /// What Google should hold for a session week: one repeating event on the week's live days (at the first
+    /// day's time), with each day given its own title ("Morning Devotion: theme"), speaker and actual time.
+    /// The description of the series lists every day, so guests see the whole week in one invite.
+    /// </summary>
+    public GoogleEventData BuildWeek(SessionWeek week, IReadOnlyList<CalendarEvent> days, GoogleCalendarInvite invite)
+    {
+        var zone = ZonedTime.Find(organisation.Value.DefaultTimeZone);
+        var ordered = days.OrderBy(d => d.StartAt).ToList();
+        var first = ordered[0];
+        var startTime = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(first.StartAt, zone).DateTime);
+        var length = first.EndAt - first.StartAt;
+        DateOnly LocalDate(CalendarEvent d) => ZonedTime.LocalDate(d.StartAt, zone);
+        DateTimeOffset RuleStart(CalendarEvent d) =>
+            new(TimeZoneInfo.ConvertTimeToUtc(LocalDate(d).ToDateTime(startTime), zone), TimeSpan.Zero);
+
+        var byDay = string.Join(",", ordered.Select(d => LocalDate(d).DayOfWeek switch
+        {
+            DayOfWeek.Monday => "MO", DayOfWeek.Tuesday => "TU", DayOfWeek.Wednesday => "WE", DayOfWeek.Thursday => "TH",
+            DayOfWeek.Friday => "FR", DayOfWeek.Saturday => "SA", _ => "SU",
+        }).Distinct());
+        var until = RuleStart(ordered[^1]).ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+
+        var culture = CultureInfo.GetCultureInfo("en-GB");
+        var description = new StringBuilder($"{week.Name} · week of {week.WeekStart.ToString("d MMMM yyyy", culture)}").AppendLine().AppendLine();
+        foreach (var day in ordered)
+        {
+            var local = TimeZoneInfo.ConvertTime(day.StartAt, zone);
+            description.Append($"{local.ToString("ddd d MMM, HH:mm", culture)} · {day.Theme ?? "Theme to follow"}");
+            description.AppendLine(day.Speaker is { } s ? $" · Sharing: {s}" : string.Empty);
+        }
+        description.AppendLine();
+        if (week.MeetingUrl is { } url)
+        {
+            description.AppendLine($"Meeting link: {url}").AppendLine();
+        }
+        description.Append("Sent from DOF Production Manager.");
+
+        string DayDescription(CalendarEvent d) =>
+            (d.Speaker is { } s ? $"Sharing: {s}\n\n" : string.Empty)
+            + (d.MeetingUrl is { } link ? $"Meeting link: {link}\n\n" : string.Empty)
+            + $"Part of {week.Name}, week of {week.WeekStart.ToString("d MMMM yyyy", culture)}.\n\nSent from DOF Production Manager.";
+
+        return new GoogleEventData(invite.GoogleEventId, week.Name, description.ToString(), week.Location ?? week.MeetingUrl,
+            new GoogleEventTime(null, RuleStart(first), zone.Id), new GoogleEventTime(null, RuleStart(first) + length, zone.Id),
+            [.. invite.Guests.OrderBy(g => g.Email, StringComparer.Ordinal).Select(g => new GoogleAttendee(g.Email, g.DisplayName))],
+            [$"RRULE:FREQ=WEEKLY;BYDAY={byDay};UNTIL={until}"],
+            [.. ordered.Select(d => new GoogleEventInstance(RuleStart(d), d.Title, DayDescription(d),
+                new GoogleEventTime(null, d.StartAt, zone.Id), new GoogleEventTime(null, d.EndAt, zone.Id)))]);
+    }
+
     public static string Hash(GoogleEventData data) =>
         Convert.ToHexStringLower(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(data, Json)));
 
@@ -103,13 +156,30 @@ public sealed class GoogleInviteSync(
     private async Task<bool> ProcessAsync(Guid inviteId, GoogleCalendarConnection? connection, DateTimeOffset now, CancellationToken ct)
     {
         var invite = await db.GoogleCalendarInvites.Include(i => i.Guests).SingleAsync(i => i.Id == inviteId, ct);
-        var calendarEvent = await db.CalendarEvents.AsNoTracking().SingleAsync(e => e.Id == invite.CalendarEventId, ct);
-        var remove = invite.Status == GoogleInviteStatus.Removing || calendarEvent.Status == CalendarEventStatus.Cancelled;
-        var data = Build(calendarEvent, invite);
-        var hash = Hash(data);
+        bool cancelled;
+        DateTimeOffset endsAt;
+        GoogleEventData? data;
+        if (invite.SessionWeekId is { } weekId)
+        {
+            var week = await db.SessionWeeks.AsNoTracking().SingleAsync(w => w.Id == weekId, ct);
+            var days = await db.CalendarEvents.AsNoTracking()
+                .Where(e => e.SessionWeekId == weekId && e.Status != CalendarEventStatus.Cancelled).ToListAsync(ct);
+            cancelled = days.Count == 0;
+            endsAt = days.Count == 0 ? now : days.Max(d => d.EndAt);
+            data = cancelled ? null : BuildWeek(week, days, invite);
+        }
+        else
+        {
+            var calendarEvent = await db.CalendarEvents.AsNoTracking().SingleAsync(e => e.Id == invite.CalendarEventId, ct);
+            cancelled = calendarEvent.Status == CalendarEventStatus.Cancelled;
+            endsAt = calendarEvent.EndAt;
+            data = Build(calendarEvent, invite);
+        }
+        var remove = invite.Status == GoogleInviteStatus.Removing || cancelled;
+        var hash = data is null ? string.Empty : Hash(data);
 
         var changed = invite.Status != GoogleInviteStatus.Synced || hash != invite.SyncedHash || remove;
-        var checkResponses = !changed && calendarEvent.EndAt > now
+        var checkResponses = !changed && endsAt > now
                              && (invite.ResponsesCheckedAt is not { } checkedAt || checkedAt + ResponseCheckInterval <= now);
         if (!changed && !checkResponses)
         {
@@ -142,16 +212,17 @@ public sealed class GoogleInviteSync(
                 {
                     await google.DeleteEventAsync(token, connection.CalendarId, invite.GoogleEventId, ct);
                 }
-                invite.Removed(now, invite.Status == GoogleInviteStatus.Removing ? null : "The event was cancelled.");
-                logger.LogInformation("Google event for calendar event {EventId} removed", invite.CalendarEventId);
+                invite.Removed(now, invite.Status == GoogleInviteStatus.Removing ? null
+                    : invite.SessionWeekId is null ? "The event was cancelled." : "Every day of the week was cancelled.");
+                logger.LogInformation("Google event for {Target} removed", invite.SessionWeekId ?? invite.CalendarEventId);
             }
             else if (changed)
             {
-                var responses = await google.UpsertEventAsync(token, connection.CalendarId, data, invite.CreatedInGoogle, ct);
+                var responses = await google.UpsertEventAsync(token, connection.CalendarId, data!, invite.CreatedInGoogle, ct);
                 ApplyResponses(invite, responses);
                 invite.Synced(hash, now);
-                logger.LogInformation("Google event for calendar event {EventId} sent to {Count} guests",
-                    invite.CalendarEventId, data.Attendees.Count);
+                logger.LogInformation("Google event for {Target} sent to {Count} guests",
+                    invite.SessionWeekId ?? invite.CalendarEventId, data!.Attendees.Count);
             }
             else
             {
@@ -174,7 +245,7 @@ public sealed class GoogleInviteSync(
         catch (Exception ex) when (ex is GoogleCalendarException or HttpRequestException or CryptographicException
                                        || (ex is TaskCanceledException && !ct.IsCancellationRequested))
         {
-            logger.LogWarning(ex, "Google Calendar sync failed for calendar event {EventId}", invite.CalendarEventId);
+            logger.LogWarning(ex, "Google Calendar sync failed for {Target}", invite.SessionWeekId ?? invite.CalendarEventId);
             var message = ex switch
             {
                 GoogleCalendarException { AccessRevoked: true } =>

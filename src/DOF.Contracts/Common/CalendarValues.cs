@@ -11,6 +11,8 @@ public static class CalendarValues
 
     public static readonly IReadOnlyList<string> Statuses = ["Scheduled", "Completed", "Cancelled"];
 
+    public static readonly IReadOnlyList<string> RepeatFrequencies = ["Daily", "Weekly", "Monthly"];
+
     public static readonly IReadOnlyList<string> Priorities = ["Low", "Normal", "High", "Urgent"];
 
     public static readonly IReadOnlyList<string> AssignmentTypes = ["Organizer", "Attendee"];

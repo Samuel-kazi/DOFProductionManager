@@ -74,6 +74,15 @@ public sealed partial class CalendarViewModel : PageViewModel
     public string TimeZoneText => $"Times in {_clock.Zone.Id}";
 
     public ObservableCollection<MonthDayCell> MonthCells { get; } = [];
+
+    /// <summary>The month view by week row: day cells plus bars across days (multi-day events, session weeks).</summary>
+    public ObservableCollection<MonthWeekRow> MonthWeeks { get; } = [];
+
+    /// <summary>Where month bars start: below the day number.</summary>
+    public const double MonthBarTop = 30;
+
+    /// <summary>Bars of events lasting several days in the week view's all-day row.</summary>
+    public ObservableCollection<CalendarBar> AllDayBars { get; } = [];
     public ObservableCollection<DayColumn> DayColumns { get; } = [];
     public ObservableCollection<AgendaGroup> AgendaGroups { get; } = [];
     public IReadOnlyList<string> WeekdayNames { get; } = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -239,6 +248,8 @@ public sealed partial class CalendarViewModel : PageViewModel
         var today = _clock.Today;
 
         MonthCells.Clear();
+        MonthWeeks.Clear();
+        AllDayBars.Clear();
         DayColumns.Clear();
         AgendaGroups.Clear();
 
@@ -246,24 +257,46 @@ public sealed partial class CalendarViewModel : PageViewModel
         {
             case CalendarMode.Month:
                 var first = MonthGridStart();
-                for (var i = 0; i < 42; i++)
+                for (var week = 0; week < 6; week++)
                 {
-                    var day = first.AddDays(i);
-                    MonthCells.Add(new MonthDayCell(day, day.Month == AnchorDate.Month, day == today,
-                        [.. items.Where(x => x.OccursOn(day)).OrderByDescending(x => x.IsDayLong).ThenBy(x => x.Start)]));
+                    var rowStart = first.AddDays(week * 7);
+                    var inRow = items.Where(x => Enumerable.Range(0, 7).Any(d => x.OccursOn(rowStart.AddDays(d)))).ToList();
+                    var (bars, covered) = CalendarBars.Build(inRow, rowStart, 7, joinSessionWeeks: true, onlyDayLong: false, top: MonthBarTop);
+                    var space = CalendarBars.SpaceFor(bars);
+                    var lanes = bars.Count == 0 ? 0 : bars.Max(b => b.Lane) + 1;
+                    var cells = new List<MonthDayCell>();
+                    for (var d = 0; d < 7; d++)
+                    {
+                        var day = rowStart.AddDays(d);
+                        var cell = new MonthDayCell(day, day.Month == AnchorDate.Month, day == today,
+                            [.. inRow.Where(x => !covered.Contains(x) && x.OccursOn(day)).OrderByDescending(x => x.IsDayLong).ThenBy(x => x.Start)],
+                            space, lanes);
+                        cells.Add(cell);
+                        MonthCells.Add(cell);
+                    }
+                    MonthWeeks.Add(new MonthWeekRow(cells, bars));
                 }
                 break;
 
             case CalendarMode.Week or CalendarMode.Day:
                 var columnStart = Mode == CalendarMode.Week ? Monday(AnchorDate) : AnchorDate;
                 var columns = Mode == CalendarMode.Week ? 7 : 1;
+                var visible = items.Where(x => Enumerable.Range(0, columns).Any(d => x.OccursOn(columnStart.AddDays(d)))).ToList();
+                var (dayBars, inBars) = columns > 1
+                    ? CalendarBars.Build(visible, columnStart, columns, joinSessionWeeks: false, onlyDayLong: true, top: 2)
+                    : ([], new HashSet<CalendarItemViewModel>());
+                foreach (var bar in dayBars)
+                {
+                    AllDayBars.Add(bar);
+                }
+                var barSpace = CalendarBars.SpaceFor(dayBars);
                 for (var i = 0; i < columns; i++)
                 {
                     var day = columnStart.AddDays(i);
-                    var onDay = items.Where(x => x.OccursOn(day)).ToList();
+                    var onDay = visible.Where(x => x.OccursOn(day)).ToList();
                     var timed = onDay.Where(x => !x.IsDayLong).Select(x => Segment(x, day)).ToList();
                     TimeSlotLayout.AssignLanes(timed);
-                    DayColumns.Add(new DayColumn(day, day == today, [.. onDay.Where(x => x.IsDayLong)], timed));
+                    DayColumns.Add(new DayColumn(day, day == today, [.. onDay.Where(x => x.IsDayLong && !inBars.Contains(x))], timed, barSpace));
                 }
                 break;
 
@@ -502,6 +535,11 @@ public sealed partial class CalendarViewModel : PageViewModel
         {
             return;
         }
+        var repeat = editor.BuildRepeat(out var repeatValid);
+        if (!repeatValid)
+        {
+            return;
+        }
 
         editor.IsSaving = true;
         try
@@ -512,13 +550,13 @@ public sealed partial class CalendarViewModel : PageViewModel
                 saved = await _api.PutAsync<CalendarEventResponse>($"api/v1/calendar/events/{existing.Id}",
                     new UpdateCalendarEventRequest(editor.Title, editor.Description, editor.EventType, times.Start, times.End,
                         editor.IsAllDay, editor.Location, editor.MeetingUrl, editor.Priority, editor.Status,
-                        editor.Assignments(), existing.Version));
+                        editor.Assignments(), existing.Version, editor.IsInSeries && editor.ApplyToFollowing));
             }
             else
             {
                 saved = await _api.PostAsync<CalendarEventResponse>("api/v1/calendar/events",
                     new CreateCalendarEventRequest(editor.Title, editor.Description, editor.EventType, times.Start, times.End,
-                        editor.IsAllDay, editor.Location, editor.MeetingUrl, editor.Priority, editor.Assignments()));
+                        editor.IsAllDay, editor.Location, editor.MeetingUrl, editor.Priority, editor.Assignments(), repeat));
             }
 
             SidePanel = await DetailsAsync(saved);
@@ -546,9 +584,15 @@ public sealed partial class CalendarViewModel : PageViewModel
     private static void KeepEvent(EventDetailsViewModel details) => details.IsConfirmingCancel = false;
 
     [RelayCommand]
-    private async Task ConfirmCancelEventAsync(EventDetailsViewModel details)
+    private Task ConfirmCancelEventAsync(EventDetailsViewModel details) => CancelEventAsync(details, following: false);
+
+    /// <summary>Cancels this event and every later one of its repeating series.</summary>
+    [RelayCommand]
+    private Task ConfirmCancelFollowingAsync(EventDetailsViewModel details) => CancelEventAsync(details, following: true);
+
+    private async Task CancelEventAsync(EventDetailsViewModel details, bool following)
     {
-        if (await RunAsync(() => _api.DeleteAsync($"api/v1/calendar/events/{details.Event.Id}")))
+        if (await RunAsync(() => _api.DeleteAsync($"api/v1/calendar/events/{details.Event.Id}{(following ? "?following=true" : "")}")))
         {
             AppLog.Info($"Cancelled calendar event {details.Event.Id}");
             SidePanel = null;

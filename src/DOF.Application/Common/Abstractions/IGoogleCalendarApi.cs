@@ -8,7 +8,22 @@ public sealed record GoogleAttendee(string Email, string? DisplayName);
 /// <summary>A guest's answer as Google reports it: needsAction, accepted, tentative or declined.</summary>
 public sealed record GoogleAttendeeResponse(string Email, string ResponseStatus);
 
-/// <summary>What DOF sends to Google for one event. <see cref="Id"/> is chosen by DOF, so inserts are idempotent.</summary>
+/// <summary>
+/// One occurrence of a repeating event changed to its own title, description or time (a session day's
+/// theme and speaker). <see cref="OriginalStart"/> is when the repeat rule puts it, which identifies it.
+/// </summary>
+public sealed record GoogleEventInstance(
+    DateTimeOffset OriginalStart,
+    string Summary,
+    string? Description,
+    GoogleEventTime Start,
+    GoogleEventTime End);
+
+/// <summary>
+/// What DOF sends to Google for one event. <see cref="Id"/> is chosen by DOF, so inserts are idempotent.
+/// A session week is one repeating event: <see cref="Recurrence"/> holds its RRULE and
+/// <see cref="Instances"/> each day's own title and time.
+/// </summary>
 public sealed record GoogleEventData(
     string Id,
     string Summary,
@@ -16,7 +31,9 @@ public sealed record GoogleEventData(
     string? Location,
     GoogleEventTime Start,
     GoogleEventTime End,
-    IReadOnlyList<GoogleAttendee> Attendees);
+    IReadOnlyList<GoogleAttendee> Attendees,
+    IReadOnlyList<string>? Recurrence = null,
+    IReadOnlyList<GoogleEventInstance>? Instances = null);
 
 public sealed record GoogleTokenGrant(string RefreshToken, string AccountEmail);
 
@@ -40,7 +57,10 @@ public interface IGoogleCalendarApi
 
     Task<GoogleTokenGrant> ExchangeCodeAsync(string code, string redirectUri, string codeVerifier, CancellationToken ct);
 
-    /// <summary>Creates the event, or updates it if it already exists, keeping guests' answers. Returns the answers.</summary>
+    /// <summary>
+    /// Creates the event, or updates it if it already exists, keeping guests' answers. For a repeating event
+    /// it then gives each listed occurrence its own title and time (without e-mailing guests again). Returns the answers.
+    /// </summary>
     Task<IReadOnlyList<GoogleAttendeeResponse>> UpsertEventAsync(
         string refreshToken, string calendarId, GoogleEventData data, bool exists, CancellationToken ct);
 

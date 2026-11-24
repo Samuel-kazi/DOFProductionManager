@@ -23,3 +23,11 @@ public enum GuestResponse
     Tentative,
     Declined,
 }
+
+/// <summary>How often a repeating calendar event repeats.</summary>
+public enum RepeatFrequency
+{
+    Daily,
+    Weekly,
+    Monthly,
+}

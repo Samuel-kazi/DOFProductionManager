@@ -1,8 +1,13 @@
+using System.Net.Http.Json;
 using Avalonia.Controls;
+using DOF.Contracts.Requests;
+using DOF.Contracts.Responses;
+using DOF.Domain.Rules;
 using DOF.Desktop.ViewModels;
 using DOF.Desktop.ViewModels.Calendar;
 using DOF.Desktop.ViewModels.Pages;
 using static DOF.IntegrationTests.Desktop.Ui;
+using static DOF.IntegrationTests.TestApi;
 using CalendarMode = DOF.Desktop.ViewModels.Calendar.CalendarMode;
 
 namespace DOF.IntegrationTests.Desktop;
@@ -81,6 +86,107 @@ public class SessionWeekUiTests(DofApiFactory factory, HeadlessSession headless)
         Assert.Equal(("Pastor John", "Chapel"), (next.Speaker, next.Location));
         Assert.Equal([true, true, true, true, false, false, false], next.Days.Select(d => d.IsIncluded));
         Assert.All(next.Days, d => Assert.Null(d.Theme));
+        window.Close();
+    });
+
+    [Fact]
+    public Task A_day_of_a_planned_week_invites_people_to_the_whole_week() => Ui.Run(headless, async () =>
+    {
+        var admin = await factory.AdminClientAsync();
+        await GoogleCalendarTests.ConnectAsync(factory, admin);
+        var member = await factory.CreateUserAsync(SystemRoles.TeamMember);
+        var monday = Monday.AddDays(21);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        DateTimeOffset At(int day, int hour) =>
+            new(TimeZoneInfo.ConvertTimeToUtc(monday.AddDays(day).ToDateTime(new TimeOnly(hour, 0)), zone), TimeSpan.Zero);
+        var name = $"Evening Devotion {Guid.NewGuid():N}"[..24];
+        var week = await (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks", new SessionWeekRequest(name, monday, "MinistryEvent",
+            "Chapel", null, "Pastor John",
+            [.. Enumerable.Range(0, 5).Select(d => new SessionDayRequest(At(d, 18), At(d, 19), $"Theme {d + 1}"))]), Ct)).DataAsync<SessionWeekResponse>();
+
+        using var harness = new DesktopHarness(factory);
+        var main = harness.Get<MainWindowViewModel>();
+        var window = Show(main);
+        var shell = await SignInAsync(main);
+        await shell.NavigateCommand.ExecuteAsync(shell.PrimaryItems.Single(i => i.Title == "Calendar"));
+        var calendar = Assert.IsType<CalendarViewModel>(shell.CurrentPage);
+        await calendar.OpenEventAsync(week.Days[1].EventId);
+        var invites = Assert.IsType<EventDetailsViewModel>(calendar.SidePanel).Invites!;
+
+        Assert.True(invites.IsWeek);
+        Assert.Equal("Google Calendar · whole week", invites.HeadingText);
+        Assert.Equal("Invite to the whole week…", invites.SendButtonText);
+        Assert.Equal("This week has not been sent to Google Calendar.", invites.SummaryText);
+
+        await invites.StartEditingCommand.ExecuteAsync(null);
+        invites.People.Single(p => p.Id == member.Id).IsSelected = true;
+        invites.ExtraEmails = "choir@example.org";
+        await invites.SendCommand.ExecuteAsync(null);
+
+        Assert.Equal("Synced", invites.Invite?.Status);
+        Assert.Equal(week.Id, invites.Invite?.SessionWeekId);
+        Assert.StartsWith("The whole week is on 2 people's Google Calendar", invites.SummaryText);
+        Assert.StartsWith("One invite for the whole week has been sent", invites.Message);
+        Snapshot(window, "71-google-invite-whole-week");
+
+        // Any other day of the week shows the same invite.
+        await calendar.OpenEventAsync(week.Days[3].EventId);
+        var other = Assert.IsType<EventDetailsViewModel>(calendar.SidePanel).Invites!;
+        Assert.Equal(invites.Invite?.SessionWeekId, other.Invite?.SessionWeekId);
+        Assert.Equal(2, other.Guests.Count);
+        window.Close();
+    });
+
+    [Fact]
+    public Task Weeks_and_events_over_several_days_are_drawn_as_one_bar() => Ui.Run(headless, async () =>
+    {
+        var admin = await factory.AdminClientAsync();
+        var monday = Monday.AddDays(63); // 6 August 2035: this week and the next are both in the month grid
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        DateTimeOffset At(int day, int hour) =>
+            new(TimeZoneInfo.ConvertTimeToUtc(monday.AddDays(day).ToDateTime(new TimeOnly(hour, 0)), zone), TimeSpan.Zero);
+        var name = $"Bar Devotion {Guid.NewGuid():N}"[..20];
+        var week = await (await admin.PostAsJsonAsync("/api/v1/calendar/session-weeks", new SessionWeekRequest(name, monday, "MinistryEvent",
+            null, null, "Pastor John",
+            [.. Enumerable.Range(0, 5).Select(d => new SessionDayRequest(At(d, 6), At(d, 7), $"Theme {d + 1}"))]), Ct)).DataAsync<SessionWeekResponse>();
+        // A three-day camp from Saturday to Monday: it crosses into the next week row.
+        var camp = $"Youth camp {Guid.NewGuid():N}"[..18];
+        await admin.PostAsJsonAsync("/api/v1/calendar/events", new CreateCalendarEventRequest(camp, null, "MinistryEvent",
+            At(5, 0), At(8, 0), true, "Campsite", null, "Normal", []), Ct);
+
+        using var harness = new DesktopHarness(factory);
+        var main = harness.Get<MainWindowViewModel>();
+        var window = Show(main);
+        var shell = await SignInAsync(main);
+        await shell.NavigateCommand.ExecuteAsync(shell.PrimaryItems.Single(i => i.Title == "Calendar"));
+        var calendar = Assert.IsType<CalendarViewModel>(shell.CurrentPage);
+        calendar.AnchorDate = monday;
+        await calendar.SetModeCommand.ExecuteAsync(CalendarMode.Month);
+
+        var row = calendar.MonthWeeks.Single(r => r.Cells[0].Date == monday);
+        var devotion = row.Bars.Single(b => b.Title == name);
+        Assert.Equal((0, 5, "06:00"), (devotion.Column, devotion.Span, devotion.TimeText));
+        Assert.Equal(week.Days.Select(d => d.EventId), devotion.Segments.Select(s => s.Item!.Item.SourceId));
+        Assert.Contains("Sharing: Pastor John", devotion.ToolTip);
+        Assert.All(row.Cells, c => Assert.DoesNotContain(c.Items, i => i.Title.StartsWith(name))); // no separate highlights
+        var campThisWeek = row.Bars.Single(b => b.Title == camp);
+        Assert.Equal((5, 2, false, true), (campThisWeek.Column, campThisWeek.Span, campThisWeek.ContinuesBefore, campThisWeek.ContinuesAfter));
+        var campNextWeek = calendar.MonthWeeks.Single(r => r.Cells[0].Date == monday.AddDays(7)).Bars.Single(b => b.Title == camp);
+        Assert.Equal((0, 1, true, false), (campNextWeek.Column, campNextWeek.Span, campNextWeek.ContinuesBefore, campNextWeek.ContinuesAfter));
+        Snapshot(window, "72-month-bars");
+
+        // Clicking Wednesday's part of the week bar opens Wednesday's session.
+        await calendar.OpenItemCommand.ExecuteAsync(devotion.Segments[2].Item);
+        Assert.Equal(week.Days[2].EventId, Assert.IsType<EventDetailsViewModel>(calendar.SidePanel).Event.Id);
+        calendar.CloseSidePanelCommand.Execute(null);
+
+        // Week view: the camp is one bar in the all-day row; sessions stay in the time grid.
+        calendar.AnchorDate = monday.AddDays(5);
+        await calendar.SetModeCommand.ExecuteAsync(CalendarMode.Week);
+        var weekBar = calendar.AllDayBars.Single(b => b.Title == camp);
+        Assert.Equal((5, 2), (weekBar.Column, weekBar.Span));
+        Assert.All(calendar.DayColumns, c => Assert.DoesNotContain(c.AllDayItems, i => i.Title == camp));
+        Snapshot(window, "73-week-all-day-bar");
         window.Close();
     });
 }

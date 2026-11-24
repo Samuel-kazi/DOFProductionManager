@@ -26,6 +26,12 @@ public sealed class CalendarEvent : AuditableEntity, IVersioned
     public CalendarEventStatus Status { get; private set; }
     public int Version { get; private set; }
 
+    /// <summary>The repeating series this event is one occurrence of, if any.</summary>
+    public Guid? SeriesId { get; private set; }
+
+    /// <summary>Links this event to its repeating series.</summary>
+    public void JoinSeries(EventSeries series) => SeriesId = series.Id;
+
     /// <summary>The session week this event is one day of, if any.</summary>
     public Guid? SessionWeekId { get; private set; }
 

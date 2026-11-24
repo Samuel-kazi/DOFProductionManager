@@ -397,6 +397,18 @@ inside an AES-GCM–encrypted `state` (bound to the user, 10 minutes), exchanges
 secret and stores only the encrypted refresh token (`AesSecretProtector`). Scopes: `openid email
 calendar.events`.
 
+**Repeating events.** A new event may carry a repeat rule (`EventSeries`: daily, every N weeks on
+chosen days, or monthly on the same date; until a date or N times, at most 200 occurrences within two
+years). `CalendarEventService` creates every occurrence as its own event at the same local time and
+length, linked by `series_id`; nothing is expanded at read time. Editing with `applyToFollowing` moves
+later occurrences by the same shift; cancelling with `following` stops the rest. Each occurrence can
+still be edited, moved or invited on its own.
+
+**Calendar bars.** The month view is built as six week rows (`MonthWeekRow`): items lasting more than one
+day, and two or more days of the same session week, are drawn as one bar across their columns
+(`CalendarBars`, with lanes and ◂ / square ends where a bar continues into another row); each day's
+part of a bar opens that day's item. The week view's all-day row draws multi-day items the same way.
+
 **Session weeks.** A weekly series (e.g. Morning Devotion, Monday–Friday) is planned in one form:
 `SessionWeekService` creates one standalone event per day, titled "‹name›: ‹theme›", with who is
 sharing in `calendar_events.speaker` (the week's speaker unless a day names someone else). The
@@ -407,7 +419,14 @@ cancels days left out. The desktop opens it from the calendar's New event ▾ me
 week of the same series (times, place, speakers; not themes), and the week view scrolls up to reveal
 sessions before 07:00.
 
-Invites exist for standalone events only. Their dates stay in `calendar_events`:
+A session week can be sent as **one** invite (`GoogleInviteSync.BuildWeek`): a repeating Google event at
+the first day's time with `RRULE:FREQ=WEEKLY;BYDAY=‹live days›;UNTIL=‹last day›`, whose description
+lists every day's theme and speaker. After upserting the series, `GoogleCalendarHttpApi` PATCHes each
+occurrence (`‹id›_‹original start UTC›`, `sendUpdates=none`) with the day's own title, speaker and
+time; an unknown occurrence (404) is skipped. Cancelling a day removes it from `BYDAY`; cancelling all
+days deletes the series. The desktop's Google card on a session day manages the week's invite.
+
+Invites exist for standalone events and session weeks. Their dates stay in `calendar_events`:
 `GoogleInviteSync.Build` rebuilds the Google event from the record on each push, and a SHA-256 of the
 payload (`synced_hash`) detects changes. The job runs every minute through `ReminderJobRunner`. It
 pushes queued and changed invites, deletes the Google event when the DOF event is cancelled or invites

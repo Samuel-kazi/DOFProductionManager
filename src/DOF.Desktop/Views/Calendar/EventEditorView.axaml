@@ -69,6 +69,36 @@
           </StackPanel>
         </StackPanel>
 
+        <!-- Repeating (new events) -->
+        <StackPanel Spacing="6" IsVisible="{Binding IsNew}">
+          <TextBlock Text="Repeat" />
+          <ComboBox x:Name="RepeatChoice" ItemsSource="{Binding RepeatOptions}" SelectedItem="{Binding SelectedRepeat}" Width="220">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="cal:RepeatChoice"><TextBlock Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ItemsControl ItemsSource="{Binding WeekdayOptions}" IsVisible="{Binding ShowRepeatDays}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="cal:WeekdayOption">
+                <ToggleButton Content="{Binding Label}" IsChecked="{Binding IsSelected}" Padding="8,4" MinWidth="0" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Repeats}">
+            <TextBlock Text="Until" VerticalAlignment="Center" />
+            <CalendarDatePicker SelectedDate="{Binding RepeatUntil}" Width="150" />
+          </StackPanel>
+        </StackPanel>
+
+        <!-- An event of a repeating series -->
+        <Border Classes="card" Padding="10" IsVisible="{Binding IsInSeries}">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="muted small" Text="{Binding RepeatText}" TextWrapping="Wrap" />
+            <CheckBox x:Name="ApplyToFollowing" Content="Also change the following events of this series" IsChecked="{Binding ApplyToFollowing}" />
+          </StackPanel>
+        </Border>
+
         <StackPanel Spacing="4" IsVisible="{Binding !IsNew}">
           <TextBlock Text="Status" />
           <ComboBox ItemsSource="{Binding Statuses}" SelectedItem="{Binding Status}" Width="170" />

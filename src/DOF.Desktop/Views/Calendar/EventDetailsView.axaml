@@ -25,14 +25,17 @@
       <Border Classes="banner error" IsVisible="{Binding IsConfirmingCancel}">
         <StackPanel Spacing="8">
           <TextBlock Text="Cancel this event? It will be removed from the calendar but kept in the records." TextWrapping="Wrap" />
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Button Content="Cancel event"
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Cancel event" Margin="0,0,8,4"
                     Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).ConfirmCancelEventCommand}"
                     CommandParameter="{Binding}" />
-            <Button Content="Keep it"
+            <Button Content="Cancel this and following" IsVisible="{Binding IsInSeries}" Margin="0,0,8,4"
+                    Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).ConfirmCancelFollowingCommand}"
+                    CommandParameter="{Binding}" />
+            <Button Content="Keep it" Margin="0,0,8,4"
                     Command="{Binding $parent[pageViews:CalendarView].((pages:CalendarViewModel)DataContext).KeepEventCommand}"
                     CommandParameter="{Binding}" />
-          </StackPanel>
+          </WrapPanel>
         </StackPanel>
       </Border>
       <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsConfirmingCancel}">
@@ -56,6 +59,10 @@
           <TextBlock Classes="muted small" Text="{Binding PriorityText}" />
         </StackPanel>
 
+        <StackPanel Spacing="3" IsVisible="{Binding RepeatText, Converter={x:Static ObjectConverters.IsNotNull}}">
+          <TextBlock Classes="muted small" Text="Repeats" />
+          <TextBlock Text="{Binding RepeatText}" TextWrapping="Wrap" />
+        </StackPanel>
         <StackPanel Spacing="3" IsVisible="{Binding Speaker, Converter={x:Static ObjectConverters.IsNotNull}}">
           <TextBlock Classes="muted small" Text="Sharing" />
           <TextBlock Text="{Binding Speaker}" TextWrapping="Wrap" FontWeight="SemiBold" />
@@ -82,7 +89,7 @@
         <Border Classes="card" Padding="12" IsVisible="{Binding HasInvites}" x:Name="GoogleInvites">
           <StackPanel Spacing="8" DataContext="{Binding Invites}" x:DataType="cal:GoogleInvitesViewModel">
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Classes="muted small" Text="Google Calendar" VerticalAlignment="Center" />
+              <TextBlock Classes="muted small" Text="{Binding HeadingText}" VerticalAlignment="Center" />
               <Button Grid.Column="1" Classes="toolbar" Content="↻" ToolTip.Tip="Refresh answers" Padding="6,0"
                       Command="{Binding RefreshCommand}" IsVisible="{Binding IsActive}" />
             </Grid>

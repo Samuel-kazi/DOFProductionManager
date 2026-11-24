@@ -16,7 +16,48 @@
     <DataTemplate DataType="cal:SessionWeekEditorViewModel"><calViews:SessionWeekEditorView /></DataTemplate>
   </UserControl.DataTemplates>
 
+  <UserControl.Resources>
+    <!-- One continuous bar; each day's part opens that day's item. -->
+    <DataTemplate x:Key="BarTemplate" DataType="cal:CalendarBar">
+      <Border Classes="item bar" Classes.cancelled="{Binding IsCancelled}" Height="20" CornerRadius="{Binding Corners}"
+              ToolTip.Tip="{Binding ToolTip}">
+        <Panel>
+          <Border Classes="tint" Background="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+          <Border Width="3" HorizontalAlignment="Left" IsVisible="{Binding !ContinuesBefore}"
+                  Background="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+          <ItemsControl ItemsSource="{Binding Segments}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="cal:BarSegment">
+                <Button Classes="barSegment" IsEnabled="{Binding HasItem}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                        Command="{Binding #Root.((pages:CalendarViewModel)DataContext).OpenItemCommand}" CommandParameter="{Binding Item}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <StackPanel Orientation="Horizontal" Spacing="5" Margin="8,0" IsHitTestVisible="False">
+            <TextBlock Classes="small" Text="◂" IsVisible="{Binding ContinuesBefore}" VerticalAlignment="Center" />
+            <TextBlock Classes="small" Text="{Binding TimeText}" IsVisible="{Binding HasTime}" VerticalAlignment="Center" FontWeight="SemiBold" />
+            <TextBlock Classes="small" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" />
+          </StackPanel>
+        </Panel>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
+
   <UserControl.Styles>
+    <Style Selector="Button.barSegment">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+    <Style Selector="Button.barSegment:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.barSegment:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
     <!-- Calendar item visuals: a soft tint of the category colour with a solid edge. -->
     <Style Selector="Border.item">
       <Setter Property="CornerRadius" Value="5" />
@@ -198,49 +239,78 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
           <Border Grid.Row="1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,1,0,0" CornerRadius="8" ClipToBounds="True">
-            <ItemsControl ItemsSource="{Binding MonthCells}">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7" Rows="6" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl ItemsSource="{Binding MonthWeeks}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="1" Rows="6" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="cal:MonthDayCell">
-                  <Border Classes="monthCell" Classes.outside="{Binding !IsCurrentMonth}"
-                          DoubleTapped="OnMonthCellDoubleTapped">
-                    <DockPanel>
-                      <Button DockPanel.Dock="Top" Classes="toolbar" Padding="0" HorizontalAlignment="Left"
-                              Command="{Binding #Root.((pages:CalendarViewModel)DataContext).OpenDayCommand}"
-                              CommandParameter="{Binding Date}" ToolTip.Tip="Open this day">
-                        <Border Classes="dayNumber" Classes.today="{Binding IsToday}" CornerRadius="11" Padding="7,2" MinWidth="22">
-                          <TextBlock Text="{Binding DayNumber}" FontSize="12" HorizontalAlignment="Center" />
+                <DataTemplate DataType="cal:MonthWeekRow">
+                  <Panel>
+                    <ItemsControl ItemsSource="{Binding Cells}">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="7" Rows="1" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="cal:MonthDayCell">
+                        <Border Classes="monthCell" Classes.outside="{Binding !IsCurrentMonth}"
+                                DoubleTapped="OnMonthCellDoubleTapped">
+                          <DockPanel>
+                            <Button DockPanel.Dock="Top" Classes="toolbar" Padding="0" HorizontalAlignment="Left"
+                                    Command="{Binding #Root.((pages:CalendarViewModel)DataContext).OpenDayCommand}"
+                                    CommandParameter="{Binding Date}" ToolTip.Tip="Open this day">
+                              <Border Classes="dayNumber" Classes.today="{Binding IsToday}" CornerRadius="11" Padding="7,2" MinWidth="22">
+                                <TextBlock Text="{Binding DayNumber}" FontSize="12" HorizontalAlignment="Center" />
+                              </Border>
+                            </Button>
+                            <Button DockPanel.Dock="Bottom" Classes="toolbar" Padding="4,0" HorizontalAlignment="Left"
+                                    IsVisible="{Binding MoreText, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                    Command="{Binding #Root.((pages:CalendarViewModel)DataContext).OpenDayCommand}"
+                                    CommandParameter="{Binding Date}">
+                              <TextBlock Classes="muted small" Text="{Binding MoreText}" />
+                            </Button>
+                            <Border DockPanel.Dock="Top" Height="{Binding BarSpace}" />
+                            <ItemsControl ItemsSource="{Binding Items}" Margin="0,2,0,0">
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="cal:CalendarItemViewModel">
+                                  <Border Classes="item" Classes.cancelled="{Binding IsCancelled}" Margin="0,1" Height="20"
+                                          ToolTip.Tip="{Binding ToolTip}"
+                                          PointerPressed="OnItemPointerPressed" PointerMoved="OnItemPointerMoved"
+                                          PointerReleased="OnItemPointerReleased" PointerCaptureLost="OnItemCaptureLost">
+                                    <Panel>
+                                      <Border Classes="tint" Background="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                                      <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0">
+                                        <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                                 Fill="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
+                                        <TextBlock Classes="small" Text="{Binding Start, StringFormat='{}{0:HH:mm}'}"
+                                                   IsVisible="{Binding !IsDayLong}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                        <TextBlock Classes="small" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                      </StackPanel>
+                                    </Panel>
+                                  </Border>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </DockPanel>
                         </Border>
-                      </Button>
-                      <Button DockPanel.Dock="Bottom" Classes="toolbar" Padding="4,0" HorizontalAlignment="Left"
-                              IsVisible="{Binding MoreText, Converter={x:Static ObjectConverters.IsNotNull}}"
-                              Command="{Binding #Root.((pages:CalendarViewModel)DataContext).OpenDayCommand}"
-                              CommandParameter="{Binding Date}">
-                        <TextBlock Classes="muted small" Text="{Binding MoreText}" />
-                      </Button>
-                      <ItemsControl ItemsSource="{Binding Items}" Margin="0,2,0,0">
-                        <ItemsControl.ItemTemplate>
-                          <DataTemplate DataType="cal:CalendarItemViewModel">
-                            <Border Classes="item" Classes.cancelled="{Binding IsCancelled}" Margin="0,1" Height="20"
-                                    ToolTip.Tip="{Binding ToolTip}"
-                                    PointerPressed="OnItemPointerPressed" PointerMoved="OnItemPointerMoved"
-                                    PointerReleased="OnItemPointerReleased" PointerCaptureLost="OnItemCaptureLost">
-                              <Panel>
-                                <Border Classes="tint" Background="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
-                                <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0">
-                                  <Ellipse Width="7" Height="7" VerticalAlignment="Center"
-                                           Fill="{Binding CategoryBrushKey, Converter={x:Static conv:ResourceBrushConverter.Instance}}" />
-                                  <TextBlock Classes="small" Text="{Binding Start, StringFormat='{}{0:HH:mm}'}"
-                                             IsVisible="{Binding !IsDayLong}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                                  <TextBlock Classes="small" Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                </StackPanel>
-                              </Panel>
-                            </Border>
-                          </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                      </ItemsControl>
-                    </DockPanel>
-                  </Border>
+                      </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!-- Bars across days: events lasting several days and the days of a planned week. -->
+                    <ItemsControl ItemsSource="{Binding Bars}" x:Name="MonthBars">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><Grid ColumnDefinitions="*,*,*,*,*,*,*" /></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.Styles>
+                        <Style Selector="ItemsControl#MonthBars > ContentPresenter" x:DataType="cal:CalendarBar">
+                          <Setter Property="Grid.Column" Value="{Binding Column}" />
+                          <Setter Property="Grid.ColumnSpan" Value="{Binding Span}" />
+                          <Setter Property="VerticalAlignment" Value="Top" />
+                          <Setter Property="Margin" Value="{Binding Margin}" />
+                        </Style>
+                      </ItemsControl.Styles>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="cal:CalendarBar">
+                          <ContentControl Content="{Binding}" ContentTemplate="{StaticResource BarTemplate}" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </Panel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -269,6 +339,8 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate DataType="cal:DayColumn">
                     <Border Classes="allDayCell" MinHeight="26" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1,0,0,0" Padding="2">
+                      <StackPanel>
+                      <Border Height="{Binding BarSpace}" />
                       <ItemsControl ItemsSource="{Binding AllDayItems}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate DataType="cal:CalendarItemViewModel">
@@ -284,7 +356,26 @@
                           </DataTemplate>
                         </ItemsControl.ItemTemplate>
                       </ItemsControl>
+                      </StackPanel>
                     </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ItemsControl Grid.Column="1" ItemsSource="{Binding AllDayBars}" x:Name="AllDayBars" IsVisible="{Binding IsWeek}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><Grid ColumnDefinitions="*,*,*,*,*,*,*" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.Styles>
+                  <Style Selector="ItemsControl#AllDayBars > ContentPresenter" x:DataType="cal:CalendarBar">
+                    <Setter Property="Grid.Column" Value="{Binding Column}" />
+                    <Setter Property="Grid.ColumnSpan" Value="{Binding Span}" />
+                    <Setter Property="VerticalAlignment" Value="Top" />
+                    <Setter Property="Margin" Value="{Binding Margin}" />
+                  </Style>
+                </ItemsControl.Styles>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="cal:CalendarBar">
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource BarTemplate}" />
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
